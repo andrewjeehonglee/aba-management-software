@@ -18,7 +18,7 @@ function App() {
         <CardHeader>
           <CardTitle>Hello, Andrew!</CardTitle>
           <CardDescription>
-            Vite + React + TypeScript + Tailwind v4 + shadcn/ui — all working.
+            Vite + React + TypeScript + Tailwind v4 + shadcn/ui — deployed live on Vercel.
           </CardDescription>
         </CardHeader>
         <CardContent>
