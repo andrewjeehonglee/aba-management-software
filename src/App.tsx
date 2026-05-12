@@ -13,7 +13,7 @@ function App() {
   const [count, setCount] = useState(0)
 
   return (
-    <div className="min-h-svh bg-background text-foreground flex items-center justify-center p-6">
+    <div className="min-h-svh bg-background text-foreground flex flex-col items-center justify-center gap-4 p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Hello, Andrew!</CardTitle>
@@ -34,6 +34,7 @@ function App() {
           </Button>
         </CardFooter>
       </Card>
+      <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>
   )
 }
