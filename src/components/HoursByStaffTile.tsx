@@ -1,48 +1,64 @@
-import { TriangleAlert, type LucideIcon } from "lucide-react"
+import { useState } from "react"
+import { TriangleAlert } from "lucide-react"
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  ResponsiveContainer,
   XAxis,
   YAxis,
 } from "recharts"
 import {
   Card,
+  CardAction,
+  CardContent,
   CardHeader,
   CardTitle,
-  CardContent,
 } from "@/components/ui/card"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/components/ui/chart"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { mockStaff } from "@/data/mockStaff"
+import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
 
-const COLOR_DIRECT = "#10b981"
-const COLOR_INDIRECT = "#94a3b8"
-const COLOR_CANCELLATION = "#ef4444"
+const chartConfig = {
+  directHours: { label: "Direct", color: "#10b981" },
+  indirectHours: { label: "Indirect", color: "#94a3b8" },
+  cancellationHours: { label: "Cancellation", color: "#ef4444" },
+} satisfies ChartConfig
 
-type KeyItemProps = {
-  label: string
-  color?: string
-  icon?: LucideIcon
-}
+const SORT_OPTIONS = {
+  name: {
+    label: "Name (A–Z)",
+    compare: (a: Staff, b: Staff) => a.name.localeCompare(b.name),
+  },
+  total: {
+    label: "Total hours (high → low)",
+    compare: (a: Staff, b: Staff) => b.totalHours - a.totalHours,
+  },
+  directPct: {
+    label: "Direct % (low → high)",
+    compare: (a: Staff, b: Staff) =>
+      a.directHours / a.totalHours - b.directHours / b.totalHours,
+  },
+  cancellation: {
+    label: "Cancellation hrs (high → low)",
+    compare: (a: Staff, b: Staff) =>
+      b.cancellationHours - a.cancellationHours,
+  },
+} as const
 
-function KeyItem({ label, color, icon: Icon }: KeyItemProps) {
-  return (
-    <div className="flex items-center gap-1.5">
-      {color && (
-        <span
-          className="inline-block h-3 w-3 rounded-sm"
-          style={{ backgroundColor: color }}
-          aria-hidden="true"
-        />
-      )}
-      {Icon && (
-        <Icon className="h-3.5 w-3.5 text-amber-500" aria-hidden="true" />
-      )}
-      <span>{label}</span>
-    </div>
-  )
-}
+type SortKey = keyof typeof SORT_OPTIONS
 
 type AxisTickProps = {
   x?: number
@@ -79,33 +95,59 @@ function YAxisTick({ x = 0, y = 0, payload }: AxisTickProps) {
 }
 
 export function HoursByStaffTile() {
+  const [sortKey, setSortKey] = useState<SortKey>("name")
+
+  const sortedStaff = [...mockStaff].sort(SORT_OPTIONS[sortKey].compare)
+
   return (
     <Card className="w-full max-w-2xl">
       <CardHeader>
         <CardTitle>Hours by Staff (Last 7 Days)</CardTitle>
+        <CardAction>
+          <Select
+            value={sortKey}
+            onValueChange={(v) => setSortKey(v as SortKey)}
+          >
+            <SelectTrigger className="h-8 w-[200px] text-xs">
+              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+                <SelectItem key={key} value={key} className="text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <KeyItem color={COLOR_DIRECT} label="Direct" />
-          <KeyItem color={COLOR_INDIRECT} label="Indirect" />
-          <KeyItem color={COLOR_CANCELLATION} label="Cancellation" />
-          <KeyItem icon={TriangleAlert} label="Below 50% direct" />
+        <div className="mb-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {Object.entries(chartConfig).map(([key, { label, color }]) => (
+            <div key={key} className="flex items-center gap-1.5">
+              <span
+                className="inline-block h-3 w-3 rounded-sm"
+                style={{ backgroundColor: color }}
+                aria-hidden="true"
+              />
+              <span>{label}</span>
+            </div>
+          ))}
         </div>
 
-        <ResponsiveContainer width="100%" height={460}>
+        <ChartContainer
+          config={chartConfig}
+          className="aspect-auto h-[460px] w-full"
+        >
           <BarChart
-            data={mockStaff}
+            data={sortedStaff}
             layout="vertical"
             margin={{ top: 8, right: 16, left: 16, bottom: 8 }}
           >
-            <CartesianGrid
-              horizontal={false}
-              strokeDasharray="3 3"
-              stroke="#f1f5f9"
-            />
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
             <XAxis
               type="number"
-              tick={{ fontSize: 11, fill: "#94a3b8" }}
+              tick={{ fontSize: 11 }}
               axisLine={false}
               tickLine={false}
             />
@@ -118,15 +160,33 @@ export function HoursByStaffTile() {
               axisLine={false}
               tickLine={false}
             />
-            <Bar dataKey="directHours" stackId="hours" fill={COLOR_DIRECT} />
-            <Bar dataKey="indirectHours" stackId="hours" fill={COLOR_INDIRECT} />
+            <ChartTooltip
+              content={<ChartTooltipContent indicator="dot" />}
+            />
+            <Bar
+              dataKey="directHours"
+              stackId="hours"
+              fill="var(--color-directHours)"
+            />
+            <Bar
+              dataKey="indirectHours"
+              stackId="hours"
+              fill="var(--color-indirectHours)"
+            />
             <Bar
               dataKey="cancellationHours"
               stackId="hours"
-              fill={COLOR_CANCELLATION}
+              fill="var(--color-cancellationHours)"
             />
           </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <TriangleAlert
+            className="h-3.5 w-3.5 text-amber-500"
+            aria-hidden="true"
+          />
+          <span>Flagged: below 50% direct hours</span>
+        </p>
       </CardContent>
     </Card>
   )
