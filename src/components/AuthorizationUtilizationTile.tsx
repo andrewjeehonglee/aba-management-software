@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
+import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { ClientAuthorization } from "@/types/authorization"
 
@@ -141,7 +142,7 @@ export function AuthorizationUtilizationTile({ className }: { className?: string
               >
                 <span className="flex-1 truncate min-w-0">
                   <Link
-                    to={"/clients/" + client.clientName.toLowerCase().replace(/\s+/g, "-")}
+                    to={"/clients/" + toSlug(client.clientName)}
                     className="hover:underline underline-offset-2"
                   >
                     {client.clientName}

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { mockSessions } from "@/data/mockSessions"
+import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { Session, SessionStatus } from "@/types/session"
 
@@ -190,7 +191,7 @@ export function TodaySessionsTile({ className }: { className?: string }) {
                 </div>
                 <div className="truncate min-w-0 py-1.5 text-sm">
                   <Link
-                    to={"/clients/" + s.clientName.toLowerCase().replace(/\s+/g, "-")}
+                    to={"/clients/" + toSlug(s.clientName)}
                     className="hover:underline underline-offset-2"
                   >
                     {s.clientName}

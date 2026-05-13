@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import {
   Card,
   CardAction,
@@ -14,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockOverdueNotes } from "@/data/mockOverdueNotes"
+import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { OverdueNotesByStaff } from "@/types/overdueNotes"
 
@@ -112,7 +114,14 @@ export function NotesOverdueTile({ className }: { className?: string }) {
               key={row.staffName}
               className="flex items-center justify-between text-sm"
             >
-              <span className="truncate min-w-0 pr-2">{row.staffName}</span>
+              <span className="truncate min-w-0 pr-2">
+                <Link
+                  to={"/staff/" + toSlug(row.staffName)}
+                  className="hover:underline underline-offset-2"
+                >
+                  {row.staffName}
+                </Link>
+              </span>
               <CountPill count={row.overdueCount} />
             </li>
           ))}

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { TriangleAlert } from "lucide-react"
+import { Link } from "react-router-dom"
 import {
   Bar,
   BarChart,
@@ -30,6 +31,7 @@ import {
 import { mockStaff } from "@/data/mockStaff"
 import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
+import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 
 const chartConfig = {
@@ -88,7 +90,12 @@ function YAxisTick({ x = 0, y = 0, payload }: AxisTickProps) {
               </span>
             </>
           )}
-          <span>{payload.value}</span>
+          <Link
+            to={"/staff/" + toSlug(payload.value)}
+            className="hover:underline underline-offset-2"
+          >
+            {payload.value}
+          </Link>
         </div>
       </foreignObject>
     </g>

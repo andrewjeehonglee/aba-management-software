@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import {
   Card,
   CardAction,
@@ -15,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockSupervision } from "@/data/mockSupervision"
+import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { RBTSupervision } from "@/types/supervision"
 
@@ -132,7 +134,14 @@ export function SupervisionComplianceTile({ className }: { className?: string })
                 key={rbt.rbtName}
                 className="flex items-center gap-3 text-sm"
               >
-                <span className="flex-1 truncate min-w-0">{rbt.rbtName}</span>
+                <span className="flex-1 truncate min-w-0">
+                  <Link
+                    to={"/staff/" + toSlug(rbt.rbtName)}
+                    className="hover:underline underline-offset-2"
+                  >
+                    {rbt.rbtName}
+                  </Link>
+                </span>
                 <MiniBar pct={rbt.supervisionPct} />
                 <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
                   {rbt.supervisionPct.toFixed(1)}%
