@@ -234,20 +234,95 @@ A running log of what's been built, in chronological order, so future-me can pic
 
 ---
 
+## Session 10 — Routing, Client Overview, Staff Overview, Goals, Certifications tile
+
+**What landed:** The dashboard stops being a single page. React Router lands; clicking a client name takes you to a real client page; clicking a staff name takes you to a real staff page; both pages cross-link back to each other. A 6th tile (Certifications Expiring Soon) joins the bottom row. Every tile name on the dashboard is now a working link into a real detail page — the "click anywhere" affordance is finally honest.
+
+**1. React Router + SPA fallback (`c6e69d0`):**
+- Installed `react-router-dom`, wrapped `<App />` in `<BrowserRouter>` in `main.tsx`
+- `App.tsx` becomes a routing shell — `<Routes>` with `/` → `DashboardPage` and `/clients/:clientId` → `ClientOverviewPage` placeholder
+- Moved all dashboard JSX out of `App.tsx` into a new `src/pages/DashboardPage.tsx` — clean separation between routing and page content
+- Created `vercel.json` with `{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }` — without this, hitting `/clients/sophia-bennett` directly on Vercel returns 404 because the server has no such file. The rewrite tells Vercel "always serve index.html and let React Router figure it out."
+
+**2. Click-throughs + slug lib + Staff route (`dab42e7`, `578ef35`):**
+- First pass: wrapped client names in `TodaySessionsTile` and `AuthorizationUtilizationTile` with inline `<Link to={"/clients/" + name.toLowerCase().replace(/\s+/g, "-")}>` — 2 callers, inline was fine
+- Second pass: extracted `src/lib/slug.ts` with `toSlug(name)` and `unslug(slug)` once the third caller (staff links) materialized — rule of three applied
+- Wired staff click-throughs in `HoursByStaffTile`, `NotesOverdueTile`, `SupervisionComplianceTile` (5 tiles total now have working click-throughs)
+- The chart staff names live inside SVG, so `HoursByStaffTile`'s `<YAxisTick>` had to wrap the existing `<foreignObject>` content in a `<Link>` — same DOM-in-SVG escape hatch from Session 4 paying off again
+- Added `/staff/:staffId` route → `StaffOverviewPage` placeholder, mirroring the client placeholder
+
+**3. Client Overview build-out — 4 sections in 4 commits (`e474bd2` → `ec5bd96` → `9e2909b` → `de26102` → `2891207`):**
+- **Header section** (`e474bd2`): Display name (slug-matched against sessions, auth, then `unslug()` fallback). Summary chips ("3 sessions today", "2 staff assigned") derived from `mockSessions`. Status breakdown sub-line ("Today: 1 completed · 1 in progress …").
+- **Authorization section** (`e474bd2`): Expanded mini-bar pattern — full-width bar, percentage, plain-English line ("72 of 100 hrs used — 28 remaining"). Threshold marker preserved from the dashboard tile. Empty state for clients without auth data.
+- **Auth lib extraction** (`e474bd2`): Once `AuthorizationUtilizationTile` AND `ClientOverviewPage` both needed the same threshold + color logic, extracted `src/lib/authorization.ts` with `FLAGGED_THRESHOLD`, `utilizationClass()`, `usedHours()`. `mockAuthorizations.ts` gained a `totalAuthorizedHours` field so the page can show absolute hours, not just %.
+- **"Working with" row** (`ec5bd96`): Comma-separated staff name links under the chips. Cross-page navigation lives in the header now — visitors don't need to scroll to find their next click.
+- **Sessions table** (`9e2909b`): "Sessions — Last 7 Days" card with 4 columns (Time / Staff linked / Type / Status). Status uses a copied `STATUS_CONFIG` block from `TodaySessionsTile` — 2 callers, deferred extraction. (This will get extracted in step 4 once a third caller appears.)
+- **Identity detail grid** (`de26102`): 8 fields from Jenny's working doc — DOB, address, insurance, authorization period, CPT/billing code with plain-English label, BCBA, Supervisor, Technician (last three derived from sessions where possible, then mock fallbacks). New `src/types/client.ts` + `src/data/mockClients.ts` (8 entries with realistic demographics + care team). Renders as semantic `<dl>/<dt>/<dd>` for screen-reader-friendly definition list semantics.
+- **Active Goals section** (`2891207`): New `src/types/goal.ts` and `src/data/mockGoals.ts` keyed by client slug, 6-8 goals each. Each row: bold goal name, muted mastery criteria below, right-aligned streak ("3 days in a row at 80%"), color-coded status chip (under-progress red / in-progress slate / nearing-mastery amber / mastered emerald), "Last updated X days ago" with editorial today/yesterday formatting. Sort priority: under-progress → in-progress → nearing-mastery → mastered (worst first, matching the rest of the dashboard's "needs attention first" pattern). Deliberate call NOT to add progress bars per Jenny's May 5 input ("we already have streaks, bars would be visual noise").
+
+**4. Staff Overview build-out + domain lib extractions (`df925db`):**
+- New `src/pages/StaffOverviewPage.tsx` mirroring the client page's 4-section shape
+- **Header**: Name + role subtitle ("Technician · this week", derived from session types — leading any Supervision/Assessment/Parent training session reads as Supervisor / BCBA, otherwise Technician). Chips for sessions + clients served. Identity detail grid: Role title (formal credential — "Behavior Technician (RBT)"), Hire date, Certification, Assigned team.
+- **Supervision compliance**: Expanded mini-bar + % + `ComplianceBadge` (Compliant / At risk / Non-compliant) + plain-English line ("3.4 of 2 required supervision hours this period"). Empty state for staff without supervision data.
+- **Sessions this week**: Same 4-column table as Client Overview, with client names linked back to `/clients/:clientId` — completes the navigation loop (client page → staff page → client page).
+- **Client caseload**: Unique clients this staff member has sessions with, rendered as linked chips.
+- **Three lib + component extractions**, all forced by the rule of three:
+  - `src/lib/sessions.ts` — `STATUS_CONFIG`, `STATUS_ORDER`, `formatTime` (3rd caller arrived: Today's Sessions tile, Client Overview, Staff Overview)
+  - `src/components/SessionStatusBadge.tsx` — extracted from inline `StatusBadge` for the same reason
+  - `src/lib/supervision.ts` — `SUPERVISION_THRESHOLD`, `WATCH_UPPER`, `complianceClasses`, `complianceStatus`, `requiredHours`, `actualSupervisionHours` (Supervision tile + Staff Overview both compute compliance bands)
+- **Staff type extended**: `src/types/staff.ts` gained `StaffRole` enum (BCBA / Supervisor / Technician) + `hireDate`, `certification`, `team` fields. All 13 mockStaff records updated with realistic data.
+
+**5. CertificationsExpiringTile — 6th dashboard tile (`cf5061c`):**
+- New `src/components/CertificationsExpiringTile.tsx` — KPI headline (count of staff with certs expiring within 90 days) + per-staff list sorted soonest-first. Each row: linked staff name, cert type, days-until-expiry with editorial formatting ("In 18 days" / "Expires tomorrow" / "Expired N days ago"), color-coded chip (Urgent ≤ 30 days red, Warning 31-90 amber).
+- Extended `src/lib/staff.ts` with `parseCertification()` (regex-parses "RBT — expires Aug 2026" into `{ type, expiryDate }`), `daysUntil()` (whole-day diff with midnight normalization), and named thresholds `CERT_WARNING_DAYS` / `CERT_URGENT_DAYS`
+- Convention: ABA certs expire on the LAST day of the listed month (`new Date(year, month+1, 0)` JS quirk gets us "last day of month N" via "day 0 of month N+1"). Documented in code comments.
+- Affirmative empty state — when zero certs are expiring, an emerald-tinted card with check icon ("All certifications current") instead of the usual dashed "no data" border. Different visual language for celebratory outcomes vs missing data.
+- Tweaked 3 mockStaff cert dates (Marcus Johnson → May 2026 urgent, James Rodriguez + Ben Garcia → Jul 2026 warning) so the tile actually has data to render against today's date. Picked staff *outside* the existing flagged trio (David Kim / Olivia Park / Tyler Brooks) so the cert tile flags new people instead of piling on — adds variety to the cross-tile narrative.
+- **Layout decision**: declined `lg:grid-cols-4` for the bottom KPI row because the existing Supervision/Auth mini-bars (fixed `w-44`) would clip the staff-name column at 25% tile width. Instead, added the tile as a 4th child in the existing `lg:grid-cols-3` grid and let CSS auto-flow place it at row 2 column 1. Two empty cells to its right read as "open slots for future tiles" rather than a defect.
+
+**6. Graceful empty-staff page (`03c401f`):**
+- Click-throughs revealed a problem: James Rodriguez appears in `mockStaff` and the cert tile but has no sessions, no supervision, no caseload. Clicking through landed on a page where 3 of 4 sections empty-stated out and the role subtitle didn't render at all (because the derivation requires sessions). Looked broken.
+- **Subtitle fallback**: when `derivedRole` is null, fall back to formal `staff.role` ("Technician") without the "· this week" suffix. With-suffix means "what they're doing now"; without-suffix means "who they are on paper" — same word, different semantics encoded by a single qualifier.
+- **Empty-state collapse**: when sessions AND supervision are both empty, replace the cascade of three near-identical "No X" dashed cards with one explanatory notice ("No session activity for [name] this week. When sessions are scheduled, supervision compliance, sessions, and caseload will appear here."). Reads as intentional, not broken. Header card always renders — the cert visitor still gets the cert info they came for.
+
+**Commits:** `c6e69d0` → `dab42e7` → `578ef35` → `e474bd2` → `ec5bd96` → `9e2909b` → `de26102` → `2891207` → `df925db` → `cf5061c` → `03c401f`
+
+**New skills:**
+- React Router fundamentals (`BrowserRouter`, `Routes`/`Route`, `useParams`, `<Link>`) and the SPA-fallback gotcha that catches everyone the first time they deploy a client-routed app to a static host
+- The `src/pages/` convention — pages own data fetching + composition, components own a single visual unit. Routing is a shell, not a participant.
+- Slug-based identity ("name → URL → name") with paired `toSlug` / `unslug` helpers, including the unslug fallback for displaying clients/staff that exist in the URL but not in any data file
+- Rule of three applied four times in one session (sessions lib, supervision lib, slug lib, SessionStatusBadge component) — pattern for recognizing when "copy" becomes "extract"
+- Multi-section detail page composition — 4 cards on each overview page, each card a self-contained section with its own empty state
+- Cross-page navigation as a graph, not a tree — clicking a client name on the dashboard → client page → linked staff name → staff page → linked client chip → another client page. No dead ends.
+- Date parsing without a date library — month-abbreviation regex + `new Date(year, month+1, 0)` for last-day-of-month + midnight-normalized whole-day diff. Robust enough for production cert handling.
+- Embedding `<Link>` into Recharts SVG via `<foreignObject>` — third use of this escape hatch (icons in Session 4, link-wrapping here)
+- Affirmative vs neutral empty states — celebratory outcomes ("All certifications current") get a different visual language than missing data ("No supervision data available")
+- Distinguishing two semantically-different empty states with the same word — "Technician · this week" (active) vs "Technician" (formal) — by adding/removing a qualifier
+- Collapsing a cascade of related empty cards into a single explanatory notice — "three things missing reads as broken; one notice reads as intentional"
+
+---
+
 ## Project anatomy
 
 ```
 src/
-├── App.tsx                                ← Page shell — header + 2 grids (top: 2-col, bottom: 3-col) + footer
-├── main.tsx                               ← React boot (don't touch)
+├── App.tsx                                ← Routing shell — <Routes> with 3 paths
+├── main.tsx                               ← React boot + <BrowserRouter> wrap (don't touch)
 ├── index.css                              ← Tailwind import + shadcn design tokens
 │
+├── pages/
+│   ├── DashboardPage.tsx                  ← Header + 2 grids (top: 2-col, bottom: 3-col with auto-flowed 6th tile) + footer
+│   ├── ClientOverviewPage.tsx             ← /clients/:clientId — header + auth + sessions + active goals
+│   └── StaffOverviewPage.tsx              ← /staff/:staffId — header + supervision + sessions + caseload (with collapsed empty state)
+│
 ├── components/
-│   ├── HoursByStaffTile.tsx               ← Stacked Recharts bar (all 13 staff, sortable, flag indicators)
-│   ├── TodaySessionsTile.tsx              ← Today's session table + status filter chips + sort dropdown
-│   ├── NotesOverdueTile.tsx               ← KPI headline + per-staff overdue count list (sortable)
-│   ├── SupervisionComplianceTile.tsx      ← KPI + per-RBT mini-bars (low % = bad, 5% threshold marker)
-│   ├── AuthorizationUtilizationTile.tsx   ← KPI + per-client mini-bars (high % = bad, inverted semantics)
+│   ├── HoursByStaffTile.tsx               ← Stacked Recharts bar (all 13 staff, sortable, flag indicators, linked names)
+│   ├── TodaySessionsTile.tsx              ← Today's session table + status filter chips + sort dropdown (linked clients)
+│   ├── NotesOverdueTile.tsx               ← KPI headline + per-staff overdue count list (sortable, linked names)
+│   ├── SupervisionComplianceTile.tsx      ← KPI + per-RBT mini-bars (low % = bad, 5% threshold marker, linked names)
+│   ├── AuthorizationUtilizationTile.tsx   ← KPI + per-client mini-bars (high % = bad, inverted semantics, linked names)
+│   ├── CertificationsExpiringTile.tsx     ← KPI + per-staff list (90-day window, urgent/warning chips, affirmative empty state)
+│   ├── SessionStatusBadge.tsx             ← Shared status pill (used by Today's Sessions, Client Overview, Staff Overview)
 │   └── ui/                                ← shadcn-generated primitives — DO NOT EDIT
 │       ├── button.tsx
 │       ├── card.tsx
@@ -257,22 +332,32 @@ src/
 │       └── toggle-group.tsx
 │
 ├── data/                                  ← Mock data, one file per domain
-│   ├── mockStaff.ts                       ← 13 staff records (3 below 50% direct)
+│   ├── mockStaff.ts                       ← 13 staff records (role, hire date, certification, team + hour fields)
 │   ├── mockSessions.ts                    ← 12 sessions across the day, mixed statuses
 │   ├── mockOverdueNotes.ts                ← 7 staff with overdue notes (totals to 30)
 │   ├── mockSupervision.ts                 ← 8 RBTs spanning red/amber/green compliance
-│   └── mockAuthorizations.ts              ← 8 clients with utilization %, names match mockSessions
+│   ├── mockAuthorizations.ts              ← 8 clients with utilization % + total authorized hours
+│   ├── mockClients.ts                     ← 8 client identity profiles (DOB, address, insurance, auth period, CPT, care team)
+│   └── mockGoals.ts                       ← Client goals keyed by slug, 6-8 each (name, mastery target, streak, status)
 │
 ├── lib/
-│   ├── staff.ts                           ← isStaffFlagged() + DIRECT_HOURS_THRESHOLD
+│   ├── slug.ts                            ← toSlug() / unslug() — name ↔ URL conversion
+│   ├── sessions.ts                        ← STATUS_CONFIG + STATUS_ORDER + formatTime() (shared session display logic)
+│   ├── supervision.ts                     ← SUPERVISION_THRESHOLD + complianceClasses() + complianceStatus() + hour calcs
+│   ├── authorization.ts                   ← FLAGGED_THRESHOLD + utilizationClass() + usedHours()
+│   ├── staff.ts                           ← isStaffFlagged() + parseCertification() + daysUntil() + cert thresholds
 │   └── utils.ts                           ← shadcn's cn() helper
 │
 └── types/                                 ← TypeScript interfaces, one file per domain
-    ├── staff.ts
-    ├── session.ts
+    ├── staff.ts                           ← Staff + StaffRole
+    ├── session.ts                         ← Session + SessionStatus
     ├── overdueNotes.ts
     ├── supervision.ts
-    └── authorization.ts
+    ├── authorization.ts                   ← ClientAuthorization (with totalAuthorizedHours)
+    ├── client.ts                          ← ClientProfile (identity + care team)
+    └── goal.ts                            ← Goal + GoalStatus
+
+vercel.json                                ← SPA fallback rewrite — required for client-side routing on Vercel
 
 docs/
 ├── dashboard-vision.md                    ← Source of truth for product intent (supersedes Figma)
@@ -312,22 +397,25 @@ git push                                      # → GitHub → Vercel auto-deplo
 
 ## What's NOT done yet (next sessions, suggested order)
 
-**Tier 1 — real product work:**
-1. **Wire to a real backend** — replace each `mockX` import with API data. Introduces `useEffect`, `fetch`, loading + error + empty states. The shape of every tile already matches a future API response, so this is mostly plumbing.
-2. **Add authentication** — log in / log out, session persistence, route guards. Will also unlock workspace name + user avatar in the page header.
-3. **Add routing** — React Router for multiple pages (Dashboard / Staff / Clients / Settings). Currently all one page.
+**Phase 2 — remaining product builds:**
+1. **Session View (Screen 2)** — the largest remaining build. Per-session detail page (clinical notes, data collection grid per goal, timer, billing fields). Reachable from any session row across the app. This is where most of the daily clinical work actually happens.
+2. **Calendar on Client Overview** — weekly/monthly view of past + upcoming sessions for a client. Today the Sessions card is a flat list; the calendar adds shape to "what's their schedule actually look like."
+3. **RBAC role-toggle** — surface a dev-only role switcher (Owner / BCBA / RBT / Front-desk) that changes which tiles + actions are visible. Today every visitor sees everything; real ABA orgs need scoped views.
+4. **Real data hookup** — replace each `mockX` import with API calls. Introduces `useEffect`, `fetch`, loading/error/empty states. Every tile and page is already shaped to a future API response, so this is mostly plumbing.
 
-**Tier 2 — Jenny-feedback polish (waiting for next user-feedback round):**
-4. **Sort dropdown labels are wider than they need to be** — trim padding or use a more compact Select variant; the truncation is small but visible at desktop width.
-5. **Status badges in Today's Sessions aren't uniform width** — should pad to the widest label so the right edge of the column is a clean line.
-6. **Editorial sub-lines** — replace structural sub-lines like "across 7 staff" with editorial ones like "5 notes are 7+ days old" once we have the underlying timestamp data.
-7. **Hover tooltips on mini-bars** in Supervision + Auth — show the exact % on hover instead of relying on the right-aligned number.
+**Tier 2 — polish backlog (waiting for next user-feedback round):**
+5. **Sort dropdown labels are wider than they need to be** — trim padding or use a more compact Select variant; the truncation is small but visible at desktop width.
+6. **Status badges in Today's Sessions aren't uniform width** — should pad to the widest label so the right edge of the column is a clean line.
+7. **Editorial sub-lines** — replace structural sub-lines like "across 7 staff" with editorial ones like "5 notes are 7+ days old" once we have the underlying timestamp data.
+8. **Hover tooltips on mini-bars** in Supervision + Auth — show the exact % on hover instead of relying on the right-aligned number.
+9. **Hide the "0 sessions / 0 clients" chips on staff pages with no activity** — they're slightly redundant with the collapsed empty-state notice. Two-line edit when it bothers someone.
 
 **Tier 3 — nice-to-have:**
-8. **Dark mode toggle** — small win, surfaces all the design-token work shadcn did silently.
-9. **Click-to-toggle series visibility on the Hours by Staff legend** — ~15 lines of useState.
-10. **"Last updated 2 minutes ago" timestamp** in the header — useful once data is live.
+10. **Dark mode toggle** — small win, surfaces all the design-token work shadcn did silently.
+11. **Click-to-toggle series visibility on the Hours by Staff legend** — ~15 lines of useState.
+12. **"Last updated 2 minutes ago" timestamp** in the header — useful once data is live.
+13. **Stable demo "today" reference** — `CertificationsExpiringTile` uses `new Date()` at module load. Swap for a fixed date constant when the demo audience matters more than real-time accuracy.
 
 ---
 
-*Last updated: May 12, 2026 (end of Session 9).*
+*Last updated: May 13, 2026 (end of Session 10).*
