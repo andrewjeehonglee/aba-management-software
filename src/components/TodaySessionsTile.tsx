@@ -13,9 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { mockSessions } from "@/data/mockSessions"
 import { cn } from "@/lib/utils"
 import type { Session, SessionStatus } from "@/types/session"
+
+type StatusFilter = SessionStatus | "all"
 
 const STATUS_CONFIG: Record<
   SessionStatus,
@@ -66,6 +69,15 @@ const SORT_OPTIONS = {
 
 type SortKey = keyof typeof SORT_OPTIONS
 
+const FILTER_CHIPS: { value: StatusFilter; label: string }[] = [
+  { value: "all",         label: "All" },
+  { value: "completed",   label: "Completed" },
+  { value: "in-progress", label: "In progress" },
+  { value: "scheduled",   label: "Scheduled" },
+  { value: "cancelled",   label: "Cancelled" },
+  { value: "no-show",     label: "No-show" },
+]
+
 function StatusBadge({ status }: { status: SessionStatus }) {
   const { label, className } = STATUS_CONFIG[status]
   return (
@@ -83,8 +95,17 @@ function formatTime(isoTime: string) {
 
 export function TodaySessionsTile({ className }: { className?: string }) {
   const [sortKey, setSortKey] = useState<SortKey>("time")
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
 
-  const sortedSessions: Session[] = [...mockSessions].sort(
+  // Filter FIRST, then sort. Order matters: sorting a smaller filtered list
+  // is cheaper, and the resulting UX is "I scoped the data, now order what
+  // remains" — matches the user's mental model.
+  const filteredSessions =
+    statusFilter === "all"
+      ? mockSessions
+      : mockSessions.filter((s) => s.status === statusFilter)
+
+  const sortedSessions: Session[] = [...filteredSessions].sort(
     SORT_OPTIONS[sortKey].compare
   )
 
@@ -111,42 +132,77 @@ export function TodaySessionsTile({ className }: { className?: string }) {
         </CardAction>
       </CardHeader>
       <CardContent>
-        {/* Explicit column widths so columns line up across all rows.
-            minmax(0, 1fr) on flex columns lets `truncate` actually clip
-            (a plain `1fr` column won't shrink below intrinsic content width). */}
-        <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
-          {/* Header row */}
-          <div className="text-muted-foreground pb-2 border-b">Time</div>
-          <div className="text-muted-foreground pb-2 border-b">Client</div>
-          <div className="text-muted-foreground pb-2 border-b">Staff</div>
-          <div className="text-muted-foreground pb-2 border-b">Type</div>
-          <div className="text-muted-foreground pb-2 border-b text-right">
-            Status
-          </div>
-
-          {/* Session rows — `contents` wrapper makes each row's children
-              participate in the parent grid directly, so all rows align to
-              the same column tracks. */}
-          {sortedSessions.map((s) => (
-            <div key={s.id} className="contents">
-              <div className="font-mono text-muted-foreground tabular-nums py-1.5">
-                {formatTime(s.time)}
-              </div>
-              <div className="truncate min-w-0 py-1.5 text-sm">
-                {s.clientName}
-              </div>
-              <div className="truncate min-w-0 py-1.5 text-sm text-muted-foreground">
-                {s.staffName}
-              </div>
-              <div className="truncate min-w-0 py-1.5 text-muted-foreground">
-                {s.sessionType}
-              </div>
-              <div className="flex items-center justify-end py-1.5">
-                <StatusBadge status={s.status} />
-              </div>
-            </div>
-          ))}
+        {/* Filter chip row.
+            base-ui's ToggleGroup uses `value: Value[]` even for single-select,
+            so we wrap/unwrap with [statusFilter] / values[0]. The
+            `if (values.length > 0)` guard keeps "All" reachable — clicking
+            the currently-selected chip would otherwise empty the array. */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground shrink-0">
+            Filter:
+          </span>
+          <ToggleGroup
+            value={[statusFilter]}
+            onValueChange={(values) => {
+              if (values.length > 0) {
+                setStatusFilter(values[0] as StatusFilter)
+              }
+            }}
+            variant="outline"
+            size="sm"
+            spacing={1}
+          >
+            {FILTER_CHIPS.map((chip) => (
+              <ToggleGroupItem
+                key={chip.value}
+                value={chip.value}
+                className="rounded-full text-xs"
+              >
+                {chip.label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
         </div>
+
+        {sortedSessions.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No sessions match this filter.
+          </div>
+        ) : (
+          <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
+            {/* Header row */}
+            <div className="text-muted-foreground pb-2 border-b">Time</div>
+            <div className="text-muted-foreground pb-2 border-b">Client</div>
+            <div className="text-muted-foreground pb-2 border-b">Staff</div>
+            <div className="text-muted-foreground pb-2 border-b">Type</div>
+            <div className="text-muted-foreground pb-2 border-b text-right">
+              Status
+            </div>
+
+            {/* Session rows — `contents` wrapper makes each row's children
+                participate in the parent grid directly, so all rows align to
+                the same column tracks. */}
+            {sortedSessions.map((s) => (
+              <div key={s.id} className="contents">
+                <div className="font-mono text-muted-foreground tabular-nums py-1.5">
+                  {formatTime(s.time)}
+                </div>
+                <div className="truncate min-w-0 py-1.5 text-sm">
+                  {s.clientName}
+                </div>
+                <div className="truncate min-w-0 py-1.5 text-sm text-muted-foreground">
+                  {s.staffName}
+                </div>
+                <div className="truncate min-w-0 py-1.5 text-muted-foreground">
+                  {s.sessionType}
+                </div>
+                <div className="flex items-center justify-end py-1.5">
+                  <StatusBadge status={s.status} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   )
