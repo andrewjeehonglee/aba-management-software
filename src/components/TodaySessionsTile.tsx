@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import {
   Card,
   CardAction,
@@ -188,7 +189,12 @@ export function TodaySessionsTile({ className }: { className?: string }) {
                   {formatTime(s.time)}
                 </div>
                 <div className="truncate min-w-0 py-1.5 text-sm">
-                  {s.clientName}
+                  <Link
+                    to={"/clients/" + s.clientName.toLowerCase().replace(/\s+/g, "-")}
+                    className="hover:underline underline-offset-2"
+                  >
+                    {s.clientName}
+                  </Link>
                 </div>
                 <div className="truncate min-w-0 py-1.5 text-sm text-muted-foreground">
                   {s.staffName}

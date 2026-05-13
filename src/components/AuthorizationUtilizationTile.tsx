@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { Link } from "react-router-dom"
 import {
   Card,
   CardAction,
@@ -139,7 +140,12 @@ export function AuthorizationUtilizationTile({ className }: { className?: string
                 className="flex items-center gap-3 text-sm"
               >
                 <span className="flex-1 truncate min-w-0">
-                  {client.clientName}
+                  <Link
+                    to={"/clients/" + client.clientName.toLowerCase().replace(/\s+/g, "-")}
+                    className="hover:underline underline-offset-2"
+                  >
+                    {client.clientName}
+                  </Link>
                 </span>
                 <MiniBar pct={client.utilizationPct} />
                 <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
