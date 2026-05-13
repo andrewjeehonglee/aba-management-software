@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
 import { mockClients } from "@/data/mockClients"
+import { mockGoals } from "@/data/mockGoals"
 import { mockSessions } from "@/data/mockSessions"
 import {
   FLAGGED_THRESHOLD,
@@ -17,6 +18,7 @@ import {
 import { toSlug, unslug } from "@/lib/slug"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
+import type { Goal, GoalStatus } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
 
 // Display labels for the inline status summary line ("Today: 1 completed,
@@ -46,6 +48,29 @@ const STATUS_CONFIG: Record<
   "no-show":     { label: "No-show",     className: "bg-red-100 text-red-800" },
 }
 
+// Goal status config. Note "in-progress" overlaps as an enum value with
+// SessionStatus but means something different here (normal teaching pace,
+// not "currently happening") and gets a different color (slate vs blue).
+// Different domain, different config — kept separate on purpose.
+const GOAL_STATUS_CONFIG: Record<
+  GoalStatus,
+  { label: string; className: string }
+> = {
+  "under-progress":  { label: "Under progress",  className: "bg-red-100 text-red-800" },
+  "in-progress":     { label: "In progress",     className: "bg-slate-100 text-slate-700" },
+  "nearing-mastery": { label: "Nearing mastery", className: "bg-amber-100 text-amber-800" },
+  mastered:          { label: "Mastered",        className: "bg-emerald-100 text-emerald-800" },
+}
+
+// Sort priority for goals: most-concerning first. Mirrors how the dashboard
+// orders Today's Sessions ("what should I look at first?").
+const GOAL_STATUS_ORDER: Record<GoalStatus, number> = {
+  "under-progress":  0,
+  "in-progress":     1,
+  "nearing-mastery": 2,
+  mastered:          3,
+}
+
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
@@ -63,6 +88,33 @@ function StatusBadge({ status }: { status: SessionStatus }) {
       {label}
     </span>
   )
+}
+
+function GoalStatusBadge({ status }: { status: GoalStatus }) {
+  const { label, className } = GOAL_STATUS_CONFIG[status]
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
+    >
+      {label}
+    </span>
+  )
+}
+
+// Pluralize "day" / "days" and handle the streak=0 edge case so a fresh goal
+// doesn't read as "0 days in a row at 70%" (technically true but parses as
+// "this isn't going well," which it isn't).
+function formatStreak(days: number, percent: number): string {
+  if (days === 0) return "Not started yet"
+  return `${days} day${days === 1 ? "" : "s"} in a row at ${percent}%`
+}
+
+// "Updated today" / "Updated yesterday" / "Updated 3 days ago" — small
+// editorial polish so the page reads less robotic than literal day counts.
+function formatLastUpdated(daysAgo: number): string {
+  if (daysAgo === 0) return "Updated today"
+  if (daysAgo === 1) return "Updated yesterday"
+  return `Updated ${daysAgo} days ago`
 }
 
 // "HH:mm" slice from an ISO string like "2026-05-12T08:00". Named helper
@@ -148,6 +200,16 @@ export function ClientOverviewPage() {
   // ISO time strings sort chronologically under string compare.
   const sortedClientSessions = [...clientSessions].sort((a, b) =>
     a.time.localeCompare(b.time)
+  )
+
+  // Active goals — keyed by slug for direct lookup. Sorted by status priority
+  // (most concerning first), then alphabetically by name within the same
+  // status for stable ordering.
+  const clientGoals = (clientId && mockGoals[clientId]) || []
+  const sortedGoals = [...clientGoals].sort(
+    (a, b) =>
+      GOAL_STATUS_ORDER[a.status] - GOAL_STATUS_ORDER[b.status] ||
+      a.name.localeCompare(b.name)
   )
 
   // Status breakdown — count per status, then format as a single muted line.
@@ -288,7 +350,52 @@ export function ClientOverviewPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Section 4 — Active Goals */}
+      <Card className="w-full max-w-3xl">
+        <CardHeader>
+          <CardTitle>Active Goals</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sortedGoals.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No active goals for this client.
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {sortedGoals.map((goal) => (
+                <GoalRow key={goal.id} goal={goal} />
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
+  )
+}
+
+// Each goal row: name + mastery criterion on the left, streak + status chip
+// + "last updated" stacked right-aligned. Items-start so a long mastery
+// criterion that wraps doesn't push the right column down.
+function GoalRow({ goal }: { goal: Goal }) {
+  return (
+    <li className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-sm">{goal.name}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          {goal.masteryTarget}
+        </div>
+      </div>
+      <div className="flex flex-col items-end gap-1 shrink-0 text-right">
+        <div className="text-xs tabular-nums">
+          {formatStreak(goal.streakDays, goal.streakPercent)}
+        </div>
+        <GoalStatusBadge status={goal.status} />
+        <div className="text-xs text-muted-foreground">
+          {formatLastUpdated(goal.lastUpdatedDaysAgo)}
+        </div>
+      </div>
+    </li>
   )
 }
 
