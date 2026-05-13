@@ -1,4 +1,5 @@
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
+import { NotesOverdueTile } from "@/components/NotesOverdueTile"
 import { TodaySessionsTile } from "@/components/TodaySessionsTile"
 
 function App() {
@@ -7,6 +8,7 @@ function App() {
       <div className="grid gap-6 lg:grid-cols-2">
         <TodaySessionsTile />
         <HoursByStaffTile />
+        <NotesOverdueTile />
       </div>
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>
