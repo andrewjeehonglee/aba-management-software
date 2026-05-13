@@ -106,6 +106,22 @@ export function ClientOverviewPage() {
               Today: {statusSummary}
             </p>
           )}
+          {uniqueStaff.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Working with:{" "}
+              {uniqueStaff.map((name, i) => (
+                <span key={name}>
+                  {i > 0 && ", "}
+                  <Link
+                    to={"/staff/" + toSlug(name)}
+                    className="hover:underline underline-offset-2"
+                  >
+                    {name}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          )}
         </CardContent>
       </Card>
 
