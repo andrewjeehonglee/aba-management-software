@@ -120,31 +120,163 @@ A running log of what's been built, in chronological order, so future-me can pic
 
 ---
 
+## Session 6 — Tile #2 "Today's Sessions" + 2-column dashboard layout
+
+**What landed:** Second product tile, plus the dashboard goes from 1 tile to 2 in a responsive grid.
+
+- Created `src/types/session.ts` — `SessionStatus` union (`scheduled | in-progress | completed | cancelled | no-show`) + `Session` interface (id, time, clientName, staffName, sessionType, status)
+- Created `src/data/mockSessions.ts` — 12 sessions across the day (5 completed, 2 in-progress, 3 scheduled, 1 cancelled, 1 no-show), staff names overlap with `mockStaff.ts` for cross-tile narrative
+- Created `src/components/TodaySessionsTile.tsx` — Card with title, list sorted by time, color-coded status badges driven by a `STATUS_CONFIG` lookup (one place to change a label or color)
+- Wrapped `App.tsx` in `lg:grid-cols-2` so the two tiles sit side-by-side on desktop, stack on mobile
+- Swapped tile order on user request (Today's Sessions left, Hours by Staff right) — flipping JSX children flips the visual order, no CSS dance needed
+- Top-aligned the dashboard (dropped `justify-center` from the outer flex) so it sits at the top of the viewport instead of floating in the middle
+
+**Commits:** `be9b9e8` → `b8d8061`
+
+**New skills:** Multi-tile dashboard layout, responsive grids (`lg:` breakpoint), the `Record<EnumKey, ConfigShape>` single-source-of-truth pattern, deliberate cross-tile data continuity (same names appear across multiple tiles for storytelling), JSX child-order = visual order.
+
+---
+
+## Session 7 — Tile #3 "Notes Overdue" — KPI + drill list pattern
+
+**What landed:** Third tile introduces a brand-new visualization shape: a big stat headline plus a per-staff drill list.
+
+- Created `src/types/overdueNotes.ts` — `OverdueNotesByStaff` interface (staffName, overdueCount)
+- Created `src/data/mockOverdueNotes.ts` — 7 staff with overdue notes summing to 30. Same names as `mockStaff` (David Kim, Tyler Brooks, Olivia Park appear here too) — the staff already flagged for low direct % are also the worst offenders. Cross-tile narrative now spans 3 tiles.
+- Created `src/components/NotesOverdueTile.tsx` — headline (big number + "across N staff" sub-line) + per-staff list with color-coded count pills (red >10, amber >5, gray ≤5) via a `countPillClass(count)` helper
+- Extracted a small `CountPill` mini-component — at 7+ rows it earns its own block (rule of three)
+- Added as 3rd child in `App.tsx` (lands in row 2 left half on desktop)
+
+**Commit:** `4f4de1f`
+
+**New skills:** KPI headline pattern (big number + sub-line in a flex baseline row), threshold-driven class helper as a function not a ternary chain, `Array.reduce` for derived totals (don't store what you can compute), the rule of three for extracting reusable mini-components.
+
+---
+
+## Session 8 — Vision doc + Tiles #4 & #5 — dashboard becomes feature-complete
+
+**What landed:** Captured the Figma + product intent into version-controlled docs, then built the final two tiles to complete the v1 vision.
+
+**Vision capture:**
+- Created `docs/dashboard-vision.md` — north star, the 5-tile spec, 6 design principles distilled from the Figma, "what's flexible vs not" framing, and a gap list comparing current build vs target
+- Saved the Figma export to `docs/figma-original-dashboard.png` so the visual reference lives in source control next to the doc that interprets it
+
+**Tile #4 — Supervision Compliance:**
+- Created `src/types/supervision.ts`, `src/data/mockSupervision.ts` (8 RBTs spanning red/amber/green), `src/components/SupervisionComplianceTile.tsx`
+- New visualization pattern: inline mini-progress-bar per RBT + a faint vertical "threshold marker" at the 5% line so the eye instantly sees "above this is compliant, below it is flagged"
+- Threshold sourced from a real ABA Tier 1 must-have: 5% supervision per Jenny's May 5 working doc (referenced in code comments so the magic number has a paper trail)
+
+**Tile #5 — Authorization Utilization:**
+- Created `src/types/authorization.ts`, `src/data/mockAuthorizations.ts` (8 clients pulled from `mockSessions` for cross-tile name continuity), `src/components/AuthorizationUtilizationTile.tsx`
+- Same MiniBar pattern as Supervision but with **inverted threshold semantics**: high % = bad (clients about to hit their auth cap)
+- Made the deliberate call NOT to extract a shared `MiniBar` component yet — only 2 instances, and the threshold semantics differ enough that DRY would obscure the inversion. Rule of three says: wait for the third caller.
+- Per-tile width override added: `className?: string` prop merged via `cn()` so `App.tsx` can pass `"lg:col-span-2 lg:max-w-none"` to make Tile #5 span both columns of the grid
+
+**Commits:** `0c025c8` → `06ac6ff` → `35422a9` → `f692a14` → `75bd741`
+
+**New skills:** Markdown product docs as code-adjacent artifacts (versioned alongside the code they describe), inverted threshold semantics in the same code shape, the `lg:col-span-N + lg:max-w-none` combo for per-tile grid overrides, `cn()` from shadcn for safe Tailwind class merging (resolves conflicts via `tailwind-merge`), pattern reuse vs duplication judgment ("wait for the third").
+
+---
+
+## Session 9 — The polish day (layout, header, severity colors, sort everywhere, filter chips, vision realignment)
+
+**What landed:** Six rounds of polish, each driven by tight feedback, that took the dashboard from "5 tiles in a 2-col stack" to production-grade — and shifted the underlying product model along the way.
+
+**1. Restructure to 3+2 then 2+3 grid (`284f2c4`, `ecec302`):**
+- First pass: switched `lg:grid-cols-2` → `lg:grid-cols-6` with col-spans (3 KPI tiles on top, narrow KPI + wide chart on bottom) to fit on one screen with no scroll
+- Each tile got an optional `className` prop merged via `cn()`, plus `Card size="sm"` for tighter padding
+- Second pass: re-restructured to **2+3** (Today's Sessions + Hours by Staff on top; 3 KPI tiles on bottom) using two separate grid containers — better hierarchy, the data-rich tiles read first
+- Hours by Staff: chart height 460px → 380px, all 13 staff visible (via `interval={0}` on YAxis) so the cross-tile narrative arc holds (David Kim, Olivia Park, Tyler Brooks must all be on screen here too — they're the through-line of the demo)
+
+**2. Page header (`71a9268`):**
+- New `<header>` above the grid: `<h1>ABA Dashboard</h1>` + right-aligned "Last 7 days" subtitle, separated by a `border-b`
+- Used `items-baseline` flex alignment — aligns letter baselines instead of bounding boxes, which is the small detail that makes a header look "designed"
+
+**3. Color-coded KPI severity (`f2d197a`):**
+- Added per-tile `headlineClass(count)` helpers — same threshold pattern, different bands
+  - Notes Overdue: ≥25 red, 10-24 amber, <10 neutral
+  - Supervision + Auth: ≥5 red, 1-4 amber, 0 emerald ("all clear")
+- The big number IS the alert — no separate badge needed. Subtitle stays muted so the eye lands on the count first.
+
+**4. Show all data + sort dropdowns on every list tile (`ecec302`):**
+- Removed all `.slice()` truncation — every tile now renders its full dataset. Vertical scroll is acceptable for an operational dashboard.
+- Removed `View all →` and `Export ↓` decorative links (they didn't go anywhere — dead links train users to ignore the UI)
+- Added a shadcn Select dropdown to each of the 4 list tiles, mirroring the Hours by Staff sort pattern. Sort options:
+  - Today's Sessions: time / status (custom weight: in-progress > no-show > cancelled > scheduled > completed) / staff / client
+  - Notes Overdue: count / name
+  - Supervision: % asc (worst first, default) / name / % desc
+  - Auth: % desc (worst first, default) / name / % asc
+- Each tile owns its own `SORT_OPTIONS` config — semantics differ enough that sharing would force false generality
+
+**5. Vision doc realignment (`c5568a7`):**
+- Rewrote `docs/dashboard-vision.md` to reflect the **product model shift** that emerged during the polish pass: from "glance + drill" (preview rows + drill-in pages) to **"glance + sort in place"** (all data inline, sort dropdowns reorder, no separate detail pages)
+- Added a dated "What changed" section explaining the *why*: Jenny is an owner-operator running daily ops, not an exec reviewing summaries; small data volumes fit inline; no detail pages on the roadmap
+- Hardened a new design principle worth pocketing: **"No 'View all' / 'Export' decorative links — every visible affordance must do something real. Dead links train users to ignore the UI."**
+- Same commit fixed Today's Sessions table column alignment with explicit grid tracks (`grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem]`) so all rows align under their headers, and killed the dead `Export ↓` link in Hours by Staff
+
+**6. Filter chips on Today's Sessions (`01a605c`):**
+- Installed shadcn `toggle-group` (`npx shadcn add toggle-group`) — pulled in `toggle.tsx` + `toggle-group.tsx`. Note: this version of shadcn wraps **base-ui**, not Radix.
+- Added a 6-chip filter row: All / Completed / In progress / Scheduled / Cancelled / No-show
+- Filter applied **before** sort (filter narrows the dataset, sort orders what remains — matches how users think about it)
+- Empty state ("No sessions match this filter.") wired in for resilience
+- Hit a base-ui API gotcha: ToggleGroup expects `value: Value[]` even for single-select (`multiple={false}` default), so we wrap/unwrap with `[statusFilter]` and `values[0]`. Added a defensive `if (values.length > 0)` guard so clicking the active chip doesn't empty the array and break the "All" return path.
+
+**Commits:** `284f2c4` → `71a9268` → `f2d197a` → `ecec302` → `c5568a7` → `01a605c`
+
+**New skills:**
+- Asymmetric grid layouts via two `<div className="grid">` containers (cleaner than one big grid with col-spans when rows have different column counts)
+- `items-baseline` for typography-aware flex alignment
+- Naming a product-model shift mid-build and updating the vision doc to reflect it (instead of letting the doc go stale and become a lie)
+- "Filter THEN sort" composition with two independent `useState`s — order matters both semantically and for performance
+- Adapter shim pattern when a 3rd-party API doesn't fit your mental model (base-ui's array-shaped value for single-select)
+- Diagnosing transient Vite "dependency optimization reload" errors that look scary in the dev console but resolve on browser refresh
+- A new design principle as a hard rule: **every visible affordance must do something real**
+
+---
+
 ## Project anatomy
 
 ```
 src/
-├── App.tsx                          ← Page shell — 12 lines, just lays out tiles
-├── main.tsx                         ← React boot (don't touch)
-├── index.css                        ← Tailwind import + shadcn design tokens
+├── App.tsx                                ← Page shell — header + 2 grids (top: 2-col, bottom: 3-col) + footer
+├── main.tsx                               ← React boot (don't touch)
+├── index.css                              ← Tailwind import + shadcn design tokens
 │
 ├── components/
-│   ├── HoursByStaffTile.tsx         ← The whole tile (chart, sort, legend, flags)
-│   └── ui/                          ← shadcn-generated primitives — DO NOT EDIT
+│   ├── HoursByStaffTile.tsx               ← Stacked Recharts bar (all 13 staff, sortable, flag indicators)
+│   ├── TodaySessionsTile.tsx              ← Today's session table + status filter chips + sort dropdown
+│   ├── NotesOverdueTile.tsx               ← KPI headline + per-staff overdue count list (sortable)
+│   ├── SupervisionComplianceTile.tsx      ← KPI + per-RBT mini-bars (low % = bad, 5% threshold marker)
+│   ├── AuthorizationUtilizationTile.tsx   ← KPI + per-client mini-bars (high % = bad, inverted semantics)
+│   └── ui/                                ← shadcn-generated primitives — DO NOT EDIT
 │       ├── button.tsx
 │       ├── card.tsx
 │       ├── chart.tsx
-│       └── select.tsx
+│       ├── select.tsx
+│       ├── toggle.tsx
+│       └── toggle-group.tsx
 │
-├── data/
-│   └── mockStaff.ts                 ← 13 mock staff records
+├── data/                                  ← Mock data, one file per domain
+│   ├── mockStaff.ts                       ← 13 staff records (3 below 50% direct)
+│   ├── mockSessions.ts                    ← 12 sessions across the day, mixed statuses
+│   ├── mockOverdueNotes.ts                ← 7 staff with overdue notes (totals to 30)
+│   ├── mockSupervision.ts                 ← 8 RBTs spanning red/amber/green compliance
+│   └── mockAuthorizations.ts              ← 8 clients with utilization %, names match mockSessions
 │
 ├── lib/
-│   ├── staff.ts                     ← isStaffFlagged() + DIRECT_HOURS_THRESHOLD
-│   └── utils.ts                     ← shadcn's cn() helper
+│   ├── staff.ts                           ← isStaffFlagged() + DIRECT_HOURS_THRESHOLD
+│   └── utils.ts                           ← shadcn's cn() helper
 │
-└── types/
-    └── staff.ts                     ← Staff interface
+└── types/                                 ← TypeScript interfaces, one file per domain
+    ├── staff.ts
+    ├── session.ts
+    ├── overdueNotes.ts
+    ├── supervision.ts
+    └── authorization.ts
+
+docs/
+├── dashboard-vision.md                    ← Source of truth for product intent (supersedes Figma)
+└── figma-original-dashboard.png           ← Original Figma export, kept for historical context
 ```
 
 ---
@@ -180,13 +312,22 @@ git push                                      # → GitHub → Vercel auto-deplo
 
 ## What's NOT done yet (next sessions, suggested order)
 
-1. **Build a second tile** — pick another metric from the Phase 1 plan. Reuse the patterns: type → mock data → tile component → chart.
-2. **Wire to a real backend** — replace `mockStaff` with API data. Introduces `useEffect`, `fetch`, loading/error states.
-3. **Add routing** — React Router for multiple pages (Dashboard / Staff / Settings).
-4. **Add authentication** — log in / out, sessions.
-5. **Add dark mode toggle** — small win, surfaces all the design-token work shadcn did silently.
-6. **Optional polish on the existing tile** — click-to-toggle series visibility on the legend (would need ~15 lines of useState).
+**Tier 1 — real product work:**
+1. **Wire to a real backend** — replace each `mockX` import with API data. Introduces `useEffect`, `fetch`, loading + error + empty states. The shape of every tile already matches a future API response, so this is mostly plumbing.
+2. **Add authentication** — log in / log out, session persistence, route guards. Will also unlock workspace name + user avatar in the page header.
+3. **Add routing** — React Router for multiple pages (Dashboard / Staff / Clients / Settings). Currently all one page.
+
+**Tier 2 — Jenny-feedback polish (waiting for next user-feedback round):**
+4. **Sort dropdown labels are wider than they need to be** — trim padding or use a more compact Select variant; the truncation is small but visible at desktop width.
+5. **Status badges in Today's Sessions aren't uniform width** — should pad to the widest label so the right edge of the column is a clean line.
+6. **Editorial sub-lines** — replace structural sub-lines like "across 7 staff" with editorial ones like "5 notes are 7+ days old" once we have the underlying timestamp data.
+7. **Hover tooltips on mini-bars** in Supervision + Auth — show the exact % on hover instead of relying on the right-aligned number.
+
+**Tier 3 — nice-to-have:**
+8. **Dark mode toggle** — small win, surfaces all the design-token work shadcn did silently.
+9. **Click-to-toggle series visibility on the Hours by Staff legend** — ~15 lines of useState.
+10. **"Last updated 2 minutes ago" timestamp** in the header — useful once data is live.
 
 ---
 
-*Last updated: May 12, 2026 (end of Session 5).*
+*Last updated: May 12, 2026 (end of Session 9).*
