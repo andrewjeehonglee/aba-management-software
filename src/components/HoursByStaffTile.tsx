@@ -30,6 +30,7 @@ import {
 import { mockStaff } from "@/data/mockStaff"
 import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
+import { cn } from "@/lib/utils"
 
 const chartConfig = {
   directHours: { label: "Direct", color: "#10b981" },
@@ -38,10 +39,6 @@ const chartConfig = {
 } satisfies ChartConfig
 
 const SORT_OPTIONS = {
-  name: {
-    label: "Name (A–Z)",
-    compare: (a: Staff, b: Staff) => a.name.localeCompare(b.name),
-  },
   total: {
     label: "Total hours (high → low)",
     compare: (a: Staff, b: Staff) => b.totalHours - a.totalHours,
@@ -55,6 +52,10 @@ const SORT_OPTIONS = {
     label: "Cancellation hrs (high → low)",
     compare: (a: Staff, b: Staff) =>
       b.cancellationHours - a.cancellationHours,
+  },
+  name: {
+    label: "Name (A–Z)",
+    compare: (a: Staff, b: Staff) => a.name.localeCompare(b.name),
   },
 } as const
 
@@ -94,21 +95,32 @@ function YAxisTick({ x = 0, y = 0, payload }: AxisTickProps) {
   )
 }
 
-export function HoursByStaffTile() {
-  const [sortKey, setSortKey] = useState<SortKey>("name")
+export function HoursByStaffTile({ className }: { className?: string }) {
+  // Default sort is now "total" — for the dashboard preview we want the top
+  // earners visible first; A-Z is more useful in the future "View all" page.
+  const [sortKey, setSortKey] = useState<SortKey>("total")
 
+  // Show all 13 staff so the cross-tile narrative holds: David Kim, Olivia
+  // Park, and Tyler Brooks must be visible here (they're flagged in the other
+  // staff tiles too). Slicing would silently break the demo arc.
   const sortedStaff = [...mockStaff].sort(SORT_OPTIONS[sortKey].compare)
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Hours by Staff (Last 7 Days)</CardTitle>
-        <CardAction>
+        <CardAction className="flex items-center gap-3">
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            Export ↓
+          </button>
           <Select
             value={sortKey}
             onValueChange={(v) => setSortKey(v as SortKey)}
           >
-            <SelectTrigger className="h-8 w-[200px] text-xs">
+            <SelectTrigger className="h-8 w-[180px] text-xs">
               <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -137,12 +149,12 @@ export function HoursByStaffTile() {
 
         <ChartContainer
           config={chartConfig}
-          className="aspect-auto h-[460px] w-full"
+          className="aspect-auto h-[380px] w-full"
         >
           <BarChart
             data={sortedStaff}
             layout="vertical"
-            margin={{ top: 8, right: 16, left: 16, bottom: 8 }}
+            margin={{ top: 4, right: 12, left: 12, bottom: 4 }}
           >
             <CartesianGrid horizontal={false} strokeDasharray="3 3" />
             <XAxis
@@ -180,13 +192,6 @@ export function HoursByStaffTile() {
             />
           </BarChart>
         </ChartContainer>
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <TriangleAlert
-            className="h-3.5 w-3.5 text-amber-500"
-            aria-hidden="true"
-          />
-          <span>Flagged: below 50% direct hours</span>
-        </p>
       </CardContent>
     </Card>
   )

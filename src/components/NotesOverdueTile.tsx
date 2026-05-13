@@ -1,13 +1,15 @@
 import {
   Card,
+  CardAction,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import { mockOverdueNotes } from "@/data/mockOverdueNotes"
+import { cn } from "@/lib/utils"
 
-// Color thresholds for the count pill. Strict greater-than so 5 stays gray and
-// 10 stays amber — keeps the tiers visually distinct.
+const PREVIEW_ROW_LIMIT = 5
+
 const AMBER_THRESHOLD = 5
 const RED_THRESHOLD = 10
 
@@ -27,7 +29,7 @@ function CountPill({ count }: { count: number }) {
   )
 }
 
-export function NotesOverdueTile() {
+export function NotesOverdueTile({ className }: { className?: string }) {
   const sortedNotes = [...mockOverdueNotes].sort(
     (a, b) =>
       b.overdueCount - a.overdueCount || a.staffName.localeCompare(b.staffName)
@@ -35,24 +37,33 @@ export function NotesOverdueTile() {
 
   const totalOverdue = sortedNotes.reduce((sum, row) => sum + row.overdueCount, 0)
   const staffWithOverdue = sortedNotes.length
+  const previewNotes = sortedNotes.slice(0, PREVIEW_ROW_LIMIT)
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Notes Overdue</CardTitle>
+        <CardAction>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            View all →
+          </button>
+        </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="space-y-1">
-          <div className="text-4xl font-semibold tabular-nums leading-none">
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-semibold tabular-nums leading-none">
             {totalOverdue}
-          </div>
-          <div className="text-xs text-muted-foreground">
+          </span>
+          <span className="text-xs text-muted-foreground">
             across {staffWithOverdue} staff
-          </div>
+          </span>
         </div>
 
-        <ul className="mt-4 space-y-2 border-t pt-4">
-          {sortedNotes.map((row) => (
+        <ul className="mt-3 space-y-2 border-t pt-3">
+          {previewNotes.map((row) => (
             <li
               key={row.staffName}
               className="flex items-center justify-between text-sm"

@@ -1,5 +1,6 @@
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -8,11 +9,9 @@ import {
 import { mockAuthorizations } from "@/data/mockAuthorizations"
 import { cn } from "@/lib/utils"
 
-// Authorization utilization is INVERTED from supervision: high % = bad.
-// A client at 90%+ is about to hit the cap on insurance-authorized hours;
-// Jenny wants to start the re-auth paperwork before that happens.
-// Source: Jenny (target user) — May 5 working doc.
-const FLAGGED_THRESHOLD = 80 // >= 81 trips the headline count
+const PREVIEW_ROW_LIMIT = 5
+
+const FLAGGED_THRESHOLD = 80
 const RED_THRESHOLD = 85
 const AMBER_LOWER = 75
 
@@ -25,12 +24,11 @@ function utilizationClass(pct: number): { bar: string; text: string } {
 function MiniBar({ pct }: { pct: number }) {
   const { bar } = utilizationClass(pct)
   return (
-    <div className="relative h-2 w-32 overflow-hidden rounded-full bg-slate-200">
+    <div className="relative h-2 w-44 overflow-hidden rounded-full bg-slate-200">
       <div
         className={`h-full ${bar}`}
         style={{ width: `${Math.min(pct, 100)}%` }}
       />
-      {/* Threshold marker at the 80% line — bars that cross it are flagged. */}
       <div
         className="absolute inset-y-0 w-px bg-slate-500/70"
         style={{ left: `${FLAGGED_THRESHOLD}%` }}
@@ -51,27 +49,36 @@ export function AuthorizationUtilizationTile({ className }: { className?: string
     (c) => c.utilizationPct > FLAGGED_THRESHOLD
   ).length
   const totalClients = sortedClients.length
+  const previewClients = sortedClients.slice(0, PREVIEW_ROW_LIMIT)
 
   return (
-    <Card className={cn("w-full max-w-2xl", className)}>
+    <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Authorization Utilization</CardTitle>
         <CardDescription className="text-xs">
           Clients above {FLAGGED_THRESHOLD}% utilization flagged
         </CardDescription>
+        <CardAction>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            View all →
+          </button>
+        </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="space-y-1">
-          <div className="text-4xl font-semibold tabular-nums leading-none">
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-semibold tabular-nums leading-none">
             {flaggedCount}
-          </div>
-          <div className="text-xs text-muted-foreground">
+          </span>
+          <span className="text-xs text-muted-foreground">
             of {totalClients} clients above threshold
-          </div>
+          </span>
         </div>
 
-        <ul className="mt-4 space-y-2 border-t pt-4">
-          {sortedClients.map((client) => {
+        <ul className="mt-3 space-y-2 border-t pt-3">
+          {previewClients.map((client) => {
             const { text } = utilizationClass(client.utilizationPct)
             return (
               <li

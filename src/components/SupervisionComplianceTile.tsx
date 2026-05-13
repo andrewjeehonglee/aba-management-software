@@ -1,16 +1,17 @@
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import { mockSupervision } from "@/data/mockSupervision"
+import { cn } from "@/lib/utils"
 
-// Tier 1 must: 5% of an RBT's billable hours must be supervised by a BCBA.
-// Source: Jenny (target user) — May 5 working doc.
+const PREVIEW_ROW_LIMIT = 5
+
 const SUPERVISION_THRESHOLD = 5
-// Above the must-have but still in coaching distance — "watch list".
 const WATCH_UPPER = 7
 
 function complianceClasses(pct: number): { bar: string; text: string } {
@@ -22,13 +23,11 @@ function complianceClasses(pct: number): { bar: string; text: string } {
 function MiniBar({ pct }: { pct: number }) {
   const { bar } = complianceClasses(pct)
   return (
-    <div className="relative h-2 w-32 overflow-hidden rounded-full bg-slate-200">
+    <div className="relative h-2 w-44 overflow-hidden rounded-full bg-slate-200">
       <div
         className={`h-full ${bar}`}
         style={{ width: `${Math.min(pct, 100)}%` }}
       />
-      {/* Threshold marker — faint vertical line at 5% so the eye can see
-          "above this line is compliant, below it is flagged" without reading. */}
       <div
         className="absolute inset-y-0 w-px bg-slate-500/70"
         style={{ left: `${SUPERVISION_THRESHOLD}%` }}
@@ -38,7 +37,7 @@ function MiniBar({ pct }: { pct: number }) {
   )
 }
 
-export function SupervisionComplianceTile() {
+export function SupervisionComplianceTile({ className }: { className?: string }) {
   const sortedRBTs = [...mockSupervision].sort(
     (a, b) =>
       a.supervisionPct - b.supervisionPct ||
@@ -49,27 +48,36 @@ export function SupervisionComplianceTile() {
     (r) => r.supervisionPct < SUPERVISION_THRESHOLD
   ).length
   const totalRBTs = sortedRBTs.length
+  const previewRBTs = sortedRBTs.slice(0, PREVIEW_ROW_LIMIT)
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Supervision Compliance</CardTitle>
         <CardDescription className="text-xs">
           RBTs below {SUPERVISION_THRESHOLD}% supervision threshold flagged
         </CardDescription>
+        <CardAction>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            View all →
+          </button>
+        </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="space-y-1">
-          <div className="text-4xl font-semibold tabular-nums leading-none">
+        <div className="flex items-baseline gap-2">
+          <span className="text-4xl font-semibold tabular-nums leading-none">
             {flaggedCount}
-          </div>
-          <div className="text-xs text-muted-foreground">
+          </span>
+          <span className="text-xs text-muted-foreground">
             of {totalRBTs} RBTs below threshold
-          </div>
+          </span>
         </div>
 
-        <ul className="mt-4 space-y-2 border-t pt-4">
-          {sortedRBTs.map((rbt) => {
+        <ul className="mt-3 space-y-2 border-t pt-3">
+          {previewRBTs.map((rbt) => {
             const { text } = complianceClasses(rbt.supervisionPct)
             return (
               <li
