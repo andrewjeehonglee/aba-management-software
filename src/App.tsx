@@ -1,3 +1,4 @@
+import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
@@ -11,6 +12,7 @@ function App() {
         <HoursByStaffTile />
         <NotesOverdueTile />
         <SupervisionComplianceTile />
+        <AuthorizationUtilizationTile />
       </div>
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>
