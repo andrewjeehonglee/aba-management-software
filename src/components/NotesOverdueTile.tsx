@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Card,
   CardAction,
@@ -5,10 +6,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { mockOverdueNotes } from "@/data/mockOverdueNotes"
 import { cn } from "@/lib/utils"
-
-const PREVIEW_ROW_LIMIT = 5
+import type { OverdueNotesByStaff } from "@/types/overdueNotes"
 
 const AMBER_THRESHOLD = 5
 const RED_THRESHOLD = 10
@@ -38,32 +45,60 @@ function headlineClass(total: number): string {
   return ""
 }
 
-export function NotesOverdueTile({ className }: { className?: string }) {
-  const sortedNotes = [...mockOverdueNotes].sort(
-    (a, b) =>
-      b.overdueCount - a.overdueCount || a.staffName.localeCompare(b.staffName)
-  )
+const SORT_OPTIONS = {
+  overdue: {
+    label: "Overdue count (high → low)",
+    compare: (a: OverdueNotesByStaff, b: OverdueNotesByStaff) =>
+      b.overdueCount - a.overdueCount ||
+      a.staffName.localeCompare(b.staffName),
+  },
+  name: {
+    label: "Staff name (A → Z)",
+    compare: (a: OverdueNotesByStaff, b: OverdueNotesByStaff) =>
+      a.staffName.localeCompare(b.staffName),
+  },
+} as const
 
-  const totalOverdue = sortedNotes.reduce((sum, row) => sum + row.overdueCount, 0)
+type SortKey = keyof typeof SORT_OPTIONS
+
+export function NotesOverdueTile({ className }: { className?: string }) {
+  const [sortKey, setSortKey] = useState<SortKey>("overdue")
+
+  const sortedNotes = [...mockOverdueNotes].sort(SORT_OPTIONS[sortKey].compare)
+
+  const totalOverdue = sortedNotes.reduce(
+    (sum, row) => sum + row.overdueCount,
+    0
+  )
   const staffWithOverdue = sortedNotes.length
-  const previewNotes = sortedNotes.slice(0, PREVIEW_ROW_LIMIT)
 
   return (
     <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Notes Overdue</CardTitle>
         <CardAction>
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
+          <Select
+            value={sortKey}
+            onValueChange={(v) => setSortKey(v as SortKey)}
           >
-            View all →
-          </button>
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+                <SelectItem key={key} value={key} className="text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardAction>
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-2">
-          <span className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(totalOverdue)}`}>
+          <span
+            className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(totalOverdue)}`}
+          >
             {totalOverdue}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -72,7 +107,7 @@ export function NotesOverdueTile({ className }: { className?: string }) {
         </div>
 
         <ul className="mt-3 space-y-2 border-t pt-3">
-          {previewNotes.map((row) => (
+          {sortedNotes.map((row) => (
             <li
               key={row.staffName}
               className="flex items-center justify-between text-sm"

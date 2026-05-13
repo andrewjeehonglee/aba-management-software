@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Card,
   CardAction,
@@ -6,11 +7,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
 import { cn } from "@/lib/utils"
+import type { ClientAuthorization } from "@/types/authorization"
 
-const PREVIEW_ROW_LIMIT = 5
-
+// Authorization utilization is INVERTED from supervision: high % = bad.
+// A client at 90%+ is about to hit the cap on insurance-authorized hours;
+// Jenny wants to start the re-auth paperwork before that happens.
+// Source: Jenny (target user) — May 5 working doc.
 const FLAGGED_THRESHOLD = 80
 const RED_THRESHOLD = 85
 const AMBER_LOWER = 75
@@ -48,18 +59,39 @@ function MiniBar({ pct }: { pct: number }) {
   )
 }
 
-export function AuthorizationUtilizationTile({ className }: { className?: string }) {
-  const sortedClients = [...mockAuthorizations].sort(
-    (a, b) =>
+const SORT_OPTIONS = {
+  pctDesc: {
+    label: "Utilization % (high → low)",
+    compare: (a: ClientAuthorization, b: ClientAuthorization) =>
       b.utilizationPct - a.utilizationPct ||
-      a.clientName.localeCompare(b.clientName)
+      a.clientName.localeCompare(b.clientName),
+  },
+  name: {
+    label: "Client name (A → Z)",
+    compare: (a: ClientAuthorization, b: ClientAuthorization) =>
+      a.clientName.localeCompare(b.clientName),
+  },
+  pctAsc: {
+    label: "Utilization % (low → high)",
+    compare: (a: ClientAuthorization, b: ClientAuthorization) =>
+      a.utilizationPct - b.utilizationPct ||
+      a.clientName.localeCompare(b.clientName),
+  },
+} as const
+
+type SortKey = keyof typeof SORT_OPTIONS
+
+export function AuthorizationUtilizationTile({ className }: { className?: string }) {
+  const [sortKey, setSortKey] = useState<SortKey>("pctDesc")
+
+  const sortedClients = [...mockAuthorizations].sort(
+    SORT_OPTIONS[sortKey].compare
   )
 
   const flaggedCount = sortedClients.filter(
     (c) => c.utilizationPct > FLAGGED_THRESHOLD
   ).length
   const totalClients = sortedClients.length
-  const previewClients = sortedClients.slice(0, PREVIEW_ROW_LIMIT)
 
   return (
     <Card size="sm" className={cn("w-full", className)}>
@@ -69,17 +101,28 @@ export function AuthorizationUtilizationTile({ className }: { className?: string
           Clients above {FLAGGED_THRESHOLD}% utilization flagged
         </CardDescription>
         <CardAction>
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
+          <Select
+            value={sortKey}
+            onValueChange={(v) => setSortKey(v as SortKey)}
           >
-            View all →
-          </button>
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+                <SelectItem key={key} value={key} className="text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardAction>
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-2">
-          <span className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}>
+          <span
+            className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}
+          >
             {flaggedCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -88,7 +131,7 @@ export function AuthorizationUtilizationTile({ className }: { className?: string
         </div>
 
         <ul className="mt-3 space-y-2 border-t pt-3">
-          {previewClients.map((client) => {
+          {sortedClients.map((client) => {
             const { text } = utilizationClass(client.utilizationPct)
             return (
               <li

@@ -11,16 +11,20 @@ function App() {
         <h1 className="text-2xl font-semibold tracking-tight">ABA Dashboard</h1>
         <span className="text-sm text-muted-foreground">Last 7 days</span>
       </header>
-      <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-6">
-        {/* Top row: 3 KPI tiles, each spans 2 of 6 columns at lg+ */}
-        <TodaySessionsTile className="lg:col-span-2" />
-        <NotesOverdueTile className="lg:col-span-2" />
-        <AuthorizationUtilizationTile className="lg:col-span-2" />
 
-        {/* Bottom row: narrow KPI (2 cols) + wide chart (4 cols) */}
-        <SupervisionComplianceTile className="lg:col-span-2" />
-        <HoursByStaffTile className="lg:col-span-4" />
+      {/* Top row: 2 wide tiles */}
+      <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-2">
+        <TodaySessionsTile />
+        <HoursByStaffTile />
       </div>
+
+      {/* Bottom row: 3 KPI tiles */}
+      <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
+        <NotesOverdueTile />
+        <SupervisionComplianceTile />
+        <AuthorizationUtilizationTile />
+      </div>
+
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>
   )

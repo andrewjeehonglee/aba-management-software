@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Card,
   CardAction,
@@ -6,11 +7,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { mockSupervision } from "@/data/mockSupervision"
 import { cn } from "@/lib/utils"
+import type { RBTSupervision } from "@/types/supervision"
 
-const PREVIEW_ROW_LIMIT = 5
-
+// Tier 1 must: 5% of an RBT's billable hours must be supervised by a BCBA.
+// Source: Jenny (target user) — May 5 working doc.
 const SUPERVISION_THRESHOLD = 5
 const WATCH_UPPER = 7
 
@@ -46,18 +55,37 @@ function MiniBar({ pct }: { pct: number }) {
   )
 }
 
-export function SupervisionComplianceTile({ className }: { className?: string }) {
-  const sortedRBTs = [...mockSupervision].sort(
-    (a, b) =>
+const SORT_OPTIONS = {
+  pctAsc: {
+    label: "Compliance % (low → high)",
+    compare: (a: RBTSupervision, b: RBTSupervision) =>
       a.supervisionPct - b.supervisionPct ||
-      a.rbtName.localeCompare(b.rbtName)
-  )
+      a.rbtName.localeCompare(b.rbtName),
+  },
+  name: {
+    label: "RBT name (A → Z)",
+    compare: (a: RBTSupervision, b: RBTSupervision) =>
+      a.rbtName.localeCompare(b.rbtName),
+  },
+  pctDesc: {
+    label: "Compliance % (high → low)",
+    compare: (a: RBTSupervision, b: RBTSupervision) =>
+      b.supervisionPct - a.supervisionPct ||
+      a.rbtName.localeCompare(b.rbtName),
+  },
+} as const
+
+type SortKey = keyof typeof SORT_OPTIONS
+
+export function SupervisionComplianceTile({ className }: { className?: string }) {
+  const [sortKey, setSortKey] = useState<SortKey>("pctAsc")
+
+  const sortedRBTs = [...mockSupervision].sort(SORT_OPTIONS[sortKey].compare)
 
   const flaggedCount = sortedRBTs.filter(
     (r) => r.supervisionPct < SUPERVISION_THRESHOLD
   ).length
   const totalRBTs = sortedRBTs.length
-  const previewRBTs = sortedRBTs.slice(0, PREVIEW_ROW_LIMIT)
 
   return (
     <Card size="sm" className={cn("w-full", className)}>
@@ -67,17 +95,28 @@ export function SupervisionComplianceTile({ className }: { className?: string })
           RBTs below {SUPERVISION_THRESHOLD}% supervision threshold flagged
         </CardDescription>
         <CardAction>
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
+          <Select
+            value={sortKey}
+            onValueChange={(v) => setSortKey(v as SortKey)}
           >
-            View all →
-          </button>
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+                <SelectItem key={key} value={key} className="text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardAction>
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-2">
-          <span className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}>
+          <span
+            className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}
+          >
             {flaggedCount}
           </span>
           <span className="text-xs text-muted-foreground">
@@ -86,7 +125,7 @@ export function SupervisionComplianceTile({ className }: { className?: string })
         </div>
 
         <ul className="mt-3 space-y-2 border-t pt-3">
-          {previewRBTs.map((rbt) => {
+          {sortedRBTs.map((rbt) => {
             const { text } = complianceClasses(rbt.supervisionPct)
             return (
               <li

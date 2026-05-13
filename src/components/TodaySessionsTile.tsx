@@ -1,3 +1,4 @@
+import { useState } from "react"
 import {
   Card,
   CardAction,
@@ -5,11 +6,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { mockSessions } from "@/data/mockSessions"
 import { cn } from "@/lib/utils"
 import type { Session, SessionStatus } from "@/types/session"
-
-const PREVIEW_ROW_LIMIT = 5
 
 const STATUS_CONFIG: Record<
   SessionStatus,
@@ -21,6 +27,44 @@ const STATUS_CONFIG: Record<
   cancelled:     { label: "Cancelled",    className: "bg-amber-100 text-amber-800" },
   "no-show":     { label: "No-show",      className: "bg-red-100 text-red-800" },
 }
+
+// Custom status weight — "what should I look at first?"
+// In progress comes top because it's happening NOW; cancelled / no-show next
+// because they need a note or follow-up; scheduled is future; completed is done.
+const STATUS_ORDER: Record<SessionStatus, number> = {
+  "in-progress": 0,
+  "no-show": 1,
+  cancelled: 2,
+  scheduled: 3,
+  completed: 4,
+}
+
+const SORT_OPTIONS = {
+  time: {
+    label: "Time (earliest → latest)",
+    compare: (a: Session, b: Session) => a.time.localeCompare(b.time),
+  },
+  status: {
+    label: "Status",
+    compare: (a: Session, b: Session) =>
+      STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
+      a.time.localeCompare(b.time),
+  },
+  staff: {
+    label: "Staff (A → Z)",
+    compare: (a: Session, b: Session) =>
+      a.staffName.localeCompare(b.staffName) ||
+      a.time.localeCompare(b.time),
+  },
+  client: {
+    label: "Client (A → Z)",
+    compare: (a: Session, b: Session) =>
+      a.clientName.localeCompare(b.clientName) ||
+      a.time.localeCompare(b.time),
+  },
+} as const
+
+type SortKey = keyof typeof SORT_OPTIONS
 
 function StatusBadge({ status }: { status: SessionStatus }) {
   const { label, className } = STATUS_CONFIG[status]
@@ -38,27 +82,37 @@ function formatTime(isoTime: string) {
 }
 
 export function TodaySessionsTile({ className }: { className?: string }) {
-  const sortedSessions: Session[] = [...mockSessions].sort((a, b) =>
-    a.time.localeCompare(b.time)
+  const [sortKey, setSortKey] = useState<SortKey>("time")
+
+  const sortedSessions: Session[] = [...mockSessions].sort(
+    SORT_OPTIONS[sortKey].compare
   )
-  const previewSessions = sortedSessions.slice(0, PREVIEW_ROW_LIMIT)
 
   return (
     <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Today's Sessions</CardTitle>
         <CardAction>
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
+          <Select
+            value={sortKey}
+            onValueChange={(v) => setSortKey(v as SortKey)}
           >
-            View all →
-          </button>
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+                <SelectItem key={key} value={key} className="text-xs">
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardAction>
       </CardHeader>
       <CardContent>
         <ul className="space-y-2">
-          {previewSessions.map((s) => (
+          {sortedSessions.map((s) => (
             <li
               key={s.id}
               className="flex items-center gap-2 text-sm"
