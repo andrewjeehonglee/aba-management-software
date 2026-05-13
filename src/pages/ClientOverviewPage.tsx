@@ -7,6 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
+import { mockClients } from "@/data/mockClients"
 import { mockSessions } from "@/data/mockSessions"
 import {
   FLAGGED_THRESHOLD,
@@ -15,7 +16,8 @@ import {
 } from "@/lib/authorization"
 import { toSlug, unslug } from "@/lib/slug"
 import type { ClientAuthorization } from "@/types/authorization"
-import type { SessionStatus } from "@/types/session"
+import type { ClientProfile } from "@/types/client"
+import type { Session, SessionStatus } from "@/types/session"
 
 // Display labels for the inline status summary line ("Today: 1 completed,
 // 1 in progress…"). Hyphens and tech-style enum values don't read well in
@@ -69,6 +71,47 @@ function formatTime(isoTime: string) {
   return isoTime.slice(11, 16)
 }
 
+// Pretty-print an ISO date "2018-03-14" as "Mar 14, 2018". The "T00:00:00"
+// suffix forces local-midnight interpretation; without it, JS treats a bare
+// "YYYY-MM-DD" as UTC-midnight and can shift the displayed day by one in
+// negative-UTC-offset locales (a real bug we'd hit in production with users
+// on the West Coast).
+function formatDate(iso: string) {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+// Derive the care-team roles from this client's session history. Map session
+// types to ABA staff roles:
+//   - "Direct therapy"               → Technician (RBT)
+//   - "Supervision"                  → Supervisor
+//   - "Assessment" / "Parent training" → BCBA
+// When no session of the relevant type exists for this client, fall back to
+// the explicit value on the ClientProfile. This means the page reflects the
+// current operational reality (who's actually working with this kid this
+// week) when sessions are present, and the assigned-on-paper roster
+// otherwise.
+function deriveStaffRoles(sessions: Session[], profile: ClientProfile) {
+  const technicianFromSessions = sessions.find(
+    (s) => s.sessionType === "Direct therapy"
+  )?.staffName
+  const supervisorFromSessions = sessions.find(
+    (s) => s.sessionType === "Supervision"
+  )?.staffName
+  const bcbaFromSessions = sessions.find(
+    (s) => s.sessionType === "Assessment" || s.sessionType === "Parent training"
+  )?.staffName
+
+  return {
+    technician: technicianFromSessions ?? profile.technician,
+    supervisor: supervisorFromSessions ?? profile.supervisor,
+    bcba:       bcbaFromSessions       ?? profile.bcba,
+  }
+}
+
 export function ClientOverviewPage() {
   const { clientId } = useParams<{ clientId: string }>()
 
@@ -82,12 +125,16 @@ export function ClientOverviewPage() {
   const auth = clientId
     ? mockAuthorizations.find((a) => toSlug(a.clientName) === clientId)
     : undefined
+  const profile = clientId
+    ? mockClients.find((c) => toSlug(c.name) === clientId)
+    : undefined
 
   // Display name preference: canonical name from data wins (correct casing,
   // punctuation, accents); unslug() is the fallback for typo'd or bookmarked
-  // URLs that match nothing.
+  // URLs that match nothing in any of the three lookups.
   const displayName =
-    auth?.clientName
+    profile?.name
+    ?? auth?.clientName
     ?? clientSessions[0]?.clientName
     ?? (clientId ? unslug(clientId) : "Unknown client")
 
@@ -163,6 +210,14 @@ export function ClientOverviewPage() {
               ))}
             </p>
           )}
+
+          {/* Detail grid — kept inside the same card so this whole block reads
+              as one cohesive "who is this client" identity unit. Hidden when
+              we can't resolve a profile (typo'd URL); the chips/auth/sessions
+              empty states still tell the user nothing matched. */}
+          {profile && (
+            <ClientDetailGrid profile={profile} sessions={clientSessions} />
+          )}
         </CardContent>
       </Card>
 
@@ -234,6 +289,75 @@ export function ClientOverviewPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// Extracted to keep the main component readable. Renders the 8-row label/value
+// detail block (DOB, address, insurance, auth period, billing code, care team)
+// with a thin top border that visually separates it from the chips/status/
+// "Working with" block above it within the same card.
+function ClientDetailGrid({
+  profile,
+  sessions,
+}: {
+  profile: ClientProfile
+  sessions: Session[]
+}) {
+  const { bcba, supervisor, technician } = deriveStaffRoles(sessions, profile)
+
+  return (
+    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
+      <dt className="text-muted-foreground">Date of birth</dt>
+      <dd>{formatDate(profile.dateOfBirth)}</dd>
+
+      <dt className="text-muted-foreground">Address</dt>
+      <dd>{profile.address}</dd>
+
+      <dt className="text-muted-foreground">Insurance</dt>
+      <dd>{profile.insurance}</dd>
+
+      <dt className="text-muted-foreground">Authorization period</dt>
+      <dd>
+        {formatDate(profile.authorizationPeriodStart)} –{" "}
+        {formatDate(profile.authorizationPeriodEnd)}
+      </dd>
+
+      <dt className="text-muted-foreground">CPT / billing code</dt>
+      <dd>
+        <span className="font-mono">{profile.cptCode}</span>
+        <span className="text-muted-foreground"> — {profile.cptLabel}</span>
+      </dd>
+
+      <dt className="text-muted-foreground">BCBA</dt>
+      <dd>
+        <Link
+          to={"/staff/" + toSlug(bcba)}
+          className="hover:underline underline-offset-2"
+        >
+          {bcba}
+        </Link>
+      </dd>
+
+      <dt className="text-muted-foreground">Supervisor</dt>
+      <dd>
+        <Link
+          to={"/staff/" + toSlug(supervisor)}
+          className="hover:underline underline-offset-2"
+        >
+          {supervisor}
+        </Link>
+      </dd>
+
+      <dt className="text-muted-foreground">Technician</dt>
+      <dd>
+        <Link
+          to={"/staff/" + toSlug(technician)}
+          className="hover:underline underline-offset-2"
+        >
+          {technician}
+        </Link>
+      </dd>
+    </dl>
   )
 }
 
