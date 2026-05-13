@@ -28,12 +28,45 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
   "no-show":     "no-show",
 }
 
+// Status badge config — color + Title-Case label per status. Intentionally
+// COPIED (not imported) from TodaySessionsTile.tsx. Two callers is still
+// rule-of-three territory; if a third place needs status pill styling we'll
+// extract this to a shared module along with StatusBadge below. Until then,
+// duplication is cheaper than premature abstraction.
+const STATUS_CONFIG: Record<
+  SessionStatus,
+  { label: string; className: string }
+> = {
+  completed:     { label: "Completed",   className: "bg-emerald-100 text-emerald-800" },
+  "in-progress": { label: "In progress", className: "bg-blue-100 text-blue-800" },
+  scheduled:     { label: "Scheduled",   className: "bg-slate-100 text-slate-700" },
+  cancelled:     { label: "Cancelled",   className: "bg-amber-100 text-amber-800" },
+  "no-show":     { label: "No-show",     className: "bg-red-100 text-red-800" },
+}
+
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
       {children}
     </span>
   )
+}
+
+function StatusBadge({ status }: { status: SessionStatus }) {
+  const { label, className } = STATUS_CONFIG[status]
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
+    >
+      {label}
+    </span>
+  )
+}
+
+// "HH:mm" slice from an ISO string like "2026-05-12T08:00". Named helper
+// because the slice indices are otherwise opaque at the call site.
+function formatTime(isoTime: string) {
+  return isoTime.slice(11, 16)
 }
 
 export function ClientOverviewPage() {
@@ -60,6 +93,14 @@ export function ClientOverviewPage() {
 
   const uniqueStaff = Array.from(
     new Set(clientSessions.map((s) => s.staffName))
+  )
+
+  // Sorted view of the same sessions, used only by the table render below.
+  // Kept separate from `clientSessions` so derivations that don't care about
+  // order (chip counts, uniqueStaff Set) aren't quietly affected by a sort.
+  // ISO time strings sort chronologically under string compare.
+  const sortedClientSessions = [...clientSessions].sort((a, b) =>
+    a.time.localeCompare(b.time)
   )
 
   // Status breakdown — count per status, then format as a single muted line.
@@ -136,6 +177,58 @@ export function ClientOverviewPage() {
           ) : (
             <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               No authorization data for this client.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Section 3 — Sessions table.
+          Title says "Last 7 Days" but mock data is just today; the title
+          reflects the eventual real-data scope, not the current fixture. */}
+      <Card className="w-full max-w-3xl">
+        <CardHeader>
+          <CardTitle>Sessions — Last 7 Days</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sortedClientSessions.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No sessions found for this client.
+            </div>
+          ) : (
+            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
+              {/* Header row */}
+              <div className="text-muted-foreground pb-2 border-b">Time</div>
+              <div className="text-muted-foreground pb-2 border-b">Staff</div>
+              <div className="text-muted-foreground pb-2 border-b">Type</div>
+              <div className="text-muted-foreground pb-2 border-b text-right">
+                Status
+              </div>
+
+              {/* Session rows — `display: contents` wrapper makes each row's
+                  children participate in the parent grid directly, so all
+                  rows align to the same column tracks. Same trick used in
+                  TodaySessionsTile. */}
+              {sortedClientSessions.map((s) => (
+                <div key={s.id} className="contents">
+                  <div className="font-mono text-muted-foreground tabular-nums py-1.5">
+                    {formatTime(s.time)}
+                  </div>
+                  <div className="truncate min-w-0 py-1.5 text-sm">
+                    <Link
+                      to={"/staff/" + toSlug(s.staffName)}
+                      className="hover:underline underline-offset-2"
+                    >
+                      {s.staffName}
+                    </Link>
+                  </div>
+                  <div className="truncate min-w-0 py-1.5 text-muted-foreground">
+                    {s.sessionType}
+                  </div>
+                  <div className="flex items-center justify-end py-1.5">
+                    <StatusBadge status={s.status} />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>
