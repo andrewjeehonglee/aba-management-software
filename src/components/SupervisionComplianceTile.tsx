@@ -20,6 +20,15 @@ function complianceClasses(pct: number): { bar: string; text: string } {
   return                                  { bar: "bg-emerald-500", text: "text-emerald-700" }
 }
 
+// Severity coloring for the BIG headline number — count of RBTs below the
+// 5% threshold. >=5 flagged is a systemic problem; 1-4 is a coaching moment;
+// 0 is "all compliant" and earns the green badge.
+function headlineClass(flaggedCount: number): string {
+  if (flaggedCount >= 5) return "text-red-600"
+  if (flaggedCount >= 1) return "text-amber-600"
+  return "text-emerald-600"
+}
+
 function MiniBar({ pct }: { pct: number }) {
   const { bar } = complianceClasses(pct)
   return (
@@ -68,7 +77,7 @@ export function SupervisionComplianceTile({ className }: { className?: string })
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-semibold tabular-nums leading-none">
+          <span className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}>
             {flaggedCount}
           </span>
           <span className="text-xs text-muted-foreground">

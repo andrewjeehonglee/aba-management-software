@@ -29,6 +29,15 @@ function CountPill({ count }: { count: number }) {
   )
 }
 
+// Severity coloring for the BIG headline number. Tuned for "total notes
+// across the team" — once you cross 25 the backlog is genuinely concerning,
+// 10-24 is "watch it", under 10 is normal operating noise.
+function headlineClass(total: number): string {
+  if (total >= 25) return "text-red-600"
+  if (total >= 10) return "text-amber-600"
+  return ""
+}
+
 export function NotesOverdueTile({ className }: { className?: string }) {
   const sortedNotes = [...mockOverdueNotes].sort(
     (a, b) =>
@@ -54,7 +63,7 @@ export function NotesOverdueTile({ className }: { className?: string }) {
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-semibold tabular-nums leading-none">
+          <span className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(totalOverdue)}`}>
             {totalOverdue}
           </span>
           <span className="text-xs text-muted-foreground">

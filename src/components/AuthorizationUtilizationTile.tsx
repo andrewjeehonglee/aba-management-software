@@ -21,6 +21,16 @@ function utilizationClass(pct: number): { bar: string; text: string } {
   return                           { bar: "bg-emerald-500", text: "text-emerald-700" }
 }
 
+// Severity coloring for the BIG headline number — count of clients above the
+// 80% utilization threshold. >=5 means a meaningful chunk of the caseload is
+// approaching their auth cap; 1-4 is a few re-auth conversations to start;
+// 0 is fully under control.
+function headlineClass(flaggedCount: number): string {
+  if (flaggedCount >= 5) return "text-red-600"
+  if (flaggedCount >= 1) return "text-amber-600"
+  return "text-emerald-600"
+}
+
 function MiniBar({ pct }: { pct: number }) {
   const { bar } = utilizationClass(pct)
   return (
@@ -69,7 +79,7 @@ export function AuthorizationUtilizationTile({ className }: { className?: string
       </CardHeader>
       <CardContent>
         <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-semibold tabular-nums leading-none">
+          <span className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}>
             {flaggedCount}
           </span>
           <span className="text-xs text-muted-foreground">
