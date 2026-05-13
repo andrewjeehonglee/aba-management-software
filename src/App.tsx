@@ -3,7 +3,7 @@ import { TodaySessionsTile } from "@/components/TodaySessionsTile"
 
 function App() {
   return (
-    <div className="min-h-svh bg-background text-foreground flex flex-col items-center justify-center gap-4 p-6">
+    <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-4 p-6">
       <div className="grid gap-6 lg:grid-cols-2">
         <TodaySessionsTile />
         <HoursByStaffTile />
