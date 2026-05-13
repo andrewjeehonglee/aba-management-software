@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
+import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import {
   Card,
   CardContent,
@@ -15,6 +16,7 @@ import {
   usedHours,
   utilizationClass,
 } from "@/lib/authorization"
+import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
@@ -30,22 +32,6 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
   scheduled:     "scheduled",
   cancelled:     "cancelled",
   "no-show":     "no-show",
-}
-
-// Status badge config — color + Title-Case label per status. Intentionally
-// COPIED (not imported) from TodaySessionsTile.tsx. Two callers is still
-// rule-of-three territory; if a third place needs status pill styling we'll
-// extract this to a shared module along with StatusBadge below. Until then,
-// duplication is cheaper than premature abstraction.
-const STATUS_CONFIG: Record<
-  SessionStatus,
-  { label: string; className: string }
-> = {
-  completed:     { label: "Completed",   className: "bg-emerald-100 text-emerald-800" },
-  "in-progress": { label: "In progress", className: "bg-blue-100 text-blue-800" },
-  scheduled:     { label: "Scheduled",   className: "bg-slate-100 text-slate-700" },
-  cancelled:     { label: "Cancelled",   className: "bg-amber-100 text-amber-800" },
-  "no-show":     { label: "No-show",     className: "bg-red-100 text-red-800" },
 }
 
 // Goal status config. Note "in-progress" overlaps as an enum value with
@@ -79,17 +65,6 @@ function Chip({ children }: { children: React.ReactNode }) {
   )
 }
 
-function StatusBadge({ status }: { status: SessionStatus }) {
-  const { label, className } = STATUS_CONFIG[status]
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
-    >
-      {label}
-    </span>
-  )
-}
-
 function GoalStatusBadge({ status }: { status: GoalStatus }) {
   const { label, className } = GOAL_STATUS_CONFIG[status]
   return (
@@ -115,12 +90,6 @@ function formatLastUpdated(daysAgo: number): string {
   if (daysAgo === 0) return "Updated today"
   if (daysAgo === 1) return "Updated yesterday"
   return `Updated ${daysAgo} days ago`
-}
-
-// "HH:mm" slice from an ISO string like "2026-05-12T08:00". Named helper
-// because the slice indices are otherwise opaque at the call site.
-function formatTime(isoTime: string) {
-  return isoTime.slice(11, 16)
 }
 
 // Pretty-print an ISO date "2018-03-14" as "Mar 14, 2018". The "T00:00:00"
@@ -342,7 +311,7 @@ export function ClientOverviewPage() {
                     {s.sessionType}
                   </div>
                   <div className="flex items-center justify-end py-1.5">
-                    <StatusBadge status={s.status} />
+                    <SessionStatusBadge status={s.status} />
                   </div>
                 </div>
               ))}

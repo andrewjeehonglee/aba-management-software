@@ -16,20 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockSupervision } from "@/data/mockSupervision"
+import {
+  SUPERVISION_THRESHOLD,
+  complianceClasses,
+} from "@/lib/supervision"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { RBTSupervision } from "@/types/supervision"
-
-// Tier 1 must: 5% of an RBT's billable hours must be supervised by a BCBA.
-// Source: Jenny (target user) — May 5 working doc.
-const SUPERVISION_THRESHOLD = 5
-const WATCH_UPPER = 7
-
-function complianceClasses(pct: number): { bar: string; text: string } {
-  if (pct < SUPERVISION_THRESHOLD) return { bar: "bg-red-500",     text: "text-red-700" }
-  if (pct < WATCH_UPPER)           return { bar: "bg-amber-500",   text: "text-amber-700" }
-  return                                  { bar: "bg-emerald-500", text: "text-emerald-700" }
-}
 
 // Severity coloring for the BIG headline number — count of RBTs below the
 // 5% threshold. >=5 flagged is a systemic problem; 1-4 is a coaching moment;
