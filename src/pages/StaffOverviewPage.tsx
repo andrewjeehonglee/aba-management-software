@@ -123,6 +123,17 @@ export function StaffOverviewPage() {
 
   const derivedRole = deriveStaffRoleFromSessions(displayName, mockSessions)
 
+  // Header subtitle. Two distinct semantics encoded in one line:
+  //   - With "· this week" suffix: what they're *doing* right now (derived
+  //     from session types this week).
+  //   - Without suffix: what they *are* on paper (formal role from staff
+  //     record). Used when there's no session activity this week so the
+  //     page header still anchors the visitor — "Technician" is more
+  //     useful than a name floating in white space.
+  const subtitle = derivedRole
+    ? `${derivedRole} · this week`
+    : staff?.role ?? null
+
   // Sessions worked this week, sorted chronologically. ISO timestamps sort
   // correctly under string compare.
   const sortedSessions = [...staffSessions].sort((a, b) =>
@@ -133,6 +144,18 @@ export function StaffOverviewPage() {
   const caseload = Array.from(
     new Set(staffSessions.map((s) => s.clientName))
   )
+
+  // "Off-week" condition — collapse the three otherwise-empty section cards
+  // (supervision / sessions / caseload) into one explanatory notice when
+  // the staff member has no signal at all in any of them. A cascade of
+  // three near-identical "No X" cards reads as broken; a single notice
+  // reads as intentional. The header card always renders — formal role,
+  // certification, hire date, and team are still useful even with zero
+  // activity (e.g. visitor came here from the cert-expiring tile).
+  // Note: caseload is derived from sessions, so checking sessions covers
+  // both. Supervision is independent (admin-tracked), so it gets its own
+  // condition.
+  const hasNoActivity = staffSessions.length === 0 && !supervision
 
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
@@ -152,10 +175,8 @@ export function StaffOverviewPage() {
           <CardTitle className="text-3xl font-semibold tracking-tight">
             {displayName}
           </CardTitle>
-          {derivedRole && (
-            <p className="text-sm text-muted-foreground">
-              {derivedRole} · this week
-            </p>
+          {subtitle && (
+            <p className="text-sm text-muted-foreground">{subtitle}</p>
           )}
         </CardHeader>
         <CardContent className="space-y-3">
@@ -172,95 +193,114 @@ export function StaffOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Section 2 — Supervision compliance */}
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
-          <CardTitle>Supervision compliance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {supervision && staff ? (
-            <SupervisionDetail supervision={supervision} staff={staff} />
-          ) : (
-            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No supervision data available for this staff member.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 3 — Sessions this week.
-          "This week" is aspirational labeling; mock data is just today,
-          same as ClientOverviewPage. Title reflects intended real-data
-          scope, not the current fixture. */}
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
-          <CardTitle>Sessions this week</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sortedSessions.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No sessions this week for this staff member.
-            </div>
-          ) : (
-            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
-              <div className="text-muted-foreground pb-2 border-b">Time</div>
-              <div className="text-muted-foreground pb-2 border-b">Client</div>
-              <div className="text-muted-foreground pb-2 border-b">Type</div>
-              <div className="text-muted-foreground pb-2 border-b text-right">
-                Status
-              </div>
-
-              {sortedSessions.map((s) => (
-                <div key={s.id} className="contents">
-                  <div className="font-mono text-muted-foreground tabular-nums py-1.5">
-                    {formatTime(s.time)}
-                  </div>
-                  <div className="truncate min-w-0 py-1.5 text-sm">
-                    <Link
-                      to={"/clients/" + toSlug(s.clientName)}
-                      className="hover:underline underline-offset-2"
-                    >
-                      {s.clientName}
-                    </Link>
-                  </div>
-                  <div className="truncate min-w-0 py-1.5 text-muted-foreground">
-                    {s.sessionType}
-                  </div>
-                  <div className="flex items-center justify-end py-1.5">
-                    <SessionStatusBadge status={s.status} />
-                  </div>
+      {hasNoActivity ? (
+        /* Collapsed empty state — one card explaining the situation
+           instead of three cascading "No X" cards. Reads as intentional
+           ("we know there's no activity, here's what would appear")
+           rather than broken ("everything is missing"). */
+        <Card className="w-full max-w-3xl">
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              No session activity for {displayName} this week.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              When sessions are scheduled, supervision compliance, sessions, and caseload will appear here.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Section 2 — Supervision compliance */}
+          <Card className="w-full max-w-3xl">
+            <CardHeader>
+              <CardTitle>Supervision compliance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {supervision && staff ? (
+                <SupervisionDetail supervision={supervision} staff={staff} />
+              ) : (
+                <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  No supervision data available for this staff member.
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Section 4 — Client caseload */}
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
-          <CardTitle>Client caseload</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {caseload.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No clients on this staff member's caseload this week.
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {caseload.map((clientName) => (
-                <Link
-                  key={clientName}
-                  to={"/clients/" + toSlug(clientName)}
-                  className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-                >
-                  {clientName}
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          {/* Section 3 — Sessions this week.
+              "This week" is aspirational labeling; mock data is just today,
+              same as ClientOverviewPage. Title reflects intended real-data
+              scope, not the current fixture. */}
+          <Card className="w-full max-w-3xl">
+            <CardHeader>
+              <CardTitle>Sessions this week</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {sortedSessions.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  No sessions this week for this staff member.
+                </div>
+              ) : (
+                <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
+                  <div className="text-muted-foreground pb-2 border-b">Time</div>
+                  <div className="text-muted-foreground pb-2 border-b">Client</div>
+                  <div className="text-muted-foreground pb-2 border-b">Type</div>
+                  <div className="text-muted-foreground pb-2 border-b text-right">
+                    Status
+                  </div>
+
+                  {sortedSessions.map((s) => (
+                    <div key={s.id} className="contents">
+                      <div className="font-mono text-muted-foreground tabular-nums py-1.5">
+                        {formatTime(s.time)}
+                      </div>
+                      <div className="truncate min-w-0 py-1.5 text-sm">
+                        <Link
+                          to={"/clients/" + toSlug(s.clientName)}
+                          className="hover:underline underline-offset-2"
+                        >
+                          {s.clientName}
+                        </Link>
+                      </div>
+                      <div className="truncate min-w-0 py-1.5 text-muted-foreground">
+                        {s.sessionType}
+                      </div>
+                      <div className="flex items-center justify-end py-1.5">
+                        <SessionStatusBadge status={s.status} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Section 4 — Client caseload */}
+          <Card className="w-full max-w-3xl">
+            <CardHeader>
+              <CardTitle>Client caseload</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {caseload.length === 0 ? (
+                <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                  No clients on this staff member's caseload this week.
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {caseload.map((clientName) => (
+                    <Link
+                      key={clientName}
+                      to={"/clients/" + toSlug(clientName)}
+                      className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+                    >
+                      {clientName}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }
