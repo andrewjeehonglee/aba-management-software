@@ -7,6 +7,10 @@ import { TodaySessionsTile } from "@/components/TodaySessionsTile"
 function App() {
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-3 p-4">
+      <header className="flex w-full max-w-7xl items-baseline justify-between border-b border-border py-6">
+        <h1 className="text-2xl font-semibold tracking-tight">ABA Dashboard</h1>
+        <span className="text-sm text-muted-foreground">Last 7 days</span>
+      </header>
       <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-6">
         {/* Top row: 3 KPI tiles, each spans 2 of 6 columns at lg+ */}
         <TodaySessionsTile className="lg:col-span-2" />
