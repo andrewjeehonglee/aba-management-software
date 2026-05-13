@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
+import { cn } from "@/lib/utils"
 
 // Authorization utilization is INVERTED from supervision: high % = bad.
 // A client at 90%+ is about to hit the cap on insurance-authorized hours;
@@ -39,7 +40,7 @@ function MiniBar({ pct }: { pct: number }) {
   )
 }
 
-export function AuthorizationUtilizationTile() {
+export function AuthorizationUtilizationTile({ className }: { className?: string }) {
   const sortedClients = [...mockAuthorizations].sort(
     (a, b) =>
       b.utilizationPct - a.utilizationPct ||
@@ -52,7 +53,7 @@ export function AuthorizationUtilizationTile() {
   const totalClients = sortedClients.length
 
   return (
-    <Card className="w-full max-w-2xl">
+    <Card className={cn("w-full max-w-2xl", className)}>
       <CardHeader>
         <CardTitle>Authorization Utilization</CardTitle>
         <CardDescription className="text-xs">

@@ -12,7 +12,7 @@ function App() {
         <HoursByStaffTile />
         <NotesOverdueTile />
         <SupervisionComplianceTile />
-        <AuthorizationUtilizationTile />
+        <AuthorizationUtilizationTile className="lg:col-span-2 lg:max-w-none" />
       </div>
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>
