@@ -16,23 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
+import { FLAGGED_THRESHOLD, utilizationClass } from "@/lib/authorization"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { ClientAuthorization } from "@/types/authorization"
-
-// Authorization utilization is INVERTED from supervision: high % = bad.
-// A client at 90%+ is about to hit the cap on insurance-authorized hours;
-// Jenny wants to start the re-auth paperwork before that happens.
-// Source: Jenny (target user) — May 5 working doc.
-const FLAGGED_THRESHOLD = 80
-const RED_THRESHOLD = 85
-const AMBER_LOWER = 75
-
-function utilizationClass(pct: number): { bar: string; text: string } {
-  if (pct >= RED_THRESHOLD) return { bar: "bg-red-500",     text: "text-red-700" }
-  if (pct >= AMBER_LOWER)   return { bar: "bg-amber-500",   text: "text-amber-700" }
-  return                           { bar: "bg-emerald-500", text: "text-emerald-700" }
-}
 
 // Severity coloring for the BIG headline number — count of clients above the
 // 80% utilization threshold. >=5 means a meaningful chunk of the caseload is
