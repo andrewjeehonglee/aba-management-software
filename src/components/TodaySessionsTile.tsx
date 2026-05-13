@@ -111,23 +111,42 @@ export function TodaySessionsTile({ className }: { className?: string }) {
         </CardAction>
       </CardHeader>
       <CardContent>
-        <ul className="space-y-2">
+        {/* Explicit column widths so columns line up across all rows.
+            minmax(0, 1fr) on flex columns lets `truncate` actually clip
+            (a plain `1fr` column won't shrink below intrinsic content width). */}
+        <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
+          {/* Header row */}
+          <div className="text-muted-foreground pb-2 border-b">Time</div>
+          <div className="text-muted-foreground pb-2 border-b">Client</div>
+          <div className="text-muted-foreground pb-2 border-b">Staff</div>
+          <div className="text-muted-foreground pb-2 border-b">Type</div>
+          <div className="text-muted-foreground pb-2 border-b text-right">
+            Status
+          </div>
+
+          {/* Session rows — `contents` wrapper makes each row's children
+              participate in the parent grid directly, so all rows align to
+              the same column tracks. */}
           {sortedSessions.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center gap-2 text-sm"
-            >
-              <span className="font-mono text-xs text-muted-foreground tabular-nums w-12 shrink-0">
+            <div key={s.id} className="contents">
+              <div className="font-mono text-muted-foreground tabular-nums py-1.5">
                 {formatTime(s.time)}
-              </span>
-              <span className="flex-1 truncate min-w-0">
-                {s.clientName}{" "}
-                <span className="text-muted-foreground">· {s.staffName}</span>
-              </span>
-              <StatusBadge status={s.status} />
-            </li>
+              </div>
+              <div className="truncate min-w-0 py-1.5 text-sm">
+                {s.clientName}
+              </div>
+              <div className="truncate min-w-0 py-1.5 text-sm text-muted-foreground">
+                {s.staffName}
+              </div>
+              <div className="truncate min-w-0 py-1.5 text-muted-foreground">
+                {s.sessionType}
+              </div>
+              <div className="flex items-center justify-end py-1.5">
+                <StatusBadge status={s.status} />
+              </div>
+            </div>
           ))}
-        </ul>
+        </div>
       </CardContent>
     </Card>
   )

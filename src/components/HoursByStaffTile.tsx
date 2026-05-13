@@ -109,13 +109,7 @@ export function HoursByStaffTile({ className }: { className?: string }) {
     <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Hours by Staff (Last 7 Days)</CardTitle>
-        <CardAction className="flex items-center gap-3">
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
-          >
-            Export ↓
-          </button>
+        <CardAction>
           <Select
             value={sortKey}
             onValueChange={(v) => setSortKey(v as SortKey)}
