@@ -1,5 +1,6 @@
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
+import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import { TodaySessionsTile } from "@/components/TodaySessionsTile"
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
         <TodaySessionsTile />
         <HoursByStaffTile />
         <NotesOverdueTile />
+        <SupervisionComplianceTile />
       </div>
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>
