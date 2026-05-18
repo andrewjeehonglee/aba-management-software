@@ -33,9 +33,9 @@ function hashStr(id: string): number {
 // -------------------------------------------------------------------
 // History generator.
 //
-// Produces 25 weekly data points starting Nov 10, 2025, which puts
-// "today" (May 13, 2026) just past the last point — clinically the
-// chart reads as "last ~6 months of sessions."
+// Produces 25 weekly data points ending on today, so the last point
+// always sits at the right edge of the chart — clinically reads as
+// "last ~6 months of sessions."
 //
 // Each GoalStatus drives a distinct trajectory shape so the chart
 // tells a story consistent with what the goal list already shows:
@@ -91,9 +91,13 @@ function generatePoints(
     sessions.push(Math.round(Math.max(0, Math.min(100, current))))
   }
 
-  // Base date: Nov 10, 2025 (25 weeks before mid-May 2026).
-  const BASE = new Date(2025, 10, 10).getTime()
+  // Anchor the last data point to today so the line always reaches the
+  // right edge of the chart.  Midnight-snap keeps date labels stable
+  // within a single day.
   const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
+  const end = new Date()
+  end.setHours(0, 0, 0, 0)
+  const BASE = end.getTime() - 24 * MS_PER_WEEK
 
   return sessions.map((session, i) => {
     // 3-session rolling average — last 3 points inclusive of current.
