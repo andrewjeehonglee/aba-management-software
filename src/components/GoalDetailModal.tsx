@@ -95,7 +95,7 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
               <ChartContainer config={chartConfig} className="h-[280px] w-full">
                 <LineChart
                   data={history.points}
-                  margin={{ top: 8, right: 16, bottom: 0, left: 0 }}
+                  margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -104,10 +104,10 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                   />
                   <XAxis
                     dataKey="date"
+                    scale="point"
                     tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                     tickLine={false}
                     axisLine={false}
-                    // Show ~6 evenly spaced labels from 25 points
                     interval={3}
                   />
                   <YAxis
