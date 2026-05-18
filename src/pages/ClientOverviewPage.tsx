@@ -1,5 +1,7 @@
+import { useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
+import { GoalDetailModal } from "@/components/GoalDetailModal"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import {
   Card,
@@ -181,6 +183,8 @@ export function ClientOverviewPage() {
       a.name.localeCompare(b.name)
   )
 
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
+
   // Status breakdown — count per status, then format as a single muted line.
   // Skipping zero-count statuses keeps the line short for clients with only
   // one or two sessions today.
@@ -333,12 +337,14 @@ export function ClientOverviewPage() {
           ) : (
             <ul className="divide-y divide-border">
               {sortedGoals.map((goal) => (
-                <GoalRow key={goal.id} goal={goal} />
+                <GoalRow key={goal.id} goal={goal} onSelect={() => setSelectedGoal(goal)} />
               ))}
             </ul>
           )}
         </CardContent>
       </Card>
+
+      <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} />
     </div>
   )
 }
@@ -346,11 +352,17 @@ export function ClientOverviewPage() {
 // Each goal row: name + mastery criterion on the left, streak + status chip
 // + "last updated" stacked right-aligned. Items-start so a long mastery
 // criterion that wraps doesn't push the right column down.
-function GoalRow({ goal }: { goal: Goal }) {
+// The goal name is a button — clicking it opens the GoalDetailModal.
+function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
   return (
     <li className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm">{goal.name}</div>
+        <button
+          onClick={onSelect}
+          className="text-left font-semibold text-sm hover:underline underline-offset-2 cursor-pointer"
+        >
+          {goal.name}
+        </button>
         <div className="mt-0.5 text-xs text-muted-foreground">
           {goal.masteryTarget}
         </div>
