@@ -40,9 +40,11 @@ function formatStreak(days: number, pct: number): string {
 }
 
 const chartConfig = {
-  session: { label: "Session %", color: "hsl(var(--chart-1))" },
-  average: { label: "3-session avg",  color: "hsl(var(--chart-2))" },
+  session: { label: "Session %",    color: "#2563eb" }, // blue-600
+  average: { label: "3-session avg", color: "#16a34a" }, // green-600
 } satisfies ChartConfig
+
+const MASTERY_LINE_COLOR = "#dc2626" // red-600
 
 interface GoalDetailModalProps {
   goal: Goal | null
@@ -90,7 +92,7 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                 Progress — last 6 months
               </p>
 
-              <ChartContainer config={chartConfig} className="h-[220px] w-full">
+              <ChartContainer config={chartConfig} className="h-[280px] w-full">
                 <LineChart
                   data={history.points}
                   margin={{ top: 8, right: 16, bottom: 0, left: 0 }}
@@ -124,40 +126,40 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                     }
                   />
 
-                  {/* Mastery threshold reference line */}
+                  {/* Mastery threshold reference line — red dashed */}
                   <ReferenceLine
                     y={history.masteryThreshold}
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke={MASTERY_LINE_COLOR}
                     strokeDasharray="5 3"
                     strokeWidth={1.5}
                     label={{
                       value: `${history.masteryThreshold}% mastery`,
-                      position: "insideTopLeft",
+                      position: "insideTopRight",
                       fontSize: 10,
-                      fill: "hsl(var(--muted-foreground))",
+                      fill: MASTERY_LINE_COLOR,
                       dy: -6,
                     }}
                   />
 
-                  {/* Session % — thin solid line, primary color */}
+                  {/* Session % — blue solid line, dot at every data point */}
                   <Line
                     dataKey="session"
                     name="Session %"
                     stroke="var(--color-session)"
-                    strokeWidth={1.5}
-                    dot={false}
-                    activeDot={{ r: 3 }}
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: "var(--color-session)", strokeWidth: 0 }}
+                    activeDot={{ r: 5 }}
                   />
 
-                  {/* Rolling average — slightly thicker dashed line, secondary color */}
+                  {/* Rolling average — green dashed line, no per-point dots */}
                   <Line
                     dataKey="average"
                     name="3-session avg"
                     stroke="var(--color-average)"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     strokeDasharray="4 3"
                     dot={false}
-                    activeDot={{ r: 3 }}
+                    activeDot={{ r: 4 }}
                   />
                 </LineChart>
               </ChartContainer>
@@ -189,7 +191,7 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                   <svg width="24" height="2" aria-hidden="true">
                     <line
                       x1="0" y1="1" x2="24" y2="1"
-                      stroke="hsl(var(--muted-foreground))"
+                      stroke={MASTERY_LINE_COLOR}
                       strokeWidth="1.5"
                       strokeDasharray="5 3"
                     />

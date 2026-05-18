@@ -5,7 +5,7 @@ import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTime } from "@/lib/sessions"
 import { toSlug } from "@/lib/slug"
-import type { Session } from "@/types/session"
+import type { Session, SessionStatus } from "@/types/session"
 
 // ─────────────────────────────────────────────────────────────────────────
 // Date utilities — no external library, pure JS Date math.
@@ -192,8 +192,86 @@ export function SessionCalendar({ sessions }: SessionCalendarProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Week view — 7-day vertical list, Mon first
+// Week view — horizontal 7-column grid, Mon first
 // ─────────────────────────────────────────────────────────────────────────
+
+// Left-border color keyed by status (visually encodes meaning without text)
+const CARD_BORDER: Record<SessionStatus, string> = {
+  completed:      "border-l-emerald-500",
+  scheduled:      "border-l-blue-500",
+  "in-progress":  "border-l-blue-400",
+  cancelled:      "border-l-amber-500",
+  "no-show":      "border-l-red-500",
+}
+
+// Summary strip: "5 sessions · 3 completed · 2 scheduled"
+function WeekSummary({ sessions, days }: { sessions: Session[]; days: Date[] }) {
+  const weekISOs = new Set(days.map((d) => localISO(d)))
+  const week = sessions.filter((s) => weekISOs.has(sessionDay(s)))
+  if (week.length === 0) return null
+
+  const counts: Partial<Record<SessionStatus, number>> = {}
+  for (const s of week) counts[s.status] = (counts[s.status] ?? 0) + 1
+
+  const ORDER: SessionStatus[] = ["completed", "in-progress", "scheduled", "cancelled", "no-show"]
+  const STATUS_LABEL: Record<SessionStatus, string> = {
+    completed: "completed",
+    "in-progress": "in progress",
+    scheduled: "scheduled",
+    cancelled: "cancelled",
+    "no-show": "no-show",
+  }
+  const total = week.length
+  const parts = [`${total} session${total === 1 ? "" : "s"}`]
+  for (const st of ORDER) {
+    const n = counts[st]
+    if (n) parts.push(`${n} ${STATUS_LABEL[st]}`)
+  }
+
+  return (
+    <p className="mb-3 text-xs text-muted-foreground">
+      {parts.join(" · ")}
+    </p>
+  )
+}
+
+// Compact session card for narrow week-grid columns
+function HorizontalSessionCard({ session: s }: { session: Session }) {
+  const dim = isMuted(s)
+  return (
+    <div
+      className={`rounded border border-border border-l-2 p-1.5 text-[10px] leading-snug ${CARD_BORDER[s.status]} ${
+        dim ? "opacity-55" : ""
+      }`}
+    >
+      {/* Time */}
+      <div className="font-mono tabular-nums text-muted-foreground">
+        {formatTime(s.time)}
+      </div>
+      {/* Session type — strikethrough if cancelled/no-show */}
+      <div className={`mt-0.5 font-semibold leading-tight truncate ${dim ? "line-through" : ""}`}>
+        {s.sessionType}
+      </div>
+      {/* Staff name — linked unless muted */}
+      <div className="mt-0.5 truncate text-muted-foreground">
+        {dim ? (
+          s.staffName
+        ) : (
+          <Link
+            to={"/staff/" + toSlug(s.staffName)}
+            className="hover:underline underline-offset-1"
+          >
+            {s.staffName}
+          </Link>
+        )}
+      </div>
+      {/* Status badge */}
+      <div className="mt-1">
+        <SessionStatusBadge status={s.status} />
+      </div>
+    </div>
+  )
+}
 
 function WeekView({
   sessions,
@@ -205,49 +283,58 @@ function WeekView({
   todayISO: string
 }) {
   return (
-    <div className="divide-y divide-border">
-      {days.map((day) => {
-        const iso = localISO(day)
-        const daySessions = sessionsOnDay(sessions, iso)
-        const isToday = iso === todayISO
-        const label = day.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        })
+    <div>
+      <WeekSummary sessions={sessions} days={days} />
+      <div className="grid grid-cols-7 gap-1.5 items-start">
+        {days.map((day) => {
+          const iso = localISO(day)
+          const daySessions = sessionsOnDay(sessions, iso)
+          const isToday = iso === todayISO
 
-        return (
-          <div key={iso} className="py-3 first:pt-0 last:pb-0">
-            {/* Day label */}
-            <div className="mb-2 flex items-center gap-2">
-              <span
-                className={`text-xs font-semibold ${
-                  isToday ? "text-primary" : "text-muted-foreground"
+          return (
+            <div key={iso} className="flex flex-col gap-1.5 min-w-0">
+              {/* Column header */}
+              <div
+                className={`border-b pb-1.5 text-center ${
+                  isToday ? "border-b-primary border-b-2" : "border-b-border"
                 }`}
               >
-                {label}
-              </span>
-              {isToday && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  Today
-                </span>
+                <div
+                  className={`text-[10px] font-semibold uppercase tracking-wide ${
+                    isToday ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  {day.toLocaleDateString("en-US", { weekday: "short" })}
+                </div>
+                <div
+                  className={`text-sm font-bold leading-tight ${
+                    isToday ? "text-primary" : "text-foreground"
+                  }`}
+                >
+                  {day.getDate()}
+                </div>
+                {isToday && (
+                  <div className="text-[8px] font-medium text-primary uppercase tracking-wider">
+                    Today
+                  </div>
+                )}
+              </div>
+              {/* Session cards or empty dash */}
+              {daySessions.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground/25 py-2" aria-hidden="true">
+                  —
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {daySessions.map((s) => (
+                    <HorizontalSessionCard key={s.id} session={s} />
+                  ))}
+                </div>
               )}
             </div>
-            {/* Session cards or empty state */}
-            {daySessions.length === 0 ? (
-              <p className="pl-1 text-xs text-muted-foreground/50">
-                No sessions scheduled
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {daySessions.map((s) => (
-                  <SessionCard key={s.id} session={s} />
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
