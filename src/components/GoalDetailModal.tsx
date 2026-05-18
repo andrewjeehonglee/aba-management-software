@@ -104,7 +104,9 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                   />
                   <XAxis
                     dataKey="date"
+                    type="category"
                     scale="point"
+                    padding={{ left: 0, right: 0 }}
                     tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                     tickLine={false}
                     axisLine={false}
