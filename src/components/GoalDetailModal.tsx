@@ -57,7 +57,7 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
 
   return (
     <Dialog open={goal !== null} onOpenChange={(open: boolean) => { if (!open) onClose() }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-2xl">
         {goal && history && status && (
           <>
             <DialogHeader>
