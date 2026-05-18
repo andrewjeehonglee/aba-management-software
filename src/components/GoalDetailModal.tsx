@@ -216,9 +216,25 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
 
             {/* ── CHART (always visible) ── */}
             <div>
-              <p className="mb-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              <p className="mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Progress — last 6 months
               </p>
+
+              {/* Legend — pill badges above the chart */}
+              <div className="mb-3 flex items-center gap-3">
+                {/* Blue filled pill — solid session line */}
+                <span className="inline-flex items-center rounded-full bg-blue-600 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  Per-session score
+                </span>
+                {/* Green dashed-border pill — rolling average line */}
+                <span className="inline-flex items-center rounded-full border-2 border-dashed border-green-600 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                  Rolling average
+                </span>
+                {/* Red dashed-border pill — mastery reference line */}
+                <span className="inline-flex items-center rounded-full border-2 border-dashed border-red-600 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                  Mastery criterion
+                </span>
+              </div>
 
               <ChartContainer config={chartConfig} className="h-[280px] w-full">
                 <LineChart
@@ -294,41 +310,6 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                 </LineChart>
               </ChartContainer>
 
-              {/* Manual legend */}
-              <div className="mt-3 flex items-center gap-5 justify-center">
-                <div className="flex items-center gap-1.5">
-                  <div
-                    className="w-6"
-                    style={{ backgroundColor: "var(--color-session)", height: "2px" }}
-                    aria-hidden="true"
-                  />
-                  <span className="text-xs text-muted-foreground">Session %</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <svg width="24" height="2" aria-hidden="true">
-                    <line
-                      x1="0" y1="1" x2="24" y2="1"
-                      stroke="var(--color-average)"
-                      strokeWidth="2"
-                      strokeDasharray="4 3"
-                    />
-                  </svg>
-                  <span className="text-xs text-muted-foreground">3-session avg</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <svg width="24" height="2" aria-hidden="true">
-                    <line
-                      x1="0" y1="1" x2="24" y2="1"
-                      stroke={MASTERY_LINE_COLOR}
-                      strokeWidth="1.5"
-                      strokeDasharray="5 3"
-                    />
-                  </svg>
-                  <span className="text-xs text-muted-foreground">
-                    Mastery ({history.masteryThreshold}%)
-                  </span>
-                </div>
-              </div>
             </div>
           </>
         )}
