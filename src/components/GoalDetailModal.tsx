@@ -54,7 +54,7 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
   const status = goal ? GOAL_STATUS_CONFIG[goal.status] : undefined
 
   return (
-    <Dialog open={goal !== null} onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open={goal !== null} onOpenChange={(open: boolean) => { if (!open) onClose() }}>
       <DialogContent className="max-w-2xl">
         {goal && history && status && (
           <>
