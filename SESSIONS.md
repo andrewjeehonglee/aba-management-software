@@ -395,11 +395,99 @@ git push                                      # → GitHub → Vercel auto-deplo
 
 ---
 
+## Session 11 — Goal modal polish, week calendar redesign, real ABA goal states
+
+**Date:** May 18, 2026
+
+**Commits:** `a518a55` → `dac0fa4` → `85b300a` → `9c0a769` → `b84a85f` → `f311c86` → `5884fc0` → `be777ff` → `51a4ad1`
+
+---
+
+### What landed
+
+#### Goal Detail Modal — chart readability pass
+- Increased dialog height from `220px` → `280px`; line `strokeWidth` raised to `2.5` on both lines
+- Explicit hex colors: Session % line = `#2563eb` (blue), Rolling average = `#16a34a` (green), Mastery reference line = `#dc2626` (red, dashed)
+- `dot={{ r: 3 }}` on session line so every data point is visible; `activeDot={{ r: 5 }}` on hover
+- Mastery reference line label moved to `position="insideTopRight"` — no longer overlaps early data points
+
+#### Goal chart right-edge gap — three-attempt diagnosis + fix
+- **Root cause 1 (date):** `BASE` was hardcoded to `new Date(2025, 10, 10)`, so 25 weekly points ended Apr 27. Fixed by computing `BASE = today − 24 weeks` at runtime, anchoring the last point to today.
+- **Root cause 2 (modal width):** The dialog was stuck at `max-w-sm` (~384px) because shadcn's `DialogContent` hardcodes `sm:max-w-sm` and `max-w-2xl` (no breakpoint) couldn't override it. Fixed by passing `sm:max-w-2xl`.
+- **Root cause 3 (axis scale):** Recharts' category axis uses a band scale, leaving a half-band gap at each edge. `scale="point"` and `padding={{ left: 0, right: 0 }}` weren't enough. Fixed definitively by switching to a **numeric XAxis**: added `idx: 0..24` to every `GoalDataPoint`, set `type="number" domain={["dataMin","dataMax"]}`, explicit `ticks={[0,4,8,12,16,20,24]}`, and a `tickFormatter` that looks up the date string by index. `labelFormatter` on the tooltip preserves the date on hover.
+
+#### Session Calendar — horizontal week grid redesign
+- **Before:** 7 days stacked vertically, each as a full-width row with session cards
+- **After:** `grid-cols-7` CSS grid — one column per day (Mon–Sun), cards stacking inside each column
+- Each column header: day name + date number + "Today" badge in primary color
+- Session cards have a **2px colored left border** by status: green = Completed, blue = Scheduled, amber = Cancelled, red = No-show
+- Empty days show a faint `—` (not "No sessions scheduled" — too noisy in a 7-column layout)
+- **Week summary strip** above the grid: e.g. "5 sessions · 3 completed · 1 scheduled · 1 cancelled"
+- Month view unchanged
+
+#### Real ABA goal states (client-confirmed)
+Replaced the four invented statuses with the four real lifecycle states the client confirmed:
+
+| Old | New |
+|---|---|
+| `under-progress` | `hold` |
+| `nearing-mastery` | `in-progress` |
+| — | `discontinued` *(new)* |
+| `mastered` | `mastered` *(unchanged)* |
+
+**Chip colors:**
+- In progress → blue (`bg-blue-100 text-blue-800`)
+- Hold → amber (`bg-amber-100 text-amber-800`)
+- Mastered → green (`bg-emerald-100 text-emerald-800`)
+- Discontinued → gray muted (`bg-gray-100 text-gray-500`) + `opacity-50` + `line-through` on the goal name
+
+**Sort order:** In progress → Hold → Mastered → Discontinued
+
+**Files changed:** `src/types/goal.ts`, `src/data/mockGoals.ts`, `src/data/mockGoalHistory.ts`, `src/pages/ClientOverviewPage.tsx`, `src/components/GoalDetailModal.tsx`
+
+**Mock data updates:**
+- `"nearing-mastery"` goals → `"in-progress"` across all clients
+- `"under-progress"` goals → `"hold"` (most) or `"discontinued"` (Liam's tooth brushing g-la-8, Mia's tolerating transitions g-md-1 — both fit the cross-tile attendance story)
+- Chart trajectory shapes updated: `hold` = flat/slight decline; `discontinued` = declining (clinically why it was removed)
+- `shadcn Input` installed (`npx shadcn add input`) for edit mode below
+
+#### Goal Detail Modal — edit mode
+- **Edit button** in the modal header (right-aligned, next to title, hidden during edit)
+- Clicking Edit switches the metadata block to two editable fields:
+  - **Status** — shadcn `Select` with all 4 states, pre-selected to current value
+  - **Mastery criterion** — shadcn `Input` pre-filled with the current criterion text
+- **Save** commits the draft to local `saved` state and returns to view mode; **Cancel** discards and returns to view mode
+- Chart and streak data remain visible in both view and edit mode
+- State design: `draft` (in-flight edits) + `saved` (committed overrides) layered on top of original `goal` prop; resets on modal close
+
+#### Goal Detail Modal — pill badge legend
+- Replaced the SVG line-swatch legend below the chart with three colored pill badges **above** the chart
+- Blue solid filled pill → "Per-session score"
+- Green dashed-border pill → "Rolling average"
+- Red dashed-border pill → "Mastery criterion"
+- Left-aligned horizontal row with `gap-3` (12px); dashed borders mirror the dashed line styles in the chart
+
+---
+
+### Files changed this session
+
+| File | Change |
+|---|---|
+| `src/components/GoalDetailModal.tsx` | Chart polish, width fix, numeric XAxis, edit mode, pill legend |
+| `src/components/SessionCalendar.tsx` | Week view → 7-column horizontal grid with summary strip |
+| `src/components/ui/input.tsx` | New — installed via `npx shadcn add input` |
+| `src/data/mockGoalHistory.ts` | Numeric `idx` field; dynamic BASE date; updated trajectory configs + GOAL_SPECS |
+| `src/types/goal.ts` | New `GoalStatus` type: `in-progress \| hold \| discontinued \| mastered` |
+| `src/data/mockGoals.ts` | All statuses remapped to 4 real states |
+| `src/pages/ClientOverviewPage.tsx` | Updated `GOAL_STATUS_CONFIG`, sort order, `GoalRow` strikethrough for discontinued |
+
+---
+
 ## What's NOT done yet (next sessions, suggested order)
 
 **Phase 2 — remaining product builds:**
 1. **Session View (Screen 2)** — the largest remaining build. Per-session detail page (clinical notes, data collection grid per goal, timer, billing fields). Reachable from any session row across the app. This is where most of the daily clinical work actually happens.
-2. **Calendar on Client Overview** — weekly/monthly view of past + upcoming sessions for a client. Today the Sessions card is a flat list; the calendar adds shape to "what's their schedule actually look like."
+2. **Goal edit persistence** — today's edit mode saves to local React state only; changes are lost on modal close. Next step: lift `saved` overrides to a context or parent-level map so edits survive navigation within a session.
 3. **RBAC role-toggle** — surface a dev-only role switcher (Owner / BCBA / RBT / Front-desk) that changes which tiles + actions are visible. Today every visitor sees everything; real ABA orgs need scoped views.
 4. **Real data hookup** — replace each `mockX` import with API calls. Introduces `useEffect`, `fetch`, loading/error/empty states. Every tile and page is already shaped to a future API response, so this is mostly plumbing.
 
@@ -418,4 +506,4 @@ git push                                      # → GitHub → Vercel auto-deplo
 
 ---
 
-*Last updated: May 13, 2026 (end of Session 10).*
+*Last updated: May 18, 2026 (end of Session 11).*
