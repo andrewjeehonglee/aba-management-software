@@ -25,10 +25,10 @@ import type { Goal, GoalStatus } from "@/types/goal"
 // rendered at this fidelity (the list card uses a simpler badge-only
 // version). If a third caller appears, extract to src/lib/goals.ts.
 const GOAL_STATUS_CONFIG: Record<GoalStatus, { label: string; className: string }> = {
-  "under-progress":  { label: "Under progress",  className: "bg-red-100 text-red-800" },
-  "in-progress":     { label: "In progress",     className: "bg-slate-100 text-slate-700" },
-  "nearing-mastery": { label: "Nearing mastery", className: "bg-amber-100 text-amber-800" },
-  mastered:          { label: "Mastered",        className: "bg-emerald-100 text-emerald-800" },
+  "in-progress": { label: "In progress",  className: "bg-blue-100 text-blue-800"       },
+  hold:          { label: "Hold",         className: "bg-amber-100 text-amber-800"     },
+  discontinued:  { label: "Discontinued", className: "bg-gray-100 text-gray-500"       },
+  mastered:      { label: "Mastered",     className: "bg-emerald-100 text-emerald-800" },
 }
 
 // Streak label — copied format from ClientOverviewPage's formatStreak so

@@ -38,27 +38,24 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
   "no-show":     "no-show",
 }
 
-// Goal status config. Note "in-progress" overlaps as an enum value with
-// SessionStatus but means something different here (normal teaching pace,
-// not "currently happening") and gets a different color (slate vs blue).
-// Different domain, different config — kept separate on purpose.
+// Goal status config — four real ABA lifecycle states confirmed by the client.
+// Sort order: in-progress first (active work), then hold (needs review),
+// then mastered (completed successfully), then discontinued (inactive, muted).
 const GOAL_STATUS_CONFIG: Record<
   GoalStatus,
   { label: string; className: string }
 > = {
-  "under-progress":  { label: "Under progress",  className: "bg-red-100 text-red-800" },
-  "in-progress":     { label: "In progress",     className: "bg-slate-100 text-slate-700" },
-  "nearing-mastery": { label: "Nearing mastery", className: "bg-amber-100 text-amber-800" },
-  mastered:          { label: "Mastered",        className: "bg-emerald-100 text-emerald-800" },
+  "in-progress": { label: "In progress",  className: "bg-blue-100 text-blue-800"       },
+  hold:          { label: "Hold",         className: "bg-amber-100 text-amber-800"     },
+  mastered:      { label: "Mastered",     className: "bg-emerald-100 text-emerald-800" },
+  discontinued:  { label: "Discontinued", className: "bg-gray-100 text-gray-500"       },
 }
 
-// Sort priority for goals: most-concerning first. Mirrors how the dashboard
-// orders Today's Sessions ("what should I look at first?").
 const GOAL_STATUS_ORDER: Record<GoalStatus, number> = {
-  "under-progress":  0,
-  "in-progress":     1,
-  "nearing-mastery": 2,
-  mastered:          3,
+  "in-progress": 0,
+  hold:          1,
+  mastered:      2,
+  discontinued:  3,
 }
 
 function Chip({ children }: { children: React.ReactNode }) {
@@ -366,12 +363,19 @@ export function ClientOverviewPage() {
 // criterion that wraps doesn't push the right column down.
 // The goal name is a button — clicking it opens the GoalDetailModal.
 function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
+  const isDiscontinued = goal.status === "discontinued"
   return (
-    <li className="flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0">
+    <li
+      className={`flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0 ${
+        isDiscontinued ? "opacity-50" : ""
+      }`}
+    >
       <div className="flex-1 min-w-0">
         <button
           onClick={onSelect}
-          className="text-left font-semibold text-sm hover:underline underline-offset-2 cursor-pointer"
+          className={`text-left font-semibold text-sm hover:underline underline-offset-2 cursor-pointer ${
+            isDiscontinued ? "line-through text-muted-foreground" : ""
+          }`}
         >
           {goal.name}
         </button>

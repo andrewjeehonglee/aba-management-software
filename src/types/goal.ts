@@ -1,14 +1,15 @@
 // A treatment goal in a client's ABA program. Goals are the unit of clinical
 // progress: each represents a discrete skill being taught and tracked toward
 // a mastery criterion (e.g. "80% accuracy across 3 sessions"). The status
-// field reflects where the goal sits in its lifecycle, not whether it's
-// "active" — a "mastered" goal still appears on the active list because
-// behavior analysts probe mastered skills periodically to ensure maintenance.
-export type GoalStatus =
-  | "under-progress"   // not making progress, regression, or stalled data
-  | "in-progress"      // actively being taught at a normal pace
-  | "nearing-mastery"  // close to meeting the mastery criterion
-  | "mastered"         // criterion met; still tracked for maintenance
+// field reflects where the goal sits in its lifecycle:
+//
+//   in-progress   — actively being taught at a normal pace
+//   hold          — temporarily paused (BCBA decision; e.g. awaiting assessment,
+//                   attendance disruption, regression requiring re-baselining)
+//   discontinued  — officially removed from the program; criterion not met but
+//                   goal was deprioritised or clinically inappropriate to continue
+//   mastered      — criterion met; still tracked periodically for maintenance
+export type GoalStatus = "in-progress" | "hold" | "discontinued" | "mastered"
 
 export interface Goal {
   id: string

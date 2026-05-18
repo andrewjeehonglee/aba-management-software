@@ -66,15 +66,20 @@ function generatePoints(
 ): GoalDataPoint[] {
   const rng = seededRng(seed)
 
-  // Trajectory parameters per status.
+  // Trajectory parameters per status. Each shape tells a clinical story that
+  // matches what the status label means to a BCBA reading the chart:
+  //   in-progress  — steady positive trend; still below threshold
+  //   hold         — flat or slight decline; data stops improving (hence paused)
+  //   discontinued — declining trajectory; goal was deprioritised before mastery
+  //   mastered     — strong drift, crosses threshold ~week 16, locks in above it
   const cfg: Record<
     GoalStatus,
     { startMin: number; startMax: number; drift: number; noise: number; lockWeek?: number }
   > = {
-    "under-progress":  { startMin: 50, startMax: 65, drift: -0.15, noise: 12 },
-    "in-progress":     { startMin: 45, startMax: 62, drift:  0.55, noise: 11 },
-    "nearing-mastery": { startMin: 65, startMax: 78, drift:  0.80, noise:  9 },
-    mastered:          { startMin: 58, startMax: 72, drift:  1.10, noise:  8, lockWeek: 16 },
+    "in-progress":  { startMin: 45, startMax: 62, drift:  0.55, noise: 11 },
+    hold:           { startMin: 42, startMax: 58, drift: -0.10, noise: 10 },
+    discontinued:   { startMin: 38, startMax: 55, drift: -0.25, noise: 12 },
+    mastered:       { startMin: 58, startMax: 72, drift:  1.10, noise:  8, lockWeek: 16 },
   }
   const c = cfg[status]
 
@@ -132,74 +137,74 @@ function generatePoints(
 // -------------------------------------------------------------------
 const GOAL_SPECS: Record<string, { threshold: number; status: GoalStatus }> = {
   // sophia-bennett
-  "g-sb-1": { threshold: 80,  status: "in-progress"     },
-  "g-sb-2": { threshold: 90,  status: "nearing-mastery" },
-  "g-sb-3": { threshold: 80,  status: "in-progress"     },
-  "g-sb-4": { threshold: 80,  status: "in-progress"     },
-  "g-sb-5": { threshold: 100, status: "in-progress"     },
-  "g-sb-6": { threshold: 80,  status: "in-progress"     },
-  "g-sb-7": { threshold: 80,  status: "in-progress"     },
+  "g-sb-1": { threshold: 80,  status: "in-progress"  },
+  "g-sb-2": { threshold: 90,  status: "in-progress"  },
+  "g-sb-3": { threshold: 80,  status: "in-progress"  },
+  "g-sb-4": { threshold: 80,  status: "in-progress"  },
+  "g-sb-5": { threshold: 100, status: "in-progress"  },
+  "g-sb-6": { threshold: 80,  status: "in-progress"  },
+  "g-sb-7": { threshold: 80,  status: "in-progress"  },
 
   // liam-anderson
-  "g-la-1": { threshold: 100, status: "nearing-mastery" },
-  "g-la-2": { threshold: 60,  status: "nearing-mastery" },
-  "g-la-3": { threshold: 80,  status: "in-progress"     },
-  "g-la-4": { threshold: 80,  status: "under-progress"  },
-  "g-la-5": { threshold: 90,  status: "in-progress"     },
-  "g-la-6": { threshold: 100, status: "in-progress"     },
-  "g-la-7": { threshold: 90,  status: "in-progress"     },
-  "g-la-8": { threshold: 90,  status: "under-progress"  },
+  "g-la-1": { threshold: 100, status: "in-progress"  },
+  "g-la-2": { threshold: 60,  status: "in-progress"  },
+  "g-la-3": { threshold: 80,  status: "in-progress"  },
+  "g-la-4": { threshold: 80,  status: "hold"         },
+  "g-la-5": { threshold: 90,  status: "in-progress"  },
+  "g-la-6": { threshold: 100, status: "in-progress"  },
+  "g-la-7": { threshold: 90,  status: "in-progress"  },
+  "g-la-8": { threshold: 90,  status: "discontinued" },
 
   // ethan-carter
-  "g-ec-1": { threshold: 80,  status: "mastered"        },
-  "g-ec-2": { threshold: 80,  status: "in-progress"     },
-  "g-ec-3": { threshold: 90,  status: "in-progress"     },
-  "g-ec-4": { threshold: 80,  status: "in-progress"     },
-  "g-ec-5": { threshold: 100, status: "under-progress"  },
-  "g-ec-6": { threshold: 100, status: "in-progress"     },
+  "g-ec-1": { threshold: 80,  status: "mastered"     },
+  "g-ec-2": { threshold: 80,  status: "in-progress"  },
+  "g-ec-3": { threshold: 90,  status: "in-progress"  },
+  "g-ec-4": { threshold: 80,  status: "in-progress"  },
+  "g-ec-5": { threshold: 100, status: "hold"         },
+  "g-ec-6": { threshold: 100, status: "in-progress"  },
 
   // mia-davis
-  "g-md-1": { threshold: 60,  status: "under-progress"  },
-  "g-md-2": { threshold: 80,  status: "under-progress"  },
-  "g-md-3": { threshold: 80,  status: "under-progress"  },
-  "g-md-4": { threshold: 100, status: "in-progress"     },
-  "g-md-5": { threshold: 90,  status: "in-progress"     },
-  "g-md-6": { threshold: 80,  status: "in-progress"     },
-  "g-md-7": { threshold: 80,  status: "in-progress"     },
+  "g-md-1": { threshold: 60,  status: "discontinued" },
+  "g-md-2": { threshold: 80,  status: "hold"         },
+  "g-md-3": { threshold: 80,  status: "hold"         },
+  "g-md-4": { threshold: 100, status: "in-progress"  },
+  "g-md-5": { threshold: 90,  status: "in-progress"  },
+  "g-md-6": { threshold: 80,  status: "in-progress"  },
+  "g-md-7": { threshold: 80,  status: "in-progress"  },
 
   // noah-edwards
-  "g-ne-1": { threshold: 80,  status: "in-progress"     },
-  "g-ne-2": { threshold: 80,  status: "in-progress"     },
-  "g-ne-3": { threshold: 90,  status: "in-progress"     },
-  "g-ne-4": { threshold: 90,  status: "in-progress"     },
-  "g-ne-5": { threshold: 100, status: "in-progress"     },
-  "g-ne-6": { threshold: 60,  status: "in-progress"     },
+  "g-ne-1": { threshold: 80,  status: "in-progress"  },
+  "g-ne-2": { threshold: 80,  status: "in-progress"  },
+  "g-ne-3": { threshold: 90,  status: "in-progress"  },
+  "g-ne-4": { threshold: 90,  status: "in-progress"  },
+  "g-ne-5": { threshold: 100, status: "in-progress"  },
+  "g-ne-6": { threshold: 60,  status: "in-progress"  },
 
   // olivia-foster
-  "g-of-1": { threshold: 80,  status: "mastered"        },
-  "g-of-2": { threshold: 90,  status: "mastered"        },
-  "g-of-3": { threshold: 90,  status: "in-progress"     },
-  "g-of-4": { threshold: 100, status: "in-progress"     },
-  "g-of-5": { threshold: 80,  status: "in-progress"     },
-  "g-of-6": { threshold: 100, status: "in-progress"     },
+  "g-of-1": { threshold: 80,  status: "mastered"     },
+  "g-of-2": { threshold: 90,  status: "mastered"     },
+  "g-of-3": { threshold: 90,  status: "in-progress"  },
+  "g-of-4": { threshold: 100, status: "in-progress"  },
+  "g-of-5": { threshold: 80,  status: "in-progress"  },
+  "g-of-6": { threshold: 100, status: "in-progress"  },
 
   // lucas-hayes
-  "g-lh-1": { threshold: 80,  status: "mastered"        },
-  "g-lh-2": { threshold: 90,  status: "mastered"        },
-  "g-lh-3": { threshold: 80,  status: "mastered"        },
-  "g-lh-4": { threshold: 100, status: "nearing-mastery" },
-  "g-lh-5": { threshold: 100, status: "in-progress"     },
-  "g-lh-6": { threshold: 80,  status: "in-progress"     },
-  "g-lh-7": { threshold: 100, status: "in-progress"     },
-  "g-lh-8": { threshold: 100, status: "in-progress"     },
+  "g-lh-1": { threshold: 80,  status: "mastered"     },
+  "g-lh-2": { threshold: 90,  status: "mastered"     },
+  "g-lh-3": { threshold: 80,  status: "mastered"     },
+  "g-lh-4": { threshold: 100, status: "in-progress"  },
+  "g-lh-5": { threshold: 100, status: "in-progress"  },
+  "g-lh-6": { threshold: 80,  status: "in-progress"  },
+  "g-lh-7": { threshold: 100, status: "in-progress"  },
+  "g-lh-8": { threshold: 100, status: "in-progress"  },
 
   // ava-hughes
-  "g-ah-1": { threshold: 80,  status: "in-progress"     },
-  "g-ah-2": { threshold: 80,  status: "in-progress"     },
-  "g-ah-3": { threshold: 90,  status: "in-progress"     },
-  "g-ah-4": { threshold: 80,  status: "in-progress"     },
-  "g-ah-5": { threshold: 100, status: "in-progress"     },
-  "g-ah-6": { threshold: 90,  status: "in-progress"     },
+  "g-ah-1": { threshold: 80,  status: "in-progress"  },
+  "g-ah-2": { threshold: 80,  status: "in-progress"  },
+  "g-ah-3": { threshold: 90,  status: "in-progress"  },
+  "g-ah-4": { threshold: 80,  status: "in-progress"  },
+  "g-ah-5": { threshold: 100, status: "in-progress"  },
+  "g-ah-6": { threshold: 90,  status: "in-progress"  },
 }
 
 // Computed at module load — deterministic, so safe to keep at module scope.
