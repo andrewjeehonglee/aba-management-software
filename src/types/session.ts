@@ -7,9 +7,10 @@ export type SessionStatus =
 
 export interface Session {
   id: string
-  time: string         // ISO time string, e.g. "2026-05-12T09:00"
+  time: string              // ISO datetime, e.g. "2026-05-18T09:00" (local time)
   clientName: string
   staffName: string
-  sessionType: string  // e.g. "Direct therapy", "Supervision", "Assessment"
+  sessionType: string       // e.g. "Direct therapy", "Supervision", "Assessment"
   status: SessionStatus
+  durationMinutes?: number  // session length; present in calendar data, absent in dashboard snapshots
 }

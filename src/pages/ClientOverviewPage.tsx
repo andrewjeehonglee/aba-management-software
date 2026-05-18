@@ -2,6 +2,7 @@ import { useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
+import { SessionCalendar } from "@/components/SessionCalendar"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import {
   Card,
@@ -10,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
+import { mockCalendarSessions } from "@/data/mockCalendarSessions"
 import { mockClients } from "@/data/mockClients"
 import { mockGoals } from "@/data/mockGoals"
 import { mockSessions } from "@/data/mockSessions"
@@ -173,6 +175,13 @@ export function ClientOverviewPage() {
     a.time.localeCompare(b.time)
   )
 
+  // Calendar sessions — separate data source covering 4+ weeks of history
+  // plus future scheduled sessions. `mockSessions` is "today only" for the
+  // dashboard tile; `mockCalendarSessions` is the fuller scheduling record.
+  const calendarSessions = clientId
+    ? mockCalendarSessions.filter((s) => toSlug(s.clientName) === clientId)
+    : []
+
   // Active goals — keyed by slug for direct lookup. Sorted by status priority
   // (most concerning first), then alphabetically by name within the same
   // status for stable ordering.
@@ -272,7 +281,10 @@ export function ClientOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3 — Sessions table.
+      {/* Section 3 — Session Calendar */}
+      <SessionCalendar sessions={calendarSessions} />
+
+      {/* Section 4 — Sessions table.
           Title says "Last 7 Days" but mock data is just today; the title
           reflects the eventual real-data scope, not the current fixture. */}
       <Card className="w-full max-w-3xl">
