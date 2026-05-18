@@ -103,14 +103,14 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                     vertical={false}
                   />
                   <XAxis
-                    dataKey="date"
-                    type="category"
-                    scale="point"
-                    padding={{ left: 0, right: 0 }}
+                    dataKey="idx"
+                    type="number"
+                    domain={["dataMin", "dataMax"]}
+                    ticks={[0, 4, 8, 12, 16, 20, 24]}
+                    tickFormatter={(i: number) => history.points[i]?.date ?? ""}
                     tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                     tickLine={false}
                     axisLine={false}
-                    interval={3}
                   />
                   <YAxis
                     domain={[0, 100]}
@@ -124,6 +124,9 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
                     content={
                       <ChartTooltipContent
                         formatter={(value) => `${value}%`}
+                        labelFormatter={(_idx, payload) =>
+                          payload?.[0]?.payload?.date ?? ""
+                        }
                       />
                     }
                   />

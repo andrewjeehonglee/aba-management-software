@@ -1,6 +1,8 @@
 import type { GoalStatus } from "@/types/goal"
 
 export interface GoalDataPoint {
+  idx: number      // 0..N — numeric x position; lets the chart use a linear
+                   // scale so the first/last points land at the plot edges
   date: string     // display label e.g. "Nov 10"
   session: number  // 0-100 — per-session accuracy %
   average: number  // 3-session rolling mean (rounds to integer)
@@ -107,7 +109,7 @@ function generatePoints(
     const d = new Date(BASE + i * MS_PER_WEEK)
     const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
 
-    return { date, session, average }
+    return { idx: i, date, session, average }
   })
 }
 
