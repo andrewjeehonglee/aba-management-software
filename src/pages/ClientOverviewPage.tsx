@@ -1,5 +1,8 @@
+import { useState } from "react"
 import { ArrowLeft, Play } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
+import { GoalDetailModal } from "@/components/GoalDetailModal"
+import { SessionCalendar } from "@/components/SessionCalendar"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import { Button } from "@/components/ui/button"
 import {
@@ -18,15 +21,12 @@ import {
   usedHours,
   utilizationClass,
 } from "@/lib/authorization"
+import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
-
-// Fixed "today" — matches SessionCalendar and CertificationsExpiringTile so
-// the "upcoming" filter is consistent with what the calendar displayed.
-const TODAY_ISO = "2026-05-18"
 
 // Display labels for the inline status summary line ("Today: 1 completed,
 // 1 in progress…"). Hyphens and tech-style enum values don't read well in
@@ -76,6 +76,22 @@ function GoalStatusBadge({ status }: { status: GoalStatus }) {
       {label}
     </span>
   )
+}
+
+// Pluralize "day" / "days" and handle the streak=0 edge case so a fresh goal
+// doesn't read as "0 days in a row at 70%" (technically true but parses as
+// "this isn't going well," which it isn't).
+function formatStreak(days: number, percent: number): string {
+  if (days === 0) return "Not started yet"
+  return `${days} day${days === 1 ? "" : "s"} in a row at ${percent}%`
+}
+
+// "Updated today" / "Updated yesterday" / "Updated 3 days ago" — small
+// editorial polish so the page reads less robotic than literal day counts.
+function formatLastUpdated(daysAgo: number): string {
+  if (daysAgo === 0) return "Updated today"
+  if (daysAgo === 1) return "Updated yesterday"
+  return `Updated ${daysAgo} days ago`
 }
 
 // Pretty-print an ISO date "2018-03-14" as "Mar 14, 2018". The "T00:00:00"
@@ -150,6 +166,14 @@ export function ClientOverviewPage() {
     new Set(clientSessions.map((s) => s.staffName))
   )
 
+  // Sorted view of the same sessions, used only by the table render below.
+  // Kept separate from `clientSessions` so derivations that don't care about
+  // order (chip counts, uniqueStaff Set) aren't quietly affected by a sort.
+  // ISO time strings sort chronologically under string compare.
+  const sortedClientSessions = [...clientSessions].sort((a, b) =>
+    a.time.localeCompare(b.time)
+  )
+
   // Calendar sessions — separate data source covering 4+ weeks of history
   // plus future scheduled sessions. `mockSessions` is "today only" for the
   // dashboard tile; `mockCalendarSessions` is the fuller scheduling record.
@@ -166,6 +190,8 @@ export function ClientOverviewPage() {
       GOAL_STATUS_ORDER[a.status] - GOAL_STATUS_ORDER[b.status] ||
       a.name.localeCompare(b.name)
   )
+
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
 
   // Status breakdown — count per status, then format as a single muted line.
   // Skipping zero-count statuses keeps the line short for clients with only
@@ -272,13 +298,58 @@ export function ClientOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3 — Upcoming Sessions (next 3 scheduled sessions) */}
+      {/* Section 3 — Session Calendar */}
+      <SessionCalendar sessions={calendarSessions} />
+
+      {/* Section 4 — Sessions table.
+          Title says "Last 7 Days" but mock data is just today; the title
+          reflects the eventual real-data scope, not the current fixture. */}
       <Card className="w-full max-w-3xl">
         <CardHeader>
-          <CardTitle>Upcoming Sessions</CardTitle>
+          <CardTitle>Sessions — Last 7 Days</CardTitle>
         </CardHeader>
         <CardContent>
-          <UpcomingSessions sessions={calendarSessions} />
+          {sortedClientSessions.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No sessions found for this client.
+            </div>
+          ) : (
+            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
+              {/* Header row */}
+              <div className="text-muted-foreground pb-2 border-b">Time</div>
+              <div className="text-muted-foreground pb-2 border-b">Staff</div>
+              <div className="text-muted-foreground pb-2 border-b">Type</div>
+              <div className="text-muted-foreground pb-2 border-b text-right">
+                Status
+              </div>
+
+              {/* Session rows — `display: contents` wrapper makes each row's
+                  children participate in the parent grid directly, so all
+                  rows align to the same column tracks. Same trick used in
+                  TodaySessionsTile. */}
+              {sortedClientSessions.map((s) => (
+                <div key={s.id} className="contents">
+                  <div className="font-mono text-muted-foreground tabular-nums py-1.5">
+                    {formatTime(s.time)}
+                  </div>
+                  <div className="truncate min-w-0 py-1.5 text-sm">
+                    <Link
+                      to={"/staff/" + toSlug(s.staffName)}
+                      className="hover:underline underline-offset-2"
+                    >
+                      {s.staffName}
+                    </Link>
+                  </div>
+                  <div className="truncate min-w-0 py-1.5 text-muted-foreground">
+                    {s.sessionType}
+                  </div>
+                  <div className="flex items-center justify-end py-1.5">
+                    <SessionStatusBadge status={s.status} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -295,81 +366,53 @@ export function ClientOverviewPage() {
           ) : (
             <ul className="divide-y divide-border">
               {sortedGoals.map((goal) => (
-                <GoalRow key={goal.id} goal={goal} />
+                <GoalRow key={goal.id} goal={goal} onSelect={() => setSelectedGoal(goal)} />
               ))}
             </ul>
           )}
         </CardContent>
       </Card>
+
+      <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} />
     </div>
   )
 }
 
-// Flat goal row — name + status chip on one line, mastery criteria below.
-// Discontinued goals are dimmed and the name gets a strikethrough.
-function GoalRow({ goal }: { goal: Goal }) {
+// Each goal row: name + mastery criterion on the left, streak + status chip
+// + "last updated" stacked right-aligned. Items-start so a long mastery
+// criterion that wraps doesn't push the right column down.
+// The goal name is a button — clicking it opens the GoalDetailModal.
+function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
   const isDiscontinued = goal.status === "discontinued"
   return (
     <li
-      className={`flex items-start justify-between gap-4 py-3.5 first:pt-0 last:pb-0 ${
+      className={`flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0 ${
         isDiscontinued ? "opacity-50" : ""
       }`}
     >
       <div className="flex-1 min-w-0">
-        <span
-          className={`text-sm font-semibold ${
+        <button
+          onClick={onSelect}
+          className={`text-left font-semibold text-sm hover:underline underline-offset-2 cursor-pointer ${
             isDiscontinued ? "line-through text-muted-foreground" : ""
           }`}
         >
           {goal.name}
-        </span>
-        <p className="mt-0.5 text-xs text-muted-foreground">{goal.masteryTarget}</p>
+        </button>
+        <div className="mt-0.5 text-xs text-muted-foreground">
+          {goal.masteryTarget}
+        </div>
       </div>
-      <GoalStatusBadge status={goal.status} />
+      <div className="flex flex-col items-end gap-1 shrink-0 text-right">
+        <div className="text-xs tabular-nums">
+          {formatStreak(goal.streakDays, goal.streakPercent)}
+        </div>
+        <GoalStatusBadge status={goal.status} />
+        <div className="text-xs text-muted-foreground">
+          {formatLastUpdated(goal.lastUpdatedDaysAgo)}
+        </div>
+      </div>
     </li>
-  )
-}
-
-// Next 3 scheduled sessions from the calendar, sorted by date/time.
-// Formats each as "Day, Mon D · HH:MM AM/PM · Staff Name".
-function UpcomingSessions({ sessions }: { sessions: Session[] }) {
-  const upcoming = sessions
-    .filter((s) => s.status === "scheduled" && s.time.slice(0, 10) > TODAY_ISO)
-    .sort((a, b) => a.time.localeCompare(b.time))
-    .slice(0, 3)
-
-  if (upcoming.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-        No upcoming sessions scheduled.
-      </div>
-    )
-  }
-
-  return (
-    <ul className="divide-y divide-border">
-      {upcoming.map((s) => {
-        const dateObj = new Date(s.time)
-        const dateLabel = dateObj.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        })
-        const timeLabel = dateObj.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        })
-        return (
-          <li key={s.id} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-            <div>
-              <p className="text-sm font-medium">{dateLabel}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{timeLabel} · {s.staffName}</p>
-            </div>
-            <SessionStatusBadge status={s.status} />
-          </li>
-        )
-      })}
-    </ul>
   )
 }
 
