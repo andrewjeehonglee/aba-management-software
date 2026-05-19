@@ -265,7 +265,8 @@ export function SessionViewPage() {
   const session = mockCalendarSessions.find(s => s.id === sessionId)
   const clientId = session ? toSlug(session.clientName) : null
   const clientProfile = clientId ? mockClients.find(c => toSlug(c.name) === clientId) : undefined
-  const goals = clientId ? (mockGoals[clientId] ?? []) : []
+  const allGoals = clientId ? (mockGoals[clientId] ?? []) : []
+  const goals = allGoals.filter(g => g.status === "in-progress" || g.status === "hold")
   const behaviors: Behavior[] = clientId ? (mockBehaviors[clientId] ?? []) : []
   const displayName = session?.clientName ?? "Session"
   const billingCode = clientProfile?.cptCode ?? "—"
