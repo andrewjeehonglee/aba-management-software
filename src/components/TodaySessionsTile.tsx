@@ -136,31 +136,30 @@ export function TodaySessionsTile({ className }: { className?: string }) {
             No sessions match this filter.
           </div>
         ) : (
-          <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
-            {/* Header row */}
-            <div className="text-muted-foreground pb-2 border-b">Time</div>
-            <div className="text-muted-foreground pb-2 border-b">Client</div>
-            <div className="text-muted-foreground pb-2 border-b">Staff</div>
-            <div className="text-muted-foreground pb-2 border-b">Type</div>
-            <div className="text-muted-foreground pb-2 border-b text-right">
-              Status
+          <div className="flex flex-col text-xs">
+            {/* Header row — same column template as session rows */}
+            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] gap-x-3 border-b pb-2 text-muted-foreground">
+              <div>Time</div>
+              <div>Client</div>
+              <div>Staff</div>
+              <div>Type</div>
+              <div className="text-right">Status</div>
             </div>
 
-            {/* Session rows — `contents` wrapper makes each row's children
-                participate in the parent grid directly, so all rows align to
-                the same column tracks. */}
+            {/* Session rows — each row is a Link so the entire row is
+                clickable. -mx-2 px-2 extends the hover highlight to the
+                card edges without shifting the text alignment. */}
             {sortedSessions.map((s) => (
-              <div key={s.id} className="contents">
+              <Link
+                key={s.id}
+                to={"/clients/" + toSlug(s.clientName)}
+                className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] gap-x-3 -mx-2 px-2 rounded items-center transition-colors hover:bg-muted/60 cursor-pointer"
+              >
                 <div className="font-mono text-muted-foreground tabular-nums py-1.5">
                   {formatTime(s.time)}
                 </div>
-                <div className="truncate min-w-0 py-1.5 text-sm">
-                  <Link
-                    to={"/clients/" + toSlug(s.clientName)}
-                    className="hover:underline underline-offset-2"
-                  >
-                    {s.clientName}
-                  </Link>
+                <div className="truncate min-w-0 py-1.5 text-sm font-medium">
+                  {s.clientName}
                 </div>
                 <div className="truncate min-w-0 py-1.5 text-sm text-muted-foreground">
                   {s.staffName}
@@ -171,7 +170,7 @@ export function TodaySessionsTile({ className }: { className?: string }) {
                 <div className="flex items-center justify-end py-1.5">
                   <SessionStatusBadge status={s.status} />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
