@@ -284,6 +284,7 @@ export function SessionViewPage() {
 
   // ── Session metadata ───────────────────────────────────────────────────────
   const [location, setLocation] = useState("")
+  const [locationError, setLocationError] = useState(false)
   const [attendees, setAttendees] = useState<Set<string>>(new Set(["Client"]))
 
   function toggleAttendee(name: string) {
@@ -396,13 +397,20 @@ export function SessionViewPage() {
         {/* Location + attendees strip */}
         <div className="mx-auto max-w-6xl px-4 pb-3 flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground shrink-0">Location</label>
-            <Input
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder="Home / Clinic / School…"
-              className="h-7 w-40 text-xs"
-            />
+            <label className="text-xs text-muted-foreground shrink-0">
+              Location <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-0.5">
+              <Input
+                value={location}
+                onChange={e => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false) }}
+                placeholder="Home / Clinic / School…"
+                className={`h-7 w-40 text-xs ${locationError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+              />
+              {locationError && (
+                <p className="text-[11px] text-red-600 w-40">Location is required before ending the session.</p>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-muted-foreground">Attendees:</span>
@@ -654,7 +662,10 @@ export function SessionViewPage() {
                 size="lg"
                 variant="destructive"
                 className="w-full text-base font-semibold py-6"
-                onClick={() => setMode("post")}
+                onClick={() => {
+                  if (!location.trim()) { setLocationError(true); return }
+                  setMode("post")
+                }}
               >
                 End Session
               </Button>
