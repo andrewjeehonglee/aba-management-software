@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { mockStaff } from "@/data/mockStaff"
 import { mockSupervision } from "@/data/mockSupervision"
 import {
   SUPERVISION_THRESHOLD,
@@ -23,6 +24,7 @@ import {
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { RBTSupervision } from "@/types/supervision"
+import type { TeamFilter } from "@/types/team"
 
 // Severity coloring for the BIG headline number — count of RBTs below the
 // 5% threshold. >=5 flagged is a systemic problem; 1-4 is a coaching moment;
@@ -72,10 +74,17 @@ const SORT_OPTIONS = {
 
 type SortKey = keyof typeof SORT_OPTIONS
 
-export function SupervisionComplianceTile({ className }: { className?: string }) {
+export function SupervisionComplianceTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("pctAsc")
 
-  const sortedRBTs = [...mockSupervision].sort(SORT_OPTIONS[sortKey].compare)
+  const teamSupervision = teamFilter && teamFilter !== "All"
+    ? mockSupervision.filter(r => {
+        const staff = mockStaff.find(s => s.name === r.rbtName)
+        return staff?.team === teamFilter
+      })
+    : mockSupervision
+
+  const sortedRBTs = [...teamSupervision].sort(SORT_OPTIONS[sortKey].compare)
 
   const flaggedCount = sortedRBTs.filter(
     (r) => r.supervisionPct < SUPERVISION_THRESHOLD

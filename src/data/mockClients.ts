@@ -32,6 +32,7 @@ export const mockClients: ClientProfile[] = [
     bcba: "Aisha Mohammed",
     supervisor: "Dr. Rachel Kim",
     technician: "Marcus Johnson",
+    team: "Team A",
   },
   {
     name: "Liam Anderson",
@@ -45,6 +46,7 @@ export const mockClients: ClientProfile[] = [
     bcba: "Aisha Mohammed",
     supervisor: "Dr. Rachel Kim",
     technician: "Sarah Chen",
+    team: "Team A",
   },
   {
     name: "Ethan Carter",
@@ -58,6 +60,7 @@ export const mockClients: ClientProfile[] = [
     bcba: "Tyler Brooks",
     supervisor: "Dr. Marcus Liu",
     technician: "Priya Patel",
+    team: "Team B",
   },
   {
     name: "Mia Davis",
@@ -71,6 +74,7 @@ export const mockClients: ClientProfile[] = [
     bcba: "Tyler Brooks",
     supervisor: "Dr. Marcus Liu",
     technician: "David Kim",
+    team: "Team C",
   },
   {
     name: "Noah Edwards",
@@ -84,6 +88,7 @@ export const mockClients: ClientProfile[] = [
     bcba: "Tyler Brooks",
     supervisor: "Dr. Marcus Liu",
     technician: "Tyler Brooks",
+    team: "Team C",
   },
   {
     name: "Olivia Foster",
@@ -97,6 +102,7 @@ export const mockClients: ClientProfile[] = [
     bcba: "Emma Williams",
     supervisor: "Dr. Rachel Kim",
     technician: "Olivia Park",
+    team: "Team A",
   },
   {
     name: "Lucas Hayes",
@@ -110,6 +116,7 @@ export const mockClients: ClientProfile[] = [
     bcba: "Emma Williams",
     supervisor: "Dr. Rachel Kim",
     technician: "Ben Garcia",
+    team: "Team B",
   },
   {
     name: "Ava Hughes",
@@ -123,5 +130,6 @@ export const mockClients: ClientProfile[] = [
     bcba: "Emma Williams",
     supervisor: "Dr. Rachel Kim",
     technician: "Sofia Martinez",
+    team: "Team B",
   },
 ]

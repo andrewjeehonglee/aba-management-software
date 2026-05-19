@@ -17,10 +17,12 @@ import {
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { mockSessions } from "@/data/mockSessions"
+import { mockStaff } from "@/data/mockStaff"
 import { STATUS_ORDER, formatTime } from "@/lib/sessions"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { Session, SessionStatus } from "@/types/session"
+import type { TeamFilter } from "@/types/team"
 
 type StatusFilter = SessionStatus | "all"
 
@@ -60,17 +62,22 @@ const FILTER_CHIPS: { value: StatusFilter; label: string }[] = [
   { value: "no-show",     label: "No-show" },
 ]
 
-export function TodaySessionsTile({ className }: { className?: string }) {
+export function TodaySessionsTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("time")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
 
-  // Filter FIRST, then sort. Order matters: sorting a smaller filtered list
-  // is cheaper, and the resulting UX is "I scoped the data, now order what
-  // remains" — matches the user's mental model.
+  // Apply team filter first via staff lookup, then status filter, then sort.
+  const teamSessions = teamFilter && teamFilter !== "All"
+    ? mockSessions.filter(s => {
+        const staff = mockStaff.find(st => st.name === s.staffName)
+        return staff?.team === teamFilter
+      })
+    : mockSessions
+
   const filteredSessions =
     statusFilter === "all"
-      ? mockSessions
-      : mockSessions.filter((s) => s.status === statusFilter)
+      ? teamSessions
+      : teamSessions.filter((s) => s.status === statusFilter)
 
   const sortedSessions: Session[] = [...filteredSessions].sort(
     SORT_OPTIONS[sortKey].compare

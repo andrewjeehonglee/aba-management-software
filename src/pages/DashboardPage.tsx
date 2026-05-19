@@ -4,13 +4,17 @@ import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import { TodaySessionsTile } from "@/components/TodaySessionsTile"
+import {
+  ROLE_DEFAULT_TEAM,
+  TEAM_FILTERS,
+  type TeamFilter,
+} from "@/types/team"
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
 
 const ROLES = ["Technician", "Supervisor", "BCBA", "Owner"] as const
 type Role = typeof ROLES[number]
 
-// Returns which tiles are visible for a given role.
 function canSee(role: Role): { hoursByStaff: boolean; authUtilization: boolean } {
   return {
     hoursByStaff:    role === "Owner",
@@ -22,7 +26,13 @@ function canSee(role: Role): { hoursByStaff: boolean; authUtilization: boolean }
 
 export function DashboardPage() {
   const [role, setRole] = useState<Role>("Owner")
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>("All")
   const visible = canSee(role)
+
+  function handleRoleChange(newRole: Role) {
+    setRole(newRole)
+    setTeamFilter(ROLE_DEFAULT_TEAM[newRole] ?? "All")
+  }
 
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-3 p-4">
@@ -41,7 +51,7 @@ export function DashboardPage() {
             {ROLES.map(r => (
               <button
                 key={r}
-                onClick={() => setRole(r)}
+                onClick={() => handleRoleChange(r)}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                   role === r
                     ? "bg-background text-foreground shadow-sm"
@@ -55,20 +65,44 @@ export function DashboardPage() {
         </div>
       </header>
 
+      {/* ── Team filter chips ── */}
+      <div className="flex w-full max-w-7xl items-center gap-2 py-1">
+        <span className="text-xs text-muted-foreground shrink-0">Team:</span>
+        <div className="flex flex-wrap gap-1.5">
+          {TEAM_FILTERS.map(t => (
+            <button
+              key={t}
+              onClick={() => setTeamFilter(t)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                teamFilter === t
+                  ? "bg-foreground text-background border-foreground"
+                  : "border-border text-muted-foreground hover:border-foreground/60 hover:text-foreground"
+              }`}
+            >
+              {t === "All" ? "All Teams" : t}
+            </button>
+          ))}
+        </div>
+        {teamFilter !== "All" && (
+          <span className="text-[11px] text-muted-foreground italic ml-1">
+            Showing {teamFilter} only
+          </span>
+        )}
+      </div>
+
       {/* ── Top row: Today's Sessions + Hours by Staff ── */}
       <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-2">
-        {/* TodaySessionsTile spans full width when HoursByStaff is hidden */}
         <div className={visible.hoursByStaff ? "" : "lg:col-span-2"}>
-          <TodaySessionsTile />
+          <TodaySessionsTile teamFilter={teamFilter} />
         </div>
-        {visible.hoursByStaff && <HoursByStaffTile />}
+        {visible.hoursByStaff && <HoursByStaffTile teamFilter={teamFilter} />}
       </div>
 
       {/* ── Lower KPI tiles ── */}
       <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
-        <NotesOverdueTile />
-        <SupervisionComplianceTile />
-        {visible.authUtilization && <AuthorizationUtilizationTile />}
+        <NotesOverdueTile teamFilter={teamFilter} />
+        <SupervisionComplianceTile teamFilter={teamFilter} />
+        {visible.authUtilization && <AuthorizationUtilizationTile teamFilter={teamFilter} />}
       </div>
 
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>

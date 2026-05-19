@@ -16,10 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
+import { mockClients } from "@/data/mockClients"
 import { FLAGGED_THRESHOLD, utilizationClass } from "@/lib/authorization"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { ClientAuthorization } from "@/types/authorization"
+import type { TeamFilter } from "@/types/team"
 
 // Severity coloring for the BIG headline number — count of clients above the
 // 80% utilization threshold. >=5 means a meaningful chunk of the caseload is
@@ -70,10 +72,17 @@ const SORT_OPTIONS = {
 
 type SortKey = keyof typeof SORT_OPTIONS
 
-export function AuthorizationUtilizationTile({ className }: { className?: string }) {
+export function AuthorizationUtilizationTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("pctDesc")
 
-  const sortedClients = [...mockAuthorizations].sort(
+  const teamAuthorizations = teamFilter && teamFilter !== "All"
+    ? mockAuthorizations.filter(a => {
+        const client = mockClients.find(c => c.name === a.clientName)
+        return client?.team === teamFilter
+      })
+    : mockAuthorizations
+
+  const sortedClients = [...teamAuthorizations].sort(
     SORT_OPTIONS[sortKey].compare
   )
 

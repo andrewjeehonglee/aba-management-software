@@ -15,9 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { mockOverdueNotes } from "@/data/mockOverdueNotes"
+import { mockStaff } from "@/data/mockStaff"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { OverdueNotesByStaff } from "@/types/overdueNotes"
+import type { TeamFilter } from "@/types/team"
 
 const AMBER_THRESHOLD = 5
 const RED_THRESHOLD = 10
@@ -63,10 +65,17 @@ const SORT_OPTIONS = {
 
 type SortKey = keyof typeof SORT_OPTIONS
 
-export function NotesOverdueTile({ className }: { className?: string }) {
+export function NotesOverdueTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("overdue")
 
-  const sortedNotes = [...mockOverdueNotes].sort(SORT_OPTIONS[sortKey].compare)
+  const teamNotes = teamFilter && teamFilter !== "All"
+    ? mockOverdueNotes.filter(n => {
+        const staff = mockStaff.find(s => s.name === n.staffName)
+        return staff?.team === teamFilter
+      })
+    : mockOverdueNotes
+
+  const sortedNotes = [...teamNotes].sort(SORT_OPTIONS[sortKey].compare)
 
   const totalOverdue = sortedNotes.reduce(
     (sum, row) => sum + row.overdueCount,

@@ -24,4 +24,8 @@ export interface ClientProfile {
   bcba: string
   supervisor: string
   technician: string
+
+  // Organizational team this client is assigned to. Drives the dashboard
+  // team filter — selecting "Team B" shows only Team B clients and their staff.
+  team: "Team A" | "Team B" | "Team C"
 }

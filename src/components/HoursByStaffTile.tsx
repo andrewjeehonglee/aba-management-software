@@ -33,6 +33,7 @@ import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
+import type { TeamFilter } from "@/types/team"
 
 const chartConfig = {
   directHours: { label: "Direct", color: "#10b981" },
@@ -102,15 +103,14 @@ function YAxisTick({ x = 0, y = 0, payload }: AxisTickProps) {
   )
 }
 
-export function HoursByStaffTile({ className }: { className?: string }) {
-  // Default sort is now "total" — for the dashboard preview we want the top
-  // earners visible first; A-Z is more useful in the future "View all" page.
+export function HoursByStaffTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("total")
 
-  // Show all 13 staff so the cross-tile narrative holds: David Kim, Olivia
-  // Park, and Tyler Brooks must be visible here (they're flagged in the other
-  // staff tiles too). Slicing would silently break the demo arc.
-  const sortedStaff = [...mockStaff].sort(SORT_OPTIONS[sortKey].compare)
+  const teamStaff = teamFilter && teamFilter !== "All"
+    ? mockStaff.filter(s => s.team === teamFilter)
+    : mockStaff
+
+  const sortedStaff = [...teamStaff].sort(SORT_OPTIONS[sortKey].compare)
 
   return (
     <Card size="sm" className={cn("w-full", className)}>
