@@ -1,9 +1,10 @@
 import { useState } from "react"
 import { ArrowLeft } from "lucide-react"
-import { Link, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
 import { SessionCalendar } from "@/components/SessionCalendar"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -136,6 +137,7 @@ function deriveStaffRoles(sessions: Session[], profile: ClientProfile) {
 
 export function ClientOverviewPage() {
   const { clientId } = useParams<{ clientId: string }>()
+  const navigate = useNavigate()
 
   // Slug-match on BOTH sides instead of trying to recover the display name
   // from the slug and string-matching. toSlug() is the canonical form; if
@@ -202,9 +204,19 @@ export function ClientOverviewPage() {
     .map(([status, count]) => `${count} ${STATUS_LABEL[status]}`)
     .join(" · ")
 
+  // Pick the best session to "start" — prefer a scheduled or in-progress
+  // session from today's list, fall back to the next scheduled in the full
+  // calendar, then to any session at all. The ID is passed to SessionViewPage
+  // so it can eventually load the right clinical context.
+  const nextSession =
+    clientSessions.find((s) => s.status === "scheduled" || s.status === "in-progress") ??
+    calendarSessions.find((s) => s.status === "scheduled") ??
+    calendarSessions[0]
+  const startSessionId = nextSession?.id ?? `${clientId ?? "client"}-1`
+
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
-      <header className="flex w-full max-w-3xl items-center py-6">
+      <header className="flex w-full max-w-3xl items-center justify-between py-6">
         <Link
           to="/"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -212,6 +224,9 @@ export function ClientOverviewPage() {
           <ArrowLeft className="size-4" />
           Back to dashboard
         </Link>
+        <Button onClick={() => navigate(`/session/${startSessionId}`)}>
+          Start Session
+        </Button>
       </header>
 
       {/* Section 1 — Client header */}
