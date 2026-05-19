@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Play } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
 import { SessionCalendar } from "@/components/SessionCalendar"
@@ -224,7 +224,12 @@ export function ClientOverviewPage() {
           <ArrowLeft className="size-4" />
           Back to dashboard
         </Link>
-        <Button onClick={() => navigate(`/session/${startSessionId}`)}>
+        <Button
+          size="lg"
+          onClick={() => navigate(`/session/${startSessionId}`)}
+          className="gap-2 shadow-md"
+        >
+          <Play className="size-4 fill-current" />
           Start Session
         </Button>
       </header>
