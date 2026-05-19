@@ -483,27 +483,160 @@ Replaced the four invented statuses with the four real lifecycle states the clie
 
 ---
 
-## What's NOT done yet (next sessions, suggested order)
+---
 
-**Phase 2 — remaining product builds:**
-1. **Session View (Screen 2)** — the largest remaining build. Per-session detail page (clinical notes, data collection grid per goal, timer, billing fields). Reachable from any session row across the app. This is where most of the daily clinical work actually happens.
-2. **Goal edit persistence** — today's edit mode saves to local React state only; changes are lost on modal close. Next step: lift `saved` overrides to a context or parent-level map so edits survive navigation within a session.
-3. **RBAC role-toggle** — surface a dev-only role switcher (Owner / BCBA / RBT / Front-desk) that changes which tiles + actions are visible. Today every visitor sees everything; real ABA orgs need scoped views.
-4. **Real data hookup** — replace each `mockX` import with API calls. Introduces `useEffect`, `fetch`, loading/error/empty states. Every tile and page is already shaped to a future API response, so this is mostly plumbing.
+## Session 12 — Session View page, role toggle, team filter, cert relocation
 
-**Tier 2 — polish backlog (waiting for next user-feedback round):**
-5. **Sort dropdown labels are wider than they need to be** — trim padding or use a more compact Select variant; the truncation is small but visible at desktop width.
-6. **Status badges in Today's Sessions aren't uniform width** — should pad to the widest label so the right edge of the column is a clean line.
-7. **Editorial sub-lines** — replace structural sub-lines like "across 7 staff" with editorial ones like "5 notes are 7+ days old" once we have the underlying timestamp data.
-8. **Hover tooltips on mini-bars** in Supervision + Auth — show the exact % on hover instead of relying on the right-aligned number.
-9. **Hide the "0 sessions / 0 clients" chips on staff pages with no activity** — they're slightly redundant with the collapsed empty-state notice. Two-line edit when it bothers someone.
+**Date:** May 19, 2026
+**Commits:** `a6c4ceb` → `c8404a3` (6 commits)
 
-**Tier 3 — nice-to-have:**
-10. **Dark mode toggle** — small win, surfaces all the design-token work shadcn did silently.
-11. **Click-to-toggle series visibility on the Hours by Staff legend** — ~15 lines of useState.
-12. **"Last updated 2 minutes ago" timestamp** in the header — useful once data is live.
-13. **Stable demo "today" reference** — `CertificationsExpiringTile` uses `new Date()` at module load. Swap for a fixed date constant when the demo audience matters more than real-time accuracy.
+### What landed
+
+#### Session View page (`/session/:sessionId`)
+
+The most complex screen in the app — built end-to-end in one session. An RBT opens this page from the "Start Session" button on any Client Overview page. It has two distinct modes separated by a single "End Session" tap.
+
+**Sticky header (always visible in both modes):**
+- Client name links back to Client Overview; "Back" arrow also navigates there
+- Live count-up timer (monospace, auto-starts on mount, pauses when End Session is tapped)
+- Billing code chip auto-filled from `mockClients` → `cptCode`
+- Location free-text input (required; validated before End Session is allowed — shows inline red error if empty)
+- Attendees multi-select: "Client" always checked and non-interactive; Mom / Dad / Grandparents / Supervisor / BCBA are pill-toggle buttons
+
+**MODE 1 — Active Session (two-column layout):**
+
+Left column — Behaviors:
+- `src/data/mockBehaviors.ts` created with 2–3 clinically-named behaviors per client (Elopement, Aggression, Non-compliance, SIB, etc.)
+- Each behavior card has a large `−` / `+` counter (size-12 touch targets)
+- "Add ABC context" opens a 3-step inline flow directly below the card:
+  - Step 1: Antecedent multi-select (12 options)
+  - Step 2: Consequence multi-select (12 options)
+  - Step 3: Intensity toggle (Low / Medium / High) + Duration picker (6 options: `<1 min` → `1+ hr`)
+  - Completed entries saved below the card as small summary rows (intensity color-coded red/amber/slate, A/C lists shown inline)
+
+Right column — Programs:
+- Checkbox selector pulls all `in-progress` and `hold` goals from `mockGoals[clientId]` — **discontinued and mastered goals are filtered out** (they shouldn't be run in an active session)
+- Each selected goal becomes a program card with: goal name, mastery criteria text, live `correct/total · %` readout, ✓ Correct and ✗ Incorrect trial buttons (44 px+ tap targets)
+- Tapping ✗ opens a "Why incorrect?" inline picker (6 reasons: Verbal/vocal prompt needed, Physical prompt needed, Refused task, Distracted, Not yet introduced, Other)
+- Trial history displays as a row of ✓/✗ color-coded dots below each card; % color is green ≥ 80%, amber ≥ 60%, red below
+
+Sticky "End Session" button — full-width, destructive style, fixed to the viewport bottom.
+
+**MODE 2 — Post-Session:**
+
+Session status selector — 4 large tap targets (2×2 grid) with color-coded borders: Occurred (emerald), Shortened (blue), Cancelled (amber), No-show (red). Switching resets the signature state.
+
+Cancelled / No-show path:
+- Cancellation reason field (required, blocks Submit)
+- Optional internal note (textarea)
+- Submit navigates to `/`
+
+Occurred / Shortened path:
+- SOAP note form — 4 fields, each with a persistent visible prompt label above the textarea:
+  - **S:** "What did the caregiver or client report at the start of the session?"
+  - **O:** "What data was collected? Summarize program performance and behavior incidents."
+  - **A:** "What interventions or strategies were used?"
+  - **P:** "What are the goals or adjustments for the next session?"
+- Signature block: caregiver "Tap to sign" area locked until all 4 SOAP fields have content; turns emerald with checkmark once tapped
+- Staff signature shown as a deferred/dimmed block — "complete later"
+- "Submit Session" disabled until caregiver signature captured; navigates to `/` on submit
 
 ---
 
-*Last updated: May 18, 2026 (end of Session 11).*
+#### Role toggle on dashboard header
+
+- Segmented pill control in the header right: `Technician | Supervisor | BCBA | Owner`
+- Default: **Owner** (sees all tiles)
+- Tile visibility per role:
+
+| Role | Hours by Staff | Auth Utilization |
+|---|---|---|
+| Technician | ✗ hidden | ✗ hidden |
+| Supervisor | ✗ hidden | ✓ visible |
+| BCBA | ✗ hidden | ✓ visible |
+| Owner | ✓ visible | ✓ visible |
+
+- When Hours by Staff is hidden, Today's Sessions expands to `lg:col-span-2` to fill the row
+
+---
+
+#### Team filter chips
+
+- `src/types/team.ts` created — `TeamFilter` type, `TEAM_FILTERS` array, `ROLE_DEFAULT_TEAM` map
+- `ClientProfile` type got a new `team: "Team A" | "Team B" | "Team C"` field
+- All 8 clients assigned: Team A (Sophia, Liam, Olivia), Team B (Ethan, Lucas, Ava), Team C (Mia, Noah)
+- Filter chips appear below the header: `All Teams | Team A | Team B | Team C`
+- **Role → team sync:** switching roles auto-snaps the team filter (Technician → A, Supervisor → B, BCBA → A, Owner → All). User can override manually.
+- "Showing Team X only" italic hint appears when a team is active
+- All 5 tiles accept a `teamFilter?` prop and filter independently:
+
+| Tile | Join key |
+|---|---|
+| Hours by Staff | `staff.team` directly |
+| Today's Sessions | `mockStaff.find(staffName).team` |
+| Notes Overdue | `mockStaff.find(staffName).team` |
+| Supervision Compliance | `mockStaff.find(rbtName).team` |
+| Auth Utilization | `mockClients.find(clientName).team` |
+
+KPI headline numbers recalculate from the filtered list — e.g., switching to Team C shows "2 clients" in auth utilization, not "8."
+
+---
+
+#### Certifications relocated to StaffOverviewPage
+
+- `CertificationsExpiringTile.tsx` deleted — certifications belong on the individual staff page, not the dashboard glance
+- New "Certifications" card added as Section 2 on `StaffOverviewPage` (always visible, not gated by `hasNoActivity`)
+- Reuses existing `parseCertification`, `daysUntil`, `CERT_URGENT_DAYS`, `CERT_WARNING_DAYS` from `@/lib/staff` — no new logic
+- Each cert row shows: cert type ("RBT Certification" / "BCBA Certification"), expiry date, days-remaining context, and a status chip:
+  - 🔴 **Expired** — past the expiry date
+  - 🔴 **Urgent** — ≤ 30 days
+  - 🟡 **Warning** — 31–90 days
+  - 🟢 **Current** — > 90 days
+- Designed as a `<ul>` over a single-element array so it extends naturally if `Staff` later grows a `certs[]` field
+
+---
+
+### Files changed this session
+
+| File | Change |
+|---|---|
+| `src/data/mockBehaviors.ts` | **New** — 2–3 behaviors per client keyed by slug |
+| `src/types/team.ts` | **New** — `TeamFilter` type, `TEAM_FILTERS`, `ROLE_DEFAULT_TEAM` |
+| `src/types/client.ts` | Added `team` field to `ClientProfile` |
+| `src/data/mockClients.ts` | Added `team` assignment to all 8 clients |
+| `src/pages/SessionViewPage.tsx` | **Full build** — replaced placeholder with ~500-line page |
+| `src/pages/DashboardPage.tsx` | Role toggle, team filter chips, role→team sync, prop pass-through |
+| `src/pages/StaffOverviewPage.tsx` | Added Certifications section (Section 2); updated section numbering |
+| `src/components/TodaySessionsTile.tsx` | `teamFilter` prop; filter sessions via staff team lookup |
+| `src/components/HoursByStaffTile.tsx` | `teamFilter` prop; filter `mockStaff` by team |
+| `src/components/NotesOverdueTile.tsx` | `teamFilter` prop; filter via staff team lookup |
+| `src/components/SupervisionComplianceTile.tsx` | `teamFilter` prop; filter via staff team lookup |
+| `src/components/AuthorizationUtilizationTile.tsx` | `teamFilter` prop; filter via client team lookup |
+| `src/components/CertificationsExpiringTile.tsx` | **Deleted** — functionality moved to `StaffOverviewPage` |
+
+---
+
+## What's NOT done yet (next sessions, suggested order)
+
+**Phase 2 — remaining builds:**
+1. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close. Lift `saved` overrides to a React context or parent-level map so edits survive navigation within the same browser tab.
+2. **Real data hookup** — replace every `mockX` import with API calls. All tiles and pages are already shaped to match a future API response (the types are the contract), so this is mostly plumbing: `useEffect`, `fetch`, loading/error/empty states.
+3. **Session View tablet testing** — the page was built tablet-first (44 px+ tap targets throughout) but hasn't been verified on a real device. Touch gestures, keyboard-up behavior on the SOAP note textareas, and the sticky footer above the virtual keyboard all need a real-device pass.
+
+**Tier 2 — polish backlog:**
+4. **Session timer survives navigation** — currently the timer is local state; navigating away resets it. Lift to a context or `sessionStorage` key so the timer survives a back-navigation to Client Overview and return to Session View mid-session.
+5. **Team filter persists across navigation** — switching to Team B then clicking a client link loses the filter on return. Consider URL search params (`?team=Team+B`) or a lightweight zustand store.
+6. **Sort dropdown labels are wider than needed** — trim padding or use a more compact Select variant; the truncation is small but visible at desktop width.
+7. **Status badges in Today's Sessions aren't uniform width** — pad to widest label so the right column edge stays clean.
+8. **Editorial sub-lines** — replace structural sub-lines like "across 7 staff" with data-driven ones like "5 notes are 7+ days old" once timestamp data is available.
+9. **Hover tooltips on mini-bars** in Supervision + Auth tiles.
+10. **Hide "0 sessions / 0 clients" chips** on staff pages with zero activity — slightly redundant with the collapsed empty state.
+
+**Tier 3 — nice-to-have:**
+11. **Dark mode toggle** — surfaces all the design-token work shadcn did silently.
+12. **Click-to-toggle series visibility** on the Hours by Staff legend — ~15 lines of `useState`.
+13. **"Last updated X minutes ago" timestamp** in the dashboard header — useful once data is live.
+
+---
+
+*Last updated: May 19, 2026 (end of Session 12).*
