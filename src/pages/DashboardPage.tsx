@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
-import { CertificationsExpiringTile } from "@/components/CertificationsExpiringTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
@@ -70,7 +69,6 @@ export function DashboardPage() {
         <NotesOverdueTile />
         <SupervisionComplianceTile />
         {visible.authUtilization && <AuthorizationUtilizationTile />}
-        <CertificationsExpiringTile />
       </div>
 
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>

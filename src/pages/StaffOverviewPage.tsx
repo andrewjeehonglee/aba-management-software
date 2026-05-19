@@ -13,6 +13,12 @@ import { mockSupervision } from "@/data/mockSupervision"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import {
+  CERT_URGENT_DAYS,
+  CERT_WARNING_DAYS,
+  daysUntil,
+  parseCertification,
+} from "@/lib/staff"
+import {
   SUPERVISION_THRESHOLD,
   actualSupervisionHours,
   complianceClasses,
@@ -193,6 +199,22 @@ export function StaffOverviewPage() {
         </CardContent>
       </Card>
 
+      {/* Section 2 — Certifications (always visible regardless of activity) */}
+      <Card className="w-full max-w-3xl">
+        <CardHeader>
+          <CardTitle>Certifications</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {staff ? (
+            <CertificationsDetail staff={staff} />
+          ) : (
+            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No certification data on file.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {hasNoActivity ? (
         /* Collapsed empty state — one card explaining the situation
            instead of three cascading "No X" cards. Reads as intentional
@@ -210,7 +232,7 @@ export function StaffOverviewPage() {
         </Card>
       ) : (
         <>
-          {/* Section 2 — Supervision compliance */}
+          {/* Section 3 — Supervision compliance */}
           <Card className="w-full max-w-3xl">
             <CardHeader>
               <CardTitle>Supervision compliance</CardTitle>
@@ -226,7 +248,7 @@ export function StaffOverviewPage() {
             </CardContent>
           </Card>
 
-          {/* Section 3 — Sessions this week.
+          {/* Section 4 — Sessions this week.
               "This week" is aspirational labeling; mock data is just today,
               same as ClientOverviewPage. Title reflects intended real-data
               scope, not the current fixture. */}
@@ -274,7 +296,7 @@ export function StaffOverviewPage() {
             </CardContent>
           </Card>
 
-          {/* Section 4 — Client caseload */}
+          {/* Section 5 — Client caseload */}
           <Card className="w-full max-w-3xl">
             <CardHeader>
               <CardTitle>Client caseload</CardTitle>
@@ -302,6 +324,73 @@ export function StaffOverviewPage() {
         </>
       )}
     </div>
+  )
+}
+
+// Certification expiry section. Renders one row per certification (currently
+// one per staff member — designed as a list so it extends naturally when the
+// data model adds more). Thresholds and parsing live in @/lib/staff so this
+// component stays declarative.
+function CertificationsDetail({ staff }: { staff: Staff }) {
+  const TODAY = new Date()
+  const parsed = parseCertification(staff.certification)
+
+  if (!parsed) {
+    return (
+      <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+        No certification data on file.
+      </div>
+    )
+  }
+
+  // Single-element array today; extend by pushing more ParsedCertification
+  // entries here when the Staff type grows a `certs` array field.
+  const certs = [parsed]
+
+  return (
+    <ul className="space-y-3">
+      {certs.map((cert, i) => {
+        const daysLeft = daysUntil(cert.expiryDate, TODAY)
+        const formattedExpiry = cert.expiryDate.toLocaleDateString("en-US", {
+          year: "numeric", month: "long", day: "numeric",
+        })
+
+        let chipClass: string
+        let chipLabel: string
+        let subtext: string
+
+        if (daysLeft < 0) {
+          chipClass = "bg-red-100 text-red-800"
+          chipLabel = "Expired"
+          subtext = `Expired ${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} ago · ${formattedExpiry}`
+        } else if (daysLeft <= CERT_URGENT_DAYS) {
+          chipClass = "bg-red-100 text-red-800"
+          chipLabel = "Urgent"
+          const when = daysLeft === 0 ? "Expires today" : daysLeft === 1 ? "Expires tomorrow" : `Expires in ${daysLeft} days`
+          subtext = `${when} · ${formattedExpiry}`
+        } else if (daysLeft <= CERT_WARNING_DAYS) {
+          chipClass = "bg-amber-100 text-amber-800"
+          chipLabel = "Warning"
+          subtext = `Expires in ${daysLeft} days · ${formattedExpiry}`
+        } else {
+          chipClass = "bg-emerald-100 text-emerald-800"
+          chipLabel = "Current"
+          subtext = `Expires ${formattedExpiry}`
+        }
+
+        return (
+          <li key={i} className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">{cert.type} Certification</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{subtext}</p>
+            </div>
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 ${chipClass}`}>
+              {chipLabel}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
