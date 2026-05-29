@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import {
   Card,
@@ -14,11 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockOverdueNotes } from "@/data/mockOverdueNotes"
-import { mockStaff } from "@/data/mockStaff"
+import { getOverdueNotes, type OverdueNoteRecord } from "@/lib/supabase"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
-import type { OverdueNotesByStaff } from "@/types/overdueNotes"
 import type { TeamFilter } from "@/types/team"
 
 const AMBER_THRESHOLD = 5
@@ -52,13 +50,13 @@ function headlineClass(total: number): string {
 const SORT_OPTIONS = {
   overdue: {
     label: "Overdue count (high → low)",
-    compare: (a: OverdueNotesByStaff, b: OverdueNotesByStaff) =>
+    compare: (a: OverdueNoteRecord, b: OverdueNoteRecord) =>
       b.overdueCount - a.overdueCount ||
       a.staffName.localeCompare(b.staffName),
   },
   name: {
     label: "Staff name (A → Z)",
-    compare: (a: OverdueNotesByStaff, b: OverdueNotesByStaff) =>
+    compare: (a: OverdueNoteRecord, b: OverdueNoteRecord) =>
       a.staffName.localeCompare(b.staffName),
   },
 } as const
@@ -67,20 +65,24 @@ type SortKey = keyof typeof SORT_OPTIONS
 
 export function NotesOverdueTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("overdue")
+  const [allNotes, setAllNotes] = useState<OverdueNoteRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getOverdueNotes()
+      .then(setAllNotes)
+      .catch((err) => setError(err.message ?? "Failed to load overdue notes"))
+      .finally(() => setLoading(false))
+  }, [])
 
   const teamNotes = teamFilter && teamFilter !== "All"
-    ? mockOverdueNotes.filter(n => {
-        const staff = mockStaff.find(s => s.name === n.staffName)
-        return staff?.team === teamFilter
-      })
-    : mockOverdueNotes
+    ? allNotes.filter(n => n.staffTeam === teamFilter)
+    : allNotes
 
   const sortedNotes = [...teamNotes].sort(SORT_OPTIONS[sortKey].compare)
 
-  const totalOverdue = sortedNotes.reduce(
-    (sum, row) => sum + row.overdueCount,
-    0
-  )
+  const totalOverdue = sortedNotes.reduce((sum, row) => sum + row.overdueCount, 0)
   const staffWithOverdue = sortedNotes.length
 
   return (
@@ -106,35 +108,45 @@ export function NotesOverdueTile({ className, teamFilter }: { className?: string
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline gap-2">
-          <span
-            className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(totalOverdue)}`}
-          >
-            {totalOverdue}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            across {staffWithOverdue} staff
-          </span>
-        </div>
-
-        <ul className="mt-3 space-y-2 border-t pt-3">
-          {sortedNotes.map((row) => (
-            <li
-              key={row.staffName}
-              className="flex items-center justify-between text-sm"
-            >
-              <span className="truncate min-w-0 pr-2">
-                <Link
-                  to={"/staff/" + toSlug(row.staffName)}
-                  className="hover:underline underline-offset-2"
-                >
-                  {row.staffName}
-                </Link>
+        {loading && (
+          <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+        )}
+        {error && (
+          <p className="py-10 text-center text-sm text-destructive">{error}</p>
+        )}
+        {!loading && !error && (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(totalOverdue)}`}
+              >
+                {totalOverdue}
               </span>
-              <CountPill count={row.overdueCount} />
-            </li>
-          ))}
-        </ul>
+              <span className="text-xs text-muted-foreground">
+                across {staffWithOverdue} staff
+              </span>
+            </div>
+
+            <ul className="mt-3 space-y-2 border-t pt-3">
+              {sortedNotes.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <span className="truncate min-w-0 pr-2">
+                    <Link
+                      to={"/staff/" + toSlug(row.staffName)}
+                      className="hover:underline underline-offset-2"
+                    >
+                      {row.staffName}
+                    </Link>
+                  </span>
+                  <CountPill count={row.overdueCount} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </CardContent>
     </Card>
   )

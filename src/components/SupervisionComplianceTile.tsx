@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import {
   Card,
@@ -15,15 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockStaff } from "@/data/mockStaff"
-import { mockSupervision } from "@/data/mockSupervision"
+import { getSupervision, type SupervisionRecord } from "@/lib/supabase"
 import {
   SUPERVISION_THRESHOLD,
   complianceClasses,
 } from "@/lib/supervision"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
-import type { RBTSupervision } from "@/types/supervision"
 import type { TeamFilter } from "@/types/team"
 
 // Severity coloring for the BIG headline number — count of RBTs below the
@@ -55,20 +53,20 @@ function MiniBar({ pct }: { pct: number }) {
 const SORT_OPTIONS = {
   pctAsc: {
     label: "Compliance % (low → high)",
-    compare: (a: RBTSupervision, b: RBTSupervision) =>
+    compare: (a: SupervisionRecord, b: SupervisionRecord) =>
       a.supervisionPct - b.supervisionPct ||
-      a.rbtName.localeCompare(b.rbtName),
+      a.staffName.localeCompare(b.staffName),
   },
   name: {
     label: "RBT name (A → Z)",
-    compare: (a: RBTSupervision, b: RBTSupervision) =>
-      a.rbtName.localeCompare(b.rbtName),
+    compare: (a: SupervisionRecord, b: SupervisionRecord) =>
+      a.staffName.localeCompare(b.staffName),
   },
   pctDesc: {
     label: "Compliance % (high → low)",
-    compare: (a: RBTSupervision, b: RBTSupervision) =>
+    compare: (a: SupervisionRecord, b: SupervisionRecord) =>
       b.supervisionPct - a.supervisionPct ||
-      a.rbtName.localeCompare(b.rbtName),
+      a.staffName.localeCompare(b.staffName),
   },
 } as const
 
@@ -76,13 +74,20 @@ type SortKey = keyof typeof SORT_OPTIONS
 
 export function SupervisionComplianceTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("pctAsc")
+  const [allSupervision, setAllSupervision] = useState<SupervisionRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getSupervision()
+      .then(setAllSupervision)
+      .catch((err) => setError(err.message ?? "Failed to load supervision data"))
+      .finally(() => setLoading(false))
+  }, [])
 
   const teamSupervision = teamFilter && teamFilter !== "All"
-    ? mockSupervision.filter(r => {
-        const staff = mockStaff.find(s => s.name === r.rbtName)
-        return staff?.team === teamFilter
-      })
-    : mockSupervision
+    ? allSupervision.filter(r => r.staffTeam === teamFilter)
+    : allSupervision
 
   const sortedRBTs = [...teamSupervision].sort(SORT_OPTIONS[sortKey].compare)
 
@@ -117,41 +122,51 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline gap-2">
-          <span
-            className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}
-          >
-            {flaggedCount}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            of {totalRBTs} RBTs below threshold
-          </span>
-        </div>
-
-        <ul className="mt-3 space-y-2 border-t pt-3">
-          {sortedRBTs.map((rbt) => {
-            const { text } = complianceClasses(rbt.supervisionPct)
-            return (
-              <li
-                key={rbt.rbtName}
-                className="flex items-center gap-3 text-sm"
+        {loading && (
+          <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+        )}
+        {error && (
+          <p className="py-10 text-center text-sm text-destructive">{error}</p>
+        )}
+        {!loading && !error && (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}
               >
-                <span className="flex-1 truncate min-w-0">
-                  <Link
-                    to={"/staff/" + toSlug(rbt.rbtName)}
-                    className="hover:underline underline-offset-2"
+                {flaggedCount}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                of {totalRBTs} RBTs below threshold
+              </span>
+            </div>
+
+            <ul className="mt-3 space-y-2 border-t pt-3">
+              {sortedRBTs.map((rbt) => {
+                const { text } = complianceClasses(rbt.supervisionPct)
+                return (
+                  <li
+                    key={rbt.id}
+                    className="flex items-center gap-3 text-sm"
                   >
-                    {rbt.rbtName}
-                  </Link>
-                </span>
-                <MiniBar pct={rbt.supervisionPct} />
-                <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
-                  {rbt.supervisionPct.toFixed(1)}%
-                </span>
-              </li>
-            )
-          })}
-        </ul>
+                    <span className="flex-1 truncate min-w-0">
+                      <Link
+                        to={"/staff/" + toSlug(rbt.staffName)}
+                        className="hover:underline underline-offset-2"
+                      >
+                        {rbt.staffName}
+                      </Link>
+                    </span>
+                    <MiniBar pct={rbt.supervisionPct} />
+                    <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
+                      {rbt.supervisionPct.toFixed(1)}%
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        )}
       </CardContent>
     </Card>
   )

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import {
   Card,
@@ -15,12 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockAuthorizations } from "@/data/mockAuthorizations"
-import { mockClients } from "@/data/mockClients"
+import { getAuthorizations, type AuthRecord } from "@/lib/supabase"
 import { FLAGGED_THRESHOLD, utilizationClass } from "@/lib/authorization"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
-import type { ClientAuthorization } from "@/types/authorization"
 import type { TeamFilter } from "@/types/team"
 
 // Severity coloring for the BIG headline number — count of clients above the
@@ -53,18 +51,18 @@ function MiniBar({ pct }: { pct: number }) {
 const SORT_OPTIONS = {
   pctDesc: {
     label: "Utilization % (high → low)",
-    compare: (a: ClientAuthorization, b: ClientAuthorization) =>
+    compare: (a: AuthRecord, b: AuthRecord) =>
       b.utilizationPct - a.utilizationPct ||
       a.clientName.localeCompare(b.clientName),
   },
   name: {
     label: "Client name (A → Z)",
-    compare: (a: ClientAuthorization, b: ClientAuthorization) =>
+    compare: (a: AuthRecord, b: AuthRecord) =>
       a.clientName.localeCompare(b.clientName),
   },
   pctAsc: {
     label: "Utilization % (low → high)",
-    compare: (a: ClientAuthorization, b: ClientAuthorization) =>
+    compare: (a: AuthRecord, b: AuthRecord) =>
       a.utilizationPct - b.utilizationPct ||
       a.clientName.localeCompare(b.clientName),
   },
@@ -74,13 +72,20 @@ type SortKey = keyof typeof SORT_OPTIONS
 
 export function AuthorizationUtilizationTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("pctDesc")
+  const [allAuthorizations, setAllAuthorizations] = useState<AuthRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getAuthorizations()
+      .then(setAllAuthorizations)
+      .catch((err) => setError(err.message ?? "Failed to load authorizations"))
+      .finally(() => setLoading(false))
+  }, [])
 
   const teamAuthorizations = teamFilter && teamFilter !== "All"
-    ? mockAuthorizations.filter(a => {
-        const client = mockClients.find(c => c.name === a.clientName)
-        return client?.team === teamFilter
-      })
-    : mockAuthorizations
+    ? allAuthorizations.filter(a => a.clientTeam === teamFilter)
+    : allAuthorizations
 
   const sortedClients = [...teamAuthorizations].sort(
     SORT_OPTIONS[sortKey].compare
@@ -117,41 +122,51 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline gap-2">
-          <span
-            className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}
-          >
-            {flaggedCount}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            of {totalClients} clients above threshold
-          </span>
-        </div>
-
-        <ul className="mt-3 space-y-2 border-t pt-3">
-          {sortedClients.map((client) => {
-            const { text } = utilizationClass(client.utilizationPct)
-            return (
-              <li
-                key={client.clientName}
-                className="flex items-center gap-3 text-sm"
+        {loading && (
+          <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+        )}
+        {error && (
+          <p className="py-10 text-center text-sm text-destructive">{error}</p>
+        )}
+        {!loading && !error && (
+          <>
+            <div className="flex items-baseline gap-2">
+              <span
+                className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}
               >
-                <span className="flex-1 truncate min-w-0">
-                  <Link
-                    to={"/clients/" + toSlug(client.clientName)}
-                    className="hover:underline underline-offset-2"
+                {flaggedCount}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                of {totalClients} clients above threshold
+              </span>
+            </div>
+
+            <ul className="mt-3 space-y-2 border-t pt-3">
+              {sortedClients.map((client) => {
+                const { text } = utilizationClass(client.utilizationPct)
+                return (
+                  <li
+                    key={client.id}
+                    className="flex items-center gap-3 text-sm"
                   >
-                    {client.clientName}
-                  </Link>
-                </span>
-                <MiniBar pct={client.utilizationPct} />
-                <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
-                  {client.utilizationPct.toFixed(0)}%
-                </span>
-              </li>
-            )
-          })}
-        </ul>
+                    <span className="flex-1 truncate min-w-0">
+                      <Link
+                        to={"/clients/" + toSlug(client.clientName)}
+                        className="hover:underline underline-offset-2"
+                      >
+                        {client.clientName}
+                      </Link>
+                    </span>
+                    <MiniBar pct={client.utilizationPct} />
+                    <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
+                      {client.utilizationPct.toFixed(0)}%
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </>
+        )}
       </CardContent>
     </Card>
   )

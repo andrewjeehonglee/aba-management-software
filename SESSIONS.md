@@ -735,12 +735,38 @@ The root cause of the multi-session debugging loop was that Supabase RLS blocks 
 
 ---
 
+## Session 17 — Phase 3 Day 4: all 5 dashboard tiles on live Supabase data
+
+**What landed:** Three more tiles migrated from mock fixtures to Supabase — Authorization Utilization, Supervision Compliance, and Notes Overdue. Every dashboard tile now reads real data.
+
+### Supabase — database work
+- **`clients` table** — added `team` column; backfilled Team A / B / C for all 9 clients.
+- **`authorizations` table** — created with standing template (id, practice_id FK CASCADE, client_id FK CASCADE, RLS 4 policies, GRANT ALL). Columns: `cpt_code`, `authorized_units`, `used_units`, `start_date`, `end_date`. Seeded 9 rows (one per client) with utilization values matching the mock; Emma Torres added at 65% / 80 h.
+- **`supervision` table** — created with standing template. Columns: `staff_id` FK → staff CASCADE, `supervision_pct` (numeric 5,1), `period_start`, `period_end`. Seeded 8 rows for May 2026 matching `mockSupervision.ts`.
+- **`overdue_notes` table** — created with standing template. Columns: `staff_id` FK → staff CASCADE, `overdue_count` (int), `as_of_date` (date). Seeded 7 rows dated 2026-05-29 matching `mockOverdueNotes.ts`.
+
+### Code changes
+- `src/lib/supabase.ts` — added `AuthRecord` + `getAuthorizations()`, `SupervisionRecord` + `getSupervision()`, `OverdueNoteRecord` + `getOverdueNotes()`. All use PostgREST joins to pull staff/client names and team without a second query.
+- `src/components/AuthorizationUtilizationTile.tsx` — replaced `mockAuthorizations` + `mockClients` with `useEffect` + `getAuthorizations()`; team filter uses `a.clientTeam` from JOIN; sort comparators use `AuthRecord`.
+- `src/components/SupervisionComplianceTile.tsx` — replaced `mockSupervision` + `mockStaff` with `useEffect` + `getSupervision()`; team filter uses `r.staffTeam`; sort comparators use `SupervisionRecord`.
+- `src/components/NotesOverdueTile.tsx` — replaced `mockOverdueNotes` + `mockStaff` with `useEffect` + `getOverdueNotes()`; team filter uses `n.staffTeam`; sort comparators use `OverdueNoteRecord`.
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/lib/supabase.ts` | Added `AuthRecord`, `SupervisionRecord`, `OverdueNoteRecord` types + 3 fetch functions |
+| `src/components/AuthorizationUtilizationTile.tsx` | Live Supabase query |
+| `src/components/SupervisionComplianceTile.tsx` | Live Supabase query |
+| `src/components/NotesOverdueTile.tsx` | Live Supabase query |
+
+---
+
 ## What's NOT done yet (next sessions, suggested order)
 
-**Phase 3 — remaining real-data hookups:**
-1. **Replace remaining mock imports** — authorizations, supervision, notes tiles still use `mockX` fixtures. Each needs its own table + seed + query swap.
-2. **Expand clients table schema** — add fields: insurance, auth dates, assigned staff, CPT codes, team assignment.
-3. **Wire Clients tile rows to Client Overview** — clicking a client row should navigate to `/clients/:id`.
+**Phase 3 — remaining work:**
+1. **Expand clients table schema** — add fields: insurance, auth dates, assigned staff, CPT codes.
+2. **Wire Clients tile rows to Client Overview** — clicking a client row should navigate to `/clients/:id`.
+3. **Staff Overview page** — currently reads from `mockStaff`; needs a live query now that the staff table exists.
 
 **Phase 2 — remaining builds:**
 1. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close.
@@ -762,4 +788,4 @@ The root cause of the multi-session debugging loop was that Supabase RLS blocks 
 
 ---
 
-*Last updated: May 29, 2026 (end of Session 16).*
+*Last updated: May 29, 2026 (end of Session 17).*

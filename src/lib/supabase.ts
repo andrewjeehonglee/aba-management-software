@@ -122,6 +122,111 @@ export async function getSessionsToday(): Promise<SessionRecord[]> {
   }))
 }
 
+interface AuthRow {
+  id: string
+  used_units: number
+  authorized_units: number
+  cpt_code: string
+  start_date: string
+  end_date: string
+  clients: { first_name: string; last_name: string; team: string }
+}
+
+export interface AuthRecord {
+  id: string
+  clientName: string
+  clientTeam: string
+  utilizationPct: number
+  totalAuthorizedHours: number
+  cptCode: string
+  startDate: string
+  endDate: string
+}
+
+export async function getAuthorizations(): Promise<AuthRecord[]> {
+  const { data, error } = await supabase
+    .from('authorizations')
+    .select('id, used_units, authorized_units, cpt_code, start_date, end_date, clients(first_name, last_name, team)')
+    .order('used_units', { ascending: false })
+  if (error) throw error
+
+  return (data as AuthRow[]).map((row) => ({
+    id:                  row.id,
+    clientName:          `${row.clients.first_name} ${row.clients.last_name}`,
+    clientTeam:          row.clients.team,
+    utilizationPct:      Math.round((row.used_units / row.authorized_units) * 100),
+    totalAuthorizedHours: row.authorized_units,
+    cptCode:             row.cpt_code,
+    startDate:           row.start_date,
+    endDate:             row.end_date,
+  }))
+}
+
+interface SupervisionRow {
+  id: string
+  supervision_pct: number
+  period_start: string
+  period_end: string
+  staff: { full_name: string; team: string }
+}
+
+export interface SupervisionRecord {
+  id: string
+  staffName: string
+  staffTeam: string
+  supervisionPct: number
+  periodStart: string
+  periodEnd: string
+}
+
+export async function getSupervision(): Promise<SupervisionRecord[]> {
+  const { data, error } = await supabase
+    .from('supervision')
+    .select('id, supervision_pct, period_start, period_end, staff(full_name, team)')
+    .order('supervision_pct', { ascending: true })
+  if (error) throw error
+
+  return (data as SupervisionRow[]).map((row) => ({
+    id:            row.id,
+    staffName:     row.staff.full_name,
+    staffTeam:     row.staff.team,
+    supervisionPct: row.supervision_pct,
+    periodStart:   row.period_start,
+    periodEnd:     row.period_end,
+  }))
+}
+
+interface OverdueNoteRow {
+  id: string
+  overdue_count: number
+  as_of_date: string
+  staff: { full_name: string; team: string }
+}
+
+export interface OverdueNoteRecord {
+  id: string
+  staffName: string
+  staffTeam: string
+  overdueCount: number
+  asOfDate: string
+}
+
+export async function getOverdueNotes(): Promise<OverdueNoteRecord[]> {
+  const { data, error } = await supabase
+    .from('overdue_notes')
+    .select('id, overdue_count, as_of_date, staff(full_name, team)')
+    .order('overdue_count', { ascending: false })
+  if (error) throw error
+
+  return (data as OverdueNoteRow[]).map((row) => ({
+    id:           row.id,
+    staffName:    row.staff.full_name,
+    staffTeam:    row.staff.team,
+    overdueCount: row.overdue_count,
+    asOfDate:     row.as_of_date,
+  }))
+}
+
 export async function getUserPractice(userId: string): Promise<PracticeMembership | null> {
   console.log('[getUserPractice] querying practice_members for', userId)
 
