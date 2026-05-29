@@ -616,12 +616,135 @@ KPI headline numbers recalculate from the filtered list — e.g., switching to T
 
 ---
 
+## Session 13 — Supabase auth + practice onboarding (fully working)
+
+**What landed:** The app now requires a real Supabase account to access the dashboard. New users are onboarded through a practice creation flow before reaching any data.
+
+### Auth gate
+- `src/pages/AuthPage.tsx` — email/password sign-in and sign-up, error display, Enter key support
+- `App.tsx` — checks `supabase.auth.getSession()` on mount and listens via `onAuthStateChange`; renders `<AuthPage />` if no session, `<CreatePracticePage />` if session but no practice, otherwise the full dashboard
+
+### Practice onboarding
+- `src/pages/CreatePracticePage.tsx` — inserts into `practices` then `practice_members` (linking user as `owner`); calls `onPracticeCreated()` on success
+- `src/lib/supabase.ts` — `getUserPractice(userId)` queries `practice_members` with `.maybeSingle()`; now wrapped in an 8-second timeout race so a missing SELECT policy surfaces as a logged error rather than a silent hang
+
+### Supabase database setup (all policies confirmed active)
+Ran these in SQL editor to establish the full permission set in one shot:
+
+| Table | Policy | Type |
+|---|---|---|
+| `practices` | `insert_practices` | INSERT (authenticated, `WITH CHECK (true)`) |
+| `practices` | `select_practices` | SELECT (authenticated, `USING (true)`) |
+| `practice_members` | `insert_practice_members` | INSERT (authenticated, `WITH CHECK (user_id = auth.uid())`) |
+| `practice_members` | `select_practice_members` | SELECT (authenticated, `USING (user_id = auth.uid())`) |
+
+Also ran: `GRANT SELECT, INSERT, UPDATE, DELETE ON practices TO authenticated` and same for `practice_members`.
+
+### Debugging improvements
+- `App.tsx` now shows a visible "Loading…" spinner instead of a blank screen when initialising
+- All state transitions log to console (`[App]`, `[getUserPractice]`, `[CreatePractice]`) for easy tracing
+- Race condition fixed: `initialised` flag ensures `setLoading(false)` runs exactly once regardless of which path (`getSession` vs `onAuthStateChange`) resolves first
+
+### Key lesson
+The root cause of the multi-session debugging loop was that Supabase RLS blocks queries silently (the fetch hangs rather than returning an error) when a SELECT policy is missing. The 8-second timeout in `getUserPractice` plus the `console.error` on catch now surface this immediately.
+
+---
+
+## Session 14 — Sign-out, duplicate row fix, first live Supabase data tile
+
+**What landed:** Sign-out button on the dashboard, a defensive fix for duplicate `practice_members` rows, and the first tile reading real data from Supabase instead of mock data.
+
+### Sign-out button
+- `src/pages/DashboardPage.tsx` — added a shadcn `Button` (variant `outline`, size `sm`) on the far right of the dashboard header. Calls `supabase.auth.signOut()` on click; `onAuthStateChange` in `App.tsx` automatically swaps back to `<AuthPage />`.
+
+### Duplicate practice_members fix
+- **Root cause:** The user had clicked "Create Practice" multiple times across debugging sessions. Each click successfully inserted a new row into both `practices` and `practice_members`. `maybeSingle()` throws an error (not null) when it receives more than one row — causing `getUserPractice` to always return null and the app to stay stuck on the onboarding screen.
+- **Database fix:** Ran `DELETE FROM practice_members WHERE ctid NOT IN (SELECT max(ctid) FROM practice_members GROUP BY user_id)` to keep only the latest membership row per user.
+- **Code fix:** `src/lib/supabase.ts` — added `.limit(1)` before `.maybeSingle()` in `getUserPractice` so future duplicates never trigger the multi-row error.
+
+### First live data tile — Clients
+- `src/lib/supabase.ts` — added `Client` interface and `getClients()` function: queries `clients` table for `id, first_name, last_name, date_of_birth, status`, ordered by `last_name` ascending. Throws on error.
+- `src/components/ClientsListTile.tsx` — **new component**. Fetches on mount via `useEffect`. States: loading spinner, red error message, "No clients yet" empty state, or a full table. Columns: Name (Last, First), Date of Birth (formatted), Status (colored badge: green = active, amber = inactive, gray = discharged).
+- `src/pages/DashboardPage.tsx` — added `<ClientsListTile />` as a full-width row below the existing 5 tiles.
+- **Supabase SQL required:** `ALTER TABLE clients ENABLE ROW LEVEL SECURITY` + `CREATE POLICY "select_clients" ON clients FOR SELECT TO authenticated USING (true)`.
+- **Confirmed working:** "Torres, Emma — Apr 11, 2018 — Active" rendered from live Supabase data.
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/pages/DashboardPage.tsx` | Sign-out button; import + render `ClientsListTile` |
+| `src/lib/supabase.ts` | `.limit(1)` on `getUserPractice`; added `Client` type + `getClients()` |
+| `src/components/ClientsListTile.tsx` | **New** — live Supabase clients table tile |
+
+---
+
+---
+
+## Session 15 — Phase 3 Day 2: staff table, seed, and first live staff tile
+
+**What landed:** Supabase `staff` table created and seeded with 13 mock staff members; `HoursByStaffTile` reads live data instead of the `mockStaff` fixture.
+
+### Supabase — database work
+- **Orphan cleanup:** deleted all `practices` rows except `1c938c8c-4677-4ef3-812c-d9538646f3e5` (the real practice).
+- **`staff` table created** following the standing template:
+  - Columns: `id` (uuid PK, `gen_random_uuid()`), `practice_id` (uuid FK → `practices` CASCADE), `full_name`, `role`, `team`, `hire_date`, `certification`, `created_at`, `direct_hours`, `indirect_hours`, `cancellation_hours`
+  - RLS enabled with 4 policies (SELECT / INSERT / UPDATE / DELETE) scoped to `practice_members`
+  - `GRANT ALL ON staff TO authenticated`
+- **Seeded 13 staff rows** matching `src/data/mockStaff.ts` names, roles, teams, hire dates, certifications, and hour values.
+
+### Code changes
+- `src/lib/supabase.ts` — added `StaffRecord` interface and `getStaff()` function: queries all staff columns, maps snake_case → camelCase, computes `totalHours = direct + indirect + cancellation`.
+- `src/components/HoursByStaffTile.tsx` — replaced `mockStaff` import with a `useEffect` + `getStaff()` fetch; added loading / error / empty states; `YAxisTick` now receives the live staff array via props; sort comparators updated to use `StaffRecord` type.
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/lib/supabase.ts` | Added `StaffRecord` type + `getStaff()` |
+| `src/components/HoursByStaffTile.tsx` | Replaced mock import with live Supabase query |
+
+---
+
+## Session 16 — Phase 3 Day 3: Vercel env vars, sessions table, live TodaySessionsTile
+
+**What landed:** Production app now reads real Supabase data; `sessions` table created and seeded; `TodaySessionsTile` wired to live data; UTC time display bug fixed.
+
+### Vercel environment variables
+- Added `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the Vercel project under Settings → Environment Variables (Production + Preview + Development).
+- Triggered a manual redeploy — build completed in 25 s. Production URL now reads live Supabase data for both the Clients tile and the Hours by Staff tile.
+
+### Supabase — database work
+- **Seeded 8 missing clients** (`Anderson`, `Bennett`, `Carter`, `Davis`, `Edwards`, `Foster`, `Hayes`, `Hughes`) matching the names used in `mockSessions.ts`.
+- **`sessions` table created** following the standing template:
+  - Columns: `id` (uuid PK), `practice_id` (FK → `practices` CASCADE), `client_id` (FK → `clients` CASCADE), `staff_id` (FK → `staff` CASCADE), `scheduled_at` (timestamptz), `session_type` (text), `status` (text), `created_at` (timestamptz)
+  - Indexes on `practice_id` and `scheduled_at`
+  - RLS enabled with 4 policies (SELECT / INSERT / UPDATE / DELETE) scoped to `practice_members`
+  - `GRANT ALL ON sessions TO authenticated`
+- **Seeded 17 sessions for today (2026-05-29)** — mix of completed, in-progress, scheduled, cancelled, and no-show; covers all 13 staff members and all 9 clients.
+
+### Code changes
+- `src/lib/supabase.ts` — added `SessionRecord` interface and `getSessionsToday()`: queries `sessions` with PostgREST joins to `clients` and `staff`, filters to the current local day using UTC boundaries, maps to a flat record including `staffTeam` (eliminating the need for a separate staff lookup in the tile).
+- `src/components/TodaySessionsTile.tsx` — replaced `mockSessions` + `mockStaff` imports with `useEffect` + `getSessionsToday()`; added loading / error / empty states; team filter now uses `s.staffTeam` directly from the JOIN.
+- `src/lib/sessions.ts` — fixed `formatTime` to parse the full ISO timestamp as a `Date` and format in the user's local timezone via `toLocaleTimeString`, instead of slicing the raw string (which was returning UTC hours).
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/lib/supabase.ts` | Added `SessionRecord` type + `getSessionsToday()` |
+| `src/components/TodaySessionsTile.tsx` | Replaced mock imports with live Supabase query |
+| `src/lib/sessions.ts` | Fixed `formatTime` to show local time instead of UTC |
+
+---
+
 ## What's NOT done yet (next sessions, suggested order)
 
+**Phase 3 — remaining real-data hookups:**
+1. **Replace remaining mock imports** — authorizations, supervision, notes tiles still use `mockX` fixtures. Each needs its own table + seed + query swap.
+2. **Expand clients table schema** — add fields: insurance, auth dates, assigned staff, CPT codes, team assignment.
+3. **Wire Clients tile rows to Client Overview** — clicking a client row should navigate to `/clients/:id`.
+
 **Phase 2 — remaining builds:**
-1. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close. Lift `saved` overrides to a React context or parent-level map so edits survive navigation within the same browser tab.
-2. **Real data hookup** — replace every `mockX` import with API calls. All tiles and pages are already shaped to match a future API response (the types are the contract), so this is mostly plumbing: `useEffect`, `fetch`, loading/error/empty states.
-3. **Session View tablet testing** — the page was built tablet-first (44 px+ tap targets throughout) but hasn't been verified on a real device. Touch gestures, keyboard-up behavior on the SOAP note textareas, and the sticky footer above the virtual keyboard all need a real-device pass.
+1. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close.
+2. **Session View tablet testing** — built tablet-first but not yet verified on a real device.
 
 **Tier 2 — polish backlog:**
 4. **Session timer survives navigation** — currently the timer is local state; navigating away resets it. Lift to a context or `sessionStorage` key so the timer survives a back-navigation to Client Overview and return to Session View mid-session.
@@ -639,4 +762,4 @@ KPI headline numbers recalculate from the filtered list — e.g., switching to T
 
 ---
 
-*Last updated: May 19, 2026 (end of Session 12).*
+*Last updated: May 29, 2026 (end of Session 16).*

@@ -29,10 +29,13 @@ export function CreatePracticePage({ userId, onPracticeCreated }: Props) {
       .single()
 
     if (practiceError || !practice) {
-      setError(practiceError?.message ?? "Failed to create practice.")
+      console.error("[CreatePractice] practices insert failed:", practiceError)
+      setError(practiceError?.message || practiceError?.code || "Failed to create practice — check the browser console for details.")
       setLoading(false)
       return
     }
+
+    console.log("[CreatePractice] practice created:", practice)
 
     // Step 2 — link the current user as owner.
     const { error: memberError } = await supabase
@@ -40,13 +43,17 @@ export function CreatePracticePage({ userId, onPracticeCreated }: Props) {
       .insert({ practice_id: practice.id, user_id: userId, role: "owner" })
 
     if (memberError) {
-      setError(memberError.message)
+      console.error("[CreatePractice] practice_members insert failed:", memberError)
+      setError(memberError.message || memberError.code || "Failed to add you to the practice — check the browser console for details.")
       setLoading(false)
       return
     }
 
-    // Tell App.tsx to re-check — it will fetch the new membership and
-    // swap in the dashboard without any client-side navigation.
+    console.log("[CreatePractice] member row created — calling onPracticeCreated()")
+
+    // Unlock the button before handing off — the component may or may not
+    // unmount immediately depending on whether App.tsx's re-check succeeds.
+    setLoading(false)
     onPracticeCreated()
   }
 

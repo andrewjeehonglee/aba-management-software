@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import {
@@ -16,12 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { mockSessions } from "@/data/mockSessions"
-import { mockStaff } from "@/data/mockStaff"
+import { getSessionsToday, type SessionRecord } from "@/lib/supabase"
 import { STATUS_ORDER, formatTime } from "@/lib/sessions"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
-import type { Session, SessionStatus } from "@/types/session"
+import type { SessionStatus } from "@/types/session"
 import type { TeamFilter } from "@/types/team"
 
 type StatusFilter = SessionStatus | "all"
@@ -29,23 +28,23 @@ type StatusFilter = SessionStatus | "all"
 const SORT_OPTIONS = {
   time: {
     label: "Time (earliest → latest)",
-    compare: (a: Session, b: Session) => a.time.localeCompare(b.time),
+    compare: (a: SessionRecord, b: SessionRecord) => a.time.localeCompare(b.time),
   },
   status: {
     label: "Status",
-    compare: (a: Session, b: Session) =>
-      STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
+    compare: (a: SessionRecord, b: SessionRecord) =>
+      STATUS_ORDER[a.status as SessionStatus] - STATUS_ORDER[b.status as SessionStatus] ||
       a.time.localeCompare(b.time),
   },
   staff: {
     label: "Staff (A → Z)",
-    compare: (a: Session, b: Session) =>
+    compare: (a: SessionRecord, b: SessionRecord) =>
       a.staffName.localeCompare(b.staffName) ||
       a.time.localeCompare(b.time),
   },
   client: {
     label: "Client (A → Z)",
-    compare: (a: Session, b: Session) =>
+    compare: (a: SessionRecord, b: SessionRecord) =>
       a.clientName.localeCompare(b.clientName) ||
       a.time.localeCompare(b.time),
   },
@@ -65,21 +64,27 @@ const FILTER_CHIPS: { value: StatusFilter; label: string }[] = [
 export function TodaySessionsTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("time")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [allSessions, setAllSessions] = useState<SessionRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Apply team filter first via staff lookup, then status filter, then sort.
+  useEffect(() => {
+    getSessionsToday()
+      .then(setAllSessions)
+      .catch((err) => setError(err.message ?? "Failed to load sessions"))
+      .finally(() => setLoading(false))
+  }, [])
+
   const teamSessions = teamFilter && teamFilter !== "All"
-    ? mockSessions.filter(s => {
-        const staff = mockStaff.find(st => st.name === s.staffName)
-        return staff?.team === teamFilter
-      })
-    : mockSessions
+    ? allSessions.filter(s => s.staffTeam === teamFilter)
+    : allSessions
 
   const filteredSessions =
     statusFilter === "all"
       ? teamSessions
       : teamSessions.filter((s) => s.status === statusFilter)
 
-  const sortedSessions: Session[] = [...filteredSessions].sort(
+  const sortedSessions: SessionRecord[] = [...filteredSessions].sort(
     SORT_OPTIONS[sortKey].compare
   )
 
@@ -106,11 +111,7 @@ export function TodaySessionsTile({ className, teamFilter }: { className?: strin
         </CardAction>
       </CardHeader>
       <CardContent>
-        {/* Filter chip row.
-            base-ui's ToggleGroup uses `value: Value[]` even for single-select,
-            so we wrap/unwrap with [statusFilter] / values[0]. The
-            `if (values.length > 0)` guard keeps "All" reachable — clicking
-            the currently-selected chip would otherwise empty the array. */}
+        {/* Filter chip row */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground shrink-0">
             Filter:
@@ -138,13 +139,19 @@ export function TodaySessionsTile({ className, teamFilter }: { className?: strin
           </ToggleGroup>
         </div>
 
-        {sortedSessions.length === 0 ? (
+        {loading && (
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+        )}
+        {error && (
+          <p className="py-8 text-center text-sm text-destructive">{error}</p>
+        )}
+        {!loading && !error && sortedSessions.length === 0 && (
           <div className="py-8 text-center text-sm text-muted-foreground">
             No sessions match this filter.
           </div>
-        ) : (
+        )}
+        {!loading && !error && sortedSessions.length > 0 && (
           <div className="flex flex-col text-xs">
-            {/* Header row — same column template as session rows */}
             <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] gap-x-3 border-b pb-2 text-muted-foreground">
               <div>Time</div>
               <div>Client</div>
@@ -153,9 +160,6 @@ export function TodaySessionsTile({ className, teamFilter }: { className?: strin
               <div className="text-right">Status</div>
             </div>
 
-            {/* Session rows — each row is a Link so the entire row is
-                clickable. -mx-2 px-2 extends the hover highlight to the
-                card edges without shifting the text alignment. */}
             {sortedSessions.map((s) => (
               <Link
                 key={s.id}
@@ -175,7 +179,7 @@ export function TodaySessionsTile({ className, teamFilter }: { className?: strin
                   {s.sessionType}
                 </div>
                 <div className="flex items-center justify-end py-1.5">
-                  <SessionStatusBadge status={s.status} />
+                  <SessionStatusBadge status={s.status as SessionStatus} />
                 </div>
               </Link>
             ))}

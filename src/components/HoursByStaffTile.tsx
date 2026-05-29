@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { TriangleAlert } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockStaff } from "@/data/mockStaff"
+import { getStaff, type StaffRecord } from "@/lib/supabase"
 import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
 import { toSlug } from "@/lib/slug"
@@ -44,21 +44,21 @@ const chartConfig = {
 const SORT_OPTIONS = {
   total: {
     label: "Total hours (high → low)",
-    compare: (a: Staff, b: Staff) => b.totalHours - a.totalHours,
+    compare: (a: StaffRecord, b: StaffRecord) => b.totalHours - a.totalHours,
   },
   directPct: {
     label: "Direct % (low → high)",
-    compare: (a: Staff, b: Staff) =>
+    compare: (a: StaffRecord, b: StaffRecord) =>
       a.directHours / a.totalHours - b.directHours / b.totalHours,
   },
   cancellation: {
     label: "Cancellation hrs (high → low)",
-    compare: (a: Staff, b: Staff) =>
+    compare: (a: StaffRecord, b: StaffRecord) =>
       b.cancellationHours - a.cancellationHours,
   },
   name: {
     label: "Name (A–Z)",
-    compare: (a: Staff, b: Staff) => a.name.localeCompare(b.name),
+    compare: (a: StaffRecord, b: StaffRecord) => a.name.localeCompare(b.name),
   },
 } as const
 
@@ -68,12 +68,13 @@ type AxisTickProps = {
   x?: number
   y?: number
   payload?: { value: string }
+  staff?: StaffRecord[]
 }
 
-function YAxisTick({ x = 0, y = 0, payload }: AxisTickProps) {
+function YAxisTick({ x = 0, y = 0, payload, staff = [] }: AxisTickProps) {
   if (!payload) return null
-  const staff = mockStaff.find((s) => s.name === payload.value)
-  const flagged = staff ? isStaffFlagged(staff) : false
+  const member = staff.find((s) => s.name === payload.value)
+  const flagged = member ? isStaffFlagged(member as unknown as Staff) : false
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -105,10 +106,20 @@ function YAxisTick({ x = 0, y = 0, payload }: AxisTickProps) {
 
 export function HoursByStaffTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("total")
+  const [allStaff, setAllStaff] = useState<StaffRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    getStaff()
+      .then(setAllStaff)
+      .catch((err) => setError(err.message ?? "Failed to load staff"))
+      .finally(() => setLoading(false))
+  }, [])
 
   const teamStaff = teamFilter && teamFilter !== "All"
-    ? mockStaff.filter(s => s.team === teamFilter)
-    : mockStaff
+    ? allStaff.filter(s => s.team === teamFilter)
+    : allStaff
 
   const sortedStaff = [...teamStaff].sort(SORT_OPTIONS[sortKey].compare)
 
@@ -135,64 +146,77 @@ export function HoursByStaffTile({ className, teamFilter }: { className?: string
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="mb-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {Object.entries(chartConfig).map(([key, { label, color }]) => (
-            <div key={key} className="flex items-center gap-1.5">
-              <span
-                className="inline-block h-3 w-3 rounded-sm"
-                style={{ backgroundColor: color }}
-                aria-hidden="true"
-              />
-              <span>{label}</span>
+        {loading && (
+          <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
+        )}
+        {error && (
+          <p className="py-10 text-center text-sm text-destructive">{error}</p>
+        )}
+        {!loading && !error && sortedStaff.length === 0 && (
+          <p className="py-10 text-center text-sm text-muted-foreground">No staff found.</p>
+        )}
+        {!loading && !error && sortedStaff.length > 0 && (
+          <>
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {Object.entries(chartConfig).map(([key, { label, color }]) => (
+                <div key={key} className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-3 w-3 rounded-sm"
+                    style={{ backgroundColor: color }}
+                    aria-hidden="true"
+                  />
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <ChartContainer
-          config={chartConfig}
-          className="aspect-auto h-[380px] w-full"
-        >
-          <BarChart
-            data={sortedStaff}
-            layout="vertical"
-            margin={{ top: 4, right: 12, left: 12, bottom: 4 }}
-          >
-            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-            <XAxis
-              type="number"
-              tick={{ fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              width={120}
-              interval={0}
-              tick={<YAxisTick />}
-              axisLine={false}
-              tickLine={false}
-            />
-            <ChartTooltip
-              content={<ChartTooltipContent indicator="dot" />}
-            />
-            <Bar
-              dataKey="directHours"
-              stackId="hours"
-              fill="var(--color-directHours)"
-            />
-            <Bar
-              dataKey="indirectHours"
-              stackId="hours"
-              fill="var(--color-indirectHours)"
-            />
-            <Bar
-              dataKey="cancellationHours"
-              stackId="hours"
-              fill="var(--color-cancellationHours)"
-            />
-          </BarChart>
-        </ChartContainer>
+            <ChartContainer
+              config={chartConfig}
+              className="aspect-auto h-[380px] w-full"
+            >
+              <BarChart
+                data={sortedStaff}
+                layout="vertical"
+                margin={{ top: 4, right: 12, left: 12, bottom: 4 }}
+              >
+                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={120}
+                  interval={0}
+                  tick={(props) => <YAxisTick {...props} staff={allStaff} />}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <ChartTooltip
+                  content={<ChartTooltipContent indicator="dot" />}
+                />
+                <Bar
+                  dataKey="directHours"
+                  stackId="hours"
+                  fill="var(--color-directHours)"
+                />
+                <Bar
+                  dataKey="indirectHours"
+                  stackId="hours"
+                  fill="var(--color-indirectHours)"
+                />
+                <Bar
+                  dataKey="cancellationHours"
+                  stackId="hours"
+                  fill="var(--color-cancellationHours)"
+                />
+              </BarChart>
+            </ChartContainer>
+          </>
+        )}
       </CardContent>
     </Card>
   )

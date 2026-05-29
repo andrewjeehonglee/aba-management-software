@@ -1,9 +1,12 @@
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import { TodaySessionsTile } from "@/components/TodaySessionsTile"
+import { ClientsListTile } from "@/components/ClientsListTile"
 import {
   ROLE_DEFAULT_TEAM,
   TEAM_FILTERS,
@@ -44,8 +47,8 @@ export function DashboardPage() {
           <span className="text-sm text-muted-foreground">Last 7 days</span>
         </div>
 
-        {/* Role toggle */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Role toggle + sign out */}
+        <div className="flex items-center gap-3 shrink-0">
           <span className="text-xs text-muted-foreground hidden sm:block">Viewing as:</span>
           <div className="flex rounded-lg border border-border bg-muted p-0.5 gap-0.5">
             {ROLES.map(r => (
@@ -62,6 +65,13 @@ export function DashboardPage() {
               </button>
             ))}
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => supabase.auth.signOut()}
+          >
+            Sign Out
+          </Button>
         </div>
       </header>
 
@@ -103,6 +113,11 @@ export function DashboardPage() {
         <NotesOverdueTile teamFilter={teamFilter} />
         <SupervisionComplianceTile teamFilter={teamFilter} />
         {visible.authUtilization && <AuthorizationUtilizationTile teamFilter={teamFilter} />}
+      </div>
+
+      {/* ── Clients (live Supabase data) ── */}
+      <div className="w-full max-w-7xl">
+        <ClientsListTile />
       </div>
 
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>

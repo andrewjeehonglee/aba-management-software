@@ -17,29 +17,42 @@ function App() {
   // (when applicable) have resolved — prevents any intermediate flash.
   const [loading, setLoading] = useState(true)
 
-  // Fetch practice membership for the given user and store it. Called on
-  // initial load and again after CreatePracticePage succeeds.
   async function checkPractice(userId: string) {
+    console.log('[App] checkPractice called for', userId)
     const data = await getUserPractice(userId)
+    console.log('[App] checkPractice result:', data)
     setPractice(data)
   }
 
   useEffect(() => {
+    let initialised = false
+
+    console.log('[App] mounting — calling getSession()')
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('[App] getSession resolved, session:', session?.user?.email ?? null)
       setSession(session)
-      if (session) await checkPractice(session.user.id)
+      if (session) {
+        await checkPractice(session.user.id)
+      }
+      initialised = true
       setLoading(false)
+      console.log('[App] loading = false (getSession path)')
     })
 
-    // onAuthStateChange fires on sign-in, sign-out, and token refresh.
-    // Re-check practice on every sign-in so the gate stays accurate.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('[App] onAuthStateChange event:', event, 'user:', session?.user?.email ?? null)
         setSession(session)
         if (session) {
           await checkPractice(session.user.id)
         } else {
           setPractice(null)
+        }
+        // Ensure loading clears even if onAuthStateChange fires before getSession resolves
+        if (!initialised) {
+          initialised = true
+          setLoading(false)
+          console.log('[App] loading = false (onAuthStateChange path)')
         }
       }
     )
@@ -47,13 +60,18 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Hold everything until both checks complete — no flash of wrong screen.
-  if (loading) return null
+  // Visible spinner instead of null — makes "stuck loading" obvious in the UI
+  // and tells us we're in the loading state, not a crash.
+  if (loading) {
+    return (
+      <div className="min-h-svh flex items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
+      </div>
+    )
+  }
 
-  // Not signed in → auth gate.
   if (!session) return <AuthPage />
 
-  // Signed in but no practice → onboarding.
   if (!practice) {
     return (
       <CreatePracticePage
@@ -63,7 +81,6 @@ function App() {
     )
   }
 
-  // Signed in and has a practice → full app.
   return (
     <Routes>
       <Route path="/" element={<DashboardPage />} />

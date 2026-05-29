@@ -30,8 +30,13 @@ export const STATUS_ORDER: Record<SessionStatus, number> = {
   completed:     4,
 }
 
-// "HH:mm" slice from an ISO string like "2026-05-12T08:00". Named helper
-// because the slice indices are otherwise opaque at the call site.
+// Formats an ISO timestamp as local HH:mm. Handles both timezone-aware
+// strings from Supabase ("2026-05-29T15:00:00+00:00") and the timezone-naive
+// mock format ("2026-05-12T08:00", treated as local time by the Date parser).
 export function formatTime(isoTime: string): string {
-  return isoTime.slice(11, 16)
+  return new Date(isoTime).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
 }
