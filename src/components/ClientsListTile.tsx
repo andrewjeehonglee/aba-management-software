@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { Link } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getClients, type Client } from "@/lib/supabase"
 
@@ -66,9 +67,17 @@ export function ClientsListTile() {
               </thead>
               <tbody className="divide-y divide-border">
                 {clients.map(c => (
-                  <tr key={c.id} className="hover:bg-muted/40 transition-colors">
+                  <tr
+                    key={c.id}
+                    className="relative hover:bg-muted/40 transition-colors cursor-pointer"
+                  >
                     <td className="py-2.5 pr-6 font-medium">
-                      {c.last_name}, {c.first_name}
+                      <Link
+                        to={`/clients/${c.id}`}
+                        className="block after:absolute after:inset-0"
+                      >
+                        {c.last_name}, {c.first_name}
+                      </Link>
                     </td>
                     <td className="py-2.5 pr-6 text-muted-foreground">
                       {formatDOB(c.date_of_birth)}

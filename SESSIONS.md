@@ -761,12 +761,33 @@ The root cause of the multi-session debugging loop was that Supabase RLS blocks 
 
 ---
 
+## Session 18 — Phase 3 Day 5: clients schema expanded, tile rows clickable, live Client Overview header
+
+**What landed:** Clients table fully populated with all identity fields; clicking a client row navigates to their overview page; the header card on `/clients/:id` reads live Supabase data.
+
+### Supabase — database work
+- **`clients` table expanded** — added columns: `insurance` (text), `auth_start_date` (date), `auth_end_date` (date), `assigned_staff_id` (uuid FK → staff), `cpt_codes` (text[]). Note: `date_of_birth` and `team` already existed.
+- **Backfilled all 9 clients** with insurance payer, auth period dates, CPT codes, and assigned technician from `mockClients.ts`. Emma Torres (the original seed client) had DOB already set; all other fields filled in.
+
+### Code changes
+- `src/lib/supabase.ts` — added `ClientDetail` interface and `getClientById(id)` function: queries all client columns with a `staff(full_name)` join on `assigned_staff_id`, returns `null` for unknown IDs via `maybeSingle()`.
+- `src/components/ClientsListTile.tsx` — rows now link to `/clients/${c.id}` (UUID-based). The name cell uses a `Link` with `after:absolute` overlay so the entire row is the click target.
+- `src/pages/ClientOverviewPage.tsx` — detects UUID vs slug in `clientId` param via regex. UUID → fires `getClientById()` on mount and shows `LiveClientDetailGrid` (status, DOB, team, insurance, auth period, CPT codes, assigned staff). Slug → falls back to existing mock-based `ClientDetailGrid`. Sessions, goals, and auth utilization sections still use mock data.
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/lib/supabase.ts` | Added `ClientDetail` type + `getClientById()` |
+| `src/components/ClientsListTile.tsx` | Rows now navigate to `/clients/:id` |
+| `src/pages/ClientOverviewPage.tsx` | UUID detection + live header via `LiveClientDetailGrid` |
+
+---
+
 ## What's NOT done yet (next sessions, suggested order)
 
 **Phase 3 — remaining work:**
-1. **Expand clients table schema** — add fields: insurance, auth dates, assigned staff, CPT codes.
-2. **Wire Clients tile rows to Client Overview** — clicking a client row should navigate to `/clients/:id`.
-3. **Staff Overview page** — currently reads from `mockStaff`; needs a live query now that the staff table exists.
+1. **Client Overview — sessions, goals, auth sections** — still reading from `mockSessions`, `mockGoals`, `mockAuthorizations`. Replace with live Supabase queries once those tables have enough data.
+2. **Staff Overview page** — reads from `mockStaff`; now that the `staff` table is live, this is a straightforward `getStaff()` hookup.
 
 **Phase 2 — remaining builds:**
 1. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close.
@@ -788,4 +809,4 @@ The root cause of the multi-session debugging loop was that Supabase RLS blocks 
 
 ---
 
-*Last updated: May 29, 2026 (end of Session 17).*
+*Last updated: May 29, 2026 (end of Session 18).*

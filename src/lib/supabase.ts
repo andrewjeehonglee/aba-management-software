@@ -24,6 +24,32 @@ export interface Client {
   status: string | null
 }
 
+export interface ClientDetail {
+  id: string
+  first_name: string
+  last_name: string
+  date_of_birth: string | null
+  status: string | null
+  team: string | null
+  insurance: string | null
+  auth_start_date: string | null
+  auth_end_date: string | null
+  cpt_codes: string[] | null
+  assigned_staff: { full_name: string } | null
+}
+
+export async function getClientById(id: string): Promise<ClientDetail | null> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, first_name, last_name, date_of_birth, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff(full_name)')
+    .eq('id', id)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const row = data as unknown as Omit<ClientDetail, 'assigned_staff'> & { staff: { full_name: string } | null }
+  return { ...row, assigned_staff: row.staff }
+}
+
 export async function getClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('clients')

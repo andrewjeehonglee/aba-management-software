@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ArrowLeft, Play } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
@@ -23,10 +23,13 @@ import {
 } from "@/lib/authorization"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
+import { getClientById, type ClientDetail } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Display labels for the inline status summary line ("Today: 1 completed,
 // 1 in progress…"). Hyphens and tech-style enum values don't read well in
@@ -139,52 +142,54 @@ export function ClientOverviewPage() {
   const { clientId } = useParams<{ clientId: string }>()
   const navigate = useNavigate()
 
-  // Slug-match on BOTH sides instead of trying to recover the display name
-  // from the slug and string-matching. toSlug() is the canonical form; if
-  // names ever pick up apostrophes or accents, we just need toSlug() to
-  // agree with itself for matching to keep working.
-  const clientSessions = clientId
-    ? mockSessions.filter((s) => toSlug(s.clientName) === clientId)
+  // If the URL param is a UUID, fetch the client from Supabase.
+  // If it's a slug (old links / manual nav), fall back to mock matching.
+  const isUUID = UUID_RE.test(clientId ?? "")
+  const [liveClient, setLiveClient] = useState<ClientDetail | null>(null)
+  const [clientLoading, setClientLoading] = useState(isUUID)
+
+  useEffect(() => {
+    if (!isUUID || !clientId) return
+    getClientById(clientId)
+      .then(setLiveClient)
+      .catch(console.error)
+      .finally(() => setClientLoading(false))
+  }, [clientId, isUUID])
+
+  // Slug used for mock lookups — derive from live name when available,
+  // otherwise treat the param itself as the slug.
+  const mockSlug = liveClient
+    ? toSlug(`${liveClient.first_name} ${liveClient.last_name}`)
+    : isUUID ? null : (clientId ?? null)
+
+  const clientSessions = mockSlug
+    ? mockSessions.filter((s) => toSlug(s.clientName) === mockSlug)
     : []
-  const auth = clientId
-    ? mockAuthorizations.find((a) => toSlug(a.clientName) === clientId)
+  const auth = mockSlug
+    ? mockAuthorizations.find((a) => toSlug(a.clientName) === mockSlug)
     : undefined
-  const profile = clientId
-    ? mockClients.find((c) => toSlug(c.name) === clientId)
+  const profile = mockSlug
+    ? mockClients.find((c) => toSlug(c.name) === mockSlug)
     : undefined
 
-  // Display name preference: canonical name from data wins (correct casing,
-  // punctuation, accents); unslug() is the fallback for typo'd or bookmarked
-  // URLs that match nothing in any of the three lookups.
-  const displayName =
-    profile?.name
-    ?? auth?.clientName
-    ?? clientSessions[0]?.clientName
-    ?? (clientId ? unslug(clientId) : "Unknown client")
+  const displayName = liveClient
+    ? `${liveClient.first_name} ${liveClient.last_name}`
+    : profile?.name
+      ?? auth?.clientName
+      ?? clientSessions[0]?.clientName
+      ?? (clientId ? unslug(clientId) : "Unknown client")
 
-  const uniqueStaff = Array.from(
-    new Set(clientSessions.map((s) => s.staffName))
-  )
+  const uniqueStaff = Array.from(new Set(clientSessions.map((s) => s.staffName)))
 
-  // Sorted view of the same sessions, used only by the table render below.
-  // Kept separate from `clientSessions` so derivations that don't care about
-  // order (chip counts, uniqueStaff Set) aren't quietly affected by a sort.
-  // ISO time strings sort chronologically under string compare.
   const sortedClientSessions = [...clientSessions].sort((a, b) =>
     a.time.localeCompare(b.time)
   )
 
-  // Calendar sessions — separate data source covering 4+ weeks of history
-  // plus future scheduled sessions. `mockSessions` is "today only" for the
-  // dashboard tile; `mockCalendarSessions` is the fuller scheduling record.
-  const calendarSessions = clientId
-    ? mockCalendarSessions.filter((s) => toSlug(s.clientName) === clientId)
+  const calendarSessions = mockSlug
+    ? mockCalendarSessions.filter((s) => toSlug(s.clientName) === mockSlug)
     : []
 
-  // Active goals — keyed by slug for direct lookup. Sorted by status priority
-  // (most concerning first), then alphabetically by name within the same
-  // status for stable ordering.
-  const clientGoals = (clientId && mockGoals[clientId]) || []
+  const clientGoals = (mockSlug && mockGoals[mockSlug]) || []
   const sortedGoals = [...clientGoals].sort(
     (a, b) =>
       GOAL_STATUS_ORDER[a.status] - GOAL_STATUS_ORDER[b.status] ||
@@ -193,9 +198,6 @@ export function ClientOverviewPage() {
 
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
 
-  // Status breakdown — count per status, then format as a single muted line.
-  // Skipping zero-count statuses keeps the line short for clients with only
-  // one or two sessions today.
   const statusCounts: Partial<Record<SessionStatus, number>> = {}
   for (const s of clientSessions) {
     statusCounts[s.status] = (statusCounts[s.status] ?? 0) + 1
@@ -204,10 +206,6 @@ export function ClientOverviewPage() {
     .map(([status, count]) => `${count} ${STATUS_LABEL[status]}`)
     .join(" · ")
 
-  // Pick the best session to "start" — prefer a scheduled or in-progress
-  // session from today's list, fall back to the next scheduled in the full
-  // calendar, then to any session at all. The ID is passed to SessionViewPage
-  // so it can eventually load the right clinical context.
   const nextSession =
     clientSessions.find((s) => s.status === "scheduled" || s.status === "in-progress") ??
     calendarSessions.find((s) => s.status === "scheduled") ??
@@ -238,7 +236,11 @@ export function ClientOverviewPage() {
       <Card className="w-full max-w-3xl">
         <CardHeader>
           <CardTitle className="text-3xl font-semibold tracking-tight">
-            {displayName}
+            {clientLoading ? (
+              <span className="text-muted-foreground animate-pulse">Loading…</span>
+            ) : (
+              displayName
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -272,11 +274,13 @@ export function ClientOverviewPage() {
             </p>
           )}
 
-          {/* Detail grid — kept inside the same card so this whole block reads
-              as one cohesive "who is this client" identity unit. Hidden when
-              we can't resolve a profile (typo'd URL); the chips/auth/sessions
-              empty states still tell the user nothing matched. */}
-          {profile && (
+          {/* Live header detail — shown when navigated from the Clients tile */}
+          {!clientLoading && liveClient && (
+            <LiveClientDetailGrid client={liveClient} />
+          )}
+
+          {/* Mock detail grid — fallback for slug-based navigation */}
+          {!liveClient && profile && (
             <ClientDetailGrid profile={profile} sessions={clientSessions} />
           )}
         </CardContent>
@@ -413,6 +417,66 @@ function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
         </div>
       </div>
     </li>
+  )
+}
+
+// Live detail grid — rendered when the page is loaded via a UUID-based URL
+// from the Clients tile. Shows the fields available in the clients table.
+function LiveClientDetailGrid({ client }: { client: ClientDetail }) {
+  const STATUS_STYLES: Record<string, string> = {
+    active:     "bg-green-100 text-green-800",
+    inactive:   "bg-amber-100 text-amber-800",
+    discharged: "bg-gray-100 text-gray-600",
+  }
+  const statusLabel = client.status ?? "unknown"
+  const statusCls = STATUS_STYLES[statusLabel.toLowerCase()] ?? "bg-gray-100 text-gray-500"
+
+  return (
+    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
+      <dt className="text-muted-foreground">Status</dt>
+      <dd>
+        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusCls}`}>
+          {statusLabel}
+        </span>
+      </dd>
+
+      <dt className="text-muted-foreground">Date of birth</dt>
+      <dd>{client.date_of_birth ? formatDate(client.date_of_birth) : "—"}</dd>
+
+      <dt className="text-muted-foreground">Team</dt>
+      <dd>{client.team ?? "—"}</dd>
+
+      <dt className="text-muted-foreground">Insurance</dt>
+      <dd>{client.insurance ?? "—"}</dd>
+
+      <dt className="text-muted-foreground">Authorization period</dt>
+      <dd>
+        {client.auth_start_date && client.auth_end_date
+          ? `${formatDate(client.auth_start_date)} – ${formatDate(client.auth_end_date)}`
+          : "—"}
+      </dd>
+
+      <dt className="text-muted-foreground">CPT / billing code</dt>
+      <dd>
+        {client.cpt_codes && client.cpt_codes.length > 0
+          ? <span className="font-mono">{client.cpt_codes.join(", ")}</span>
+          : "—"}
+      </dd>
+
+      <dt className="text-muted-foreground">Assigned staff</dt>
+      <dd>
+        {client.assigned_staff
+          ? (
+            <Link
+              to={"/staff/" + toSlug(client.assigned_staff.full_name)}
+              className="hover:underline underline-offset-2"
+            >
+              {client.assigned_staff.full_name}
+            </Link>
+          )
+          : "—"}
+      </dd>
+    </dl>
   )
 }
 
