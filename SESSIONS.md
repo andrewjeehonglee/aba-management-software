@@ -847,31 +847,64 @@ No schema changes. All required tables (`sessions`, `clients`, `goals`) were alr
 
 ---
 
-## What's NOT done yet (next sessions, suggested order)
+## Session 21 — Phase 3 Day 8: all remaining mock surfaces cleared
 
-**Phase 3 — remaining work:**
-1. **Session View — behaviors** — `mockBehaviors` still in place. Needs a `behaviors` table (`id`, `practice_id` FK, `client_id` FK, `name`, `type`, `created_at`) + seed + `getBehaviorsByClientId()` + swap. Straightforward once the table is created.
-2. **Client Overview — auth utilization** — still reading from `mockAuthorizations`. Next: query `authorizations` table filtered by `client_id`.
-3. **Staff Overview page** — reads from `mockStaff`; `getStaff()` is already live, a simple hookup.
+**What landed:** Three wins eliminated the last mock data sources across StaffOverviewPage, Client Overview auth utilization, and Session View behaviors. Phase 3 read-path migration is now complete — every page reads from live Supabase data.
 
-**Phase 2 — remaining builds:**
-1. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close.
-2. **Session View tablet testing** — built tablet-first but not yet verified on a real device.
+### Supabase — database work
+- **`behaviors` table created** — `id`, `practice_id` FK → practices, `client_id` FK → clients, `name` (text), `description` (text), `created_at`. Full RLS (4 policies) + GRANT ALL to authenticated.
+- **21 behavior rows seeded** — all 8 clients from `mockBehaviors`, names preserved exactly: Sophia Bennett (3), Liam Anderson (3), Ethan Carter (2), Mia Davis (3), Noah Edwards (2), Olivia Foster (2), Lucas Hayes (2), Ava Hughes (2).
 
-**Tier 2 — polish backlog:**
-4. **Session timer survives navigation** — currently the timer is local state; navigating away resets it. Lift to a context or `sessionStorage` key so the timer survives a back-navigation to Client Overview and return to Session View mid-session.
-5. **Team filter persists across navigation** — switching to Team B then clicking a client link loses the filter on return. Consider URL search params (`?team=Team+B`) or a lightweight zustand store.
-6. **Sort dropdown labels are wider than needed** — trim padding or use a more compact Select variant; the truncation is small but visible at desktop width.
-7. **Status badges in Today's Sessions aren't uniform width** — pad to widest label so the right column edge stays clean.
-8. **Editorial sub-lines** — replace structural sub-lines like "across 7 staff" with data-driven ones like "5 notes are 7+ days old" once timestamp data is available.
-9. **Hover tooltips on mini-bars** in Supervision + Auth tiles.
-10. **Hide "0 sessions / 0 clients" chips** on staff pages with zero activity — slightly redundant with the collapsed empty state.
+### Code changes
 
-**Tier 3 — nice-to-have:**
-11. **Dark mode toggle** — surfaces all the design-token work shadcn did silently.
-12. **Click-to-toggle series visibility** on the Hours by Staff legend — ~15 lines of `useState`.
-13. **"Last updated X minutes ago" timestamp** in the dashboard header — useful once data is live.
+**Win 1 — StaffOverviewPage on live data**
+- `src/lib/supabase.ts` — added `getSupervisionByStaffId(staffId)` (returns `SupervisionRecord | null` via `.maybeSingle()`) and `getSessionsByStaffId(staffId)` (returns `SessionRecord[]`).
+- `src/pages/StaffOverviewPage.tsx` — removed `mockSessions`, `mockStaff`, `mockSupervision`, `Session`, `RBTSupervision` imports. Added `useEffect` chain: `getStaff()` → slug-match → UUID → `Promise.all([getSupervisionByStaffId, getSessionsByStaffId])`. Sub-components `StaffDetailGrid`, `CertificationsDetail`, `SupervisionDetail` prop types updated from mock types to `StaffRecord` / `SupervisionRecord`. Loading + error gates added.
+
+**Win 2 — Client Overview auth utilization on live data**
+- `src/lib/supabase.ts` — added `getAuthorizationsByClientId(clientId)` (returns `AuthRecord | null` via `.maybeSingle()`).
+- `src/pages/ClientOverviewPage.tsx` — added `liveAuth` state + `useEffect`. `auth` variable is now `liveAuth ?? mockAuthorizations.find(...)` (live-first, mock fallback for slug URLs). `AuthorizationDetail` prop type widened to `ClientAuthorization | AuthRecord`.
+
+**Win 3 — Session View behaviors on live data**
+- `src/lib/supabase.ts` — added `BehaviorRow`, `BehaviorRecord` interface, `getBehaviorsByClientId(clientId)` (returns `BehaviorRecord[]` ordered by `created_at`).
+- `src/pages/SessionViewPage.tsx` — removed `mockBehaviors`, `Behavior`, `toSlug` imports. Added `behaviors` state (`BehaviorRecord[]`). `getBehaviorsByClientId` added to the existing `Promise.all` alongside goals and client detail — one fetch round-trip for all three. The mock IIFE lookup removed entirely.
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/lib/supabase.ts` | Added `getSupervisionByStaffId`, `getSessionsByStaffId`, `getAuthorizationsByClientId`, `BehaviorRecord`, `getBehaviorsByClientId` |
+| `src/pages/StaffOverviewPage.tsx` | Full live data wiring; loading + error gates |
+| `src/pages/ClientOverviewPage.tsx` | Auth utilization section on live data |
+| `src/pages/SessionViewPage.tsx` | Behaviors on live data; `mockBehaviors` removed |
 
 ---
 
-*Last updated: May 29, 2026 (end of Session 20).*
+## What's NOT done yet (next sessions, suggested order)
+
+**Phase 3 — complete.** All read paths are on live Supabase data. Next phase is the write path.
+
+**Write path (Phase 4 — suggested order):**
+1. **Session submit** — `SessionViewPage` POST-session form (SOAP notes, outcome, signature) currently has no persistence. Write to a `session_notes` table on submit.
+2. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close. Write back to `goals` table on save.
+3. **Behavior count persist** — ABC entries and counts in `SessionViewPage` are local state; wire to a `behavior_incidents` table.
+
+**Phase 2 — remaining builds:**
+1. **Session View tablet testing** — built tablet-first but not yet verified on a real device.
+
+**Tier 2 — polish backlog:**
+4. **Session timer survives navigation** — lift to `sessionStorage` or a context so it survives back-navigation.
+5. **Team filter persists across navigation** — consider URL search params (`?team=Team+B`).
+6. **Sort dropdown labels are wider than needed** — trim padding or use a more compact Select variant.
+7. **Status badges in Today's Sessions aren't uniform width** — pad to widest label.
+8. **Editorial sub-lines** — replace structural sub-lines with data-driven ones.
+9. **Hover tooltips on mini-bars** in Supervision + Auth tiles.
+10. **Hide "0 sessions / 0 clients" chips** on staff pages with zero activity.
+
+**Tier 3 — nice-to-have:**
+11. **Dark mode toggle.**
+12. **Click-to-toggle series visibility** on the Hours by Staff legend.
+13. **"Last updated X minutes ago" timestamp** in the dashboard header.
+
+---
+
+*Last updated: May 29, 2026 (end of Session 21).*

@@ -251,6 +251,28 @@ export async function getAuthorizations(): Promise<AuthRecord[]> {
   }))
 }
 
+export async function getAuthorizationsByClientId(clientId: string): Promise<AuthRecord | null> {
+  const { data, error } = await supabase
+    .from('authorizations')
+    .select('id, used_units, authorized_units, cpt_code, start_date, end_date, clients(first_name, last_name, team)')
+    .eq('client_id', clientId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+
+  const row = data as unknown as AuthRow
+  return {
+    id:                   row.id,
+    clientName:           `${row.clients.first_name} ${row.clients.last_name}`,
+    clientTeam:           row.clients.team,
+    utilizationPct:       Math.round((row.used_units / row.authorized_units) * 100),
+    totalAuthorizedHours: row.authorized_units,
+    cptCode:              row.cpt_code,
+    startDate:            row.start_date,
+    endDate:              row.end_date,
+  }
+}
+
 interface SupervisionRow {
   id: string
   supervision_pct: number
@@ -282,6 +304,45 @@ export async function getSupervision(): Promise<SupervisionRecord[]> {
     supervisionPct: row.supervision_pct,
     periodStart:   row.period_start,
     periodEnd:     row.period_end,
+  }))
+}
+
+export async function getSupervisionByStaffId(staffId: string): Promise<SupervisionRecord | null> {
+  const { data, error } = await supabase
+    .from('supervision')
+    .select('id, supervision_pct, period_start, period_end, staff(full_name, team)')
+    .eq('staff_id', staffId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+
+  const row = data as unknown as SupervisionRow
+  return {
+    id:             row.id,
+    staffName:      row.staff.full_name,
+    staffTeam:      row.staff.team,
+    supervisionPct: row.supervision_pct,
+    periodStart:    row.period_start,
+    periodEnd:      row.period_end,
+  }
+}
+
+export async function getSessionsByStaffId(staffId: string): Promise<SessionRecord[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, scheduled_at, session_type, status, clients(first_name, last_name), staff(full_name, team)')
+    .eq('staff_id', staffId)
+    .order('scheduled_at', { ascending: true })
+  if (error) throw error
+
+  return (data as unknown as SessionRow[]).map((row) => ({
+    id:          row.id,
+    time:        row.scheduled_at,
+    clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
+    staffName:   row.staff.full_name,
+    staffTeam:   row.staff.team,
+    sessionType: row.session_type,
+    status:      row.status,
   }))
 }
 
@@ -354,6 +415,33 @@ export async function getGoalsByClientId(clientId: string): Promise<GoalRecord[]
     streakDays:          row.streak_days,
     streakPercent:       row.streak_percent,
     lastUpdatedDaysAgo:  row.last_updated_days_ago,
+  }))
+}
+
+interface BehaviorRow {
+  id: string
+  name: string
+  description: string | null
+}
+
+export interface BehaviorRecord {
+  id: string
+  name: string
+  description: string | null
+}
+
+export async function getBehaviorsByClientId(clientId: string): Promise<BehaviorRecord[]> {
+  const { data, error } = await supabase
+    .from('behaviors')
+    .select('id, name, description')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+
+  return (data as unknown as BehaviorRow[]).map((row) => ({
+    id:          row.id,
+    name:        row.name,
+    description: row.description,
   }))
 }
 

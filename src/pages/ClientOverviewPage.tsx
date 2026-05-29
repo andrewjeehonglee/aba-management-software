@@ -23,7 +23,7 @@ import {
 } from "@/lib/authorization"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
-import { getClientById, getGoalsByClientId, getSessionsByClientId, type ClientDetail, type GoalRecord, type SessionRecord } from "@/lib/supabase"
+import { getAuthorizationsByClientId, getClientById, getGoalsByClientId, getSessionsByClientId, type AuthRecord, type ClientDetail, type GoalRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
@@ -174,6 +174,15 @@ export function ClientOverviewPage() {
       .catch(console.error)
   }, [clientId, isUUID])
 
+  const [liveAuth, setLiveAuth] = useState<AuthRecord | null>(null)
+
+  useEffect(() => {
+    if (!isUUID || !clientId) return
+    getAuthorizationsByClientId(clientId)
+      .then(setLiveAuth)
+      .catch(console.error)
+  }, [clientId, isUUID])
+
   // Slug used for mock lookups — derive from live name when available,
   // otherwise treat the param itself as the slug.
   const mockSlug = liveClient
@@ -206,9 +215,8 @@ export function ClientOverviewPage() {
     ? liveSessions
     : (mockSlug ? mockCalendarSessions.filter((s) => toSlug(s.clientName) === mockSlug) : [])
 
-  const auth = mockSlug
-    ? mockAuthorizations.find((a) => toSlug(a.clientName) === mockSlug)
-    : undefined
+  const auth = liveAuth
+    ?? (mockSlug ? mockAuthorizations.find((a) => toSlug(a.clientName) === mockSlug) : undefined)
   const profile = mockSlug
     ? mockClients.find((c) => toSlug(c.name) === mockSlug)
     : undefined
@@ -586,7 +594,7 @@ function ClientDetailGrid({
 // Extracted because the page already has enough going on, and rendering the
 // bar + numbers + plain-English label is its own visual unit. Stays in this
 // file because nothing else needs it yet (rule of three).
-function AuthorizationDetail({ auth }: { auth: ClientAuthorization }) {
+function AuthorizationDetail({ auth }: { auth: ClientAuthorization | AuthRecord }) {
   const { bar, text } = utilizationClass(auth.utilizationPct)
   const used = usedHours(auth.utilizationPct, auth.totalAuthorizedHours)
   const remaining = auth.totalAuthorizedHours - used

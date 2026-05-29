@@ -4,9 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { mockBehaviors, type Behavior } from "@/data/mockBehaviors"
-import { getClientById, getGoalsByClientId, getSessionById, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
-import { toSlug } from "@/lib/slug"
+import { getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
 import type { GoalStatus } from "@/types/goal"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -263,6 +261,7 @@ export function SessionViewPage() {
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null)
   const [goals, setGoals] = useState<GoalRecord[]>([])
   const [clientDetail, setClientDetail] = useState<ClientDetail | null>(null)
+  const [behaviors, setBehaviors] = useState<BehaviorRecord[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(false)
 
@@ -276,25 +275,21 @@ export function SessionViewPage() {
       .then(async (s) => {
         if (cancelled || !s) { if (!cancelled) setDataLoading(false); return }
         setSessionDetail(s)
-        const [goalRows, client] = await Promise.all([
+        const [goalRows, client, behaviorRows] = await Promise.all([
           getGoalsByClientId(s.clientId),
           getClientById(s.clientId),
+          getBehaviorsByClientId(s.clientId),
         ])
         if (cancelled) return
         setGoals(goalRows.filter(g => g.status === "in-progress" || g.status === "hold"))
         setClientDetail(client)
+        setBehaviors(behaviorRows)
       })
       .catch(() => { if (!cancelled) setDataError(true) })
       .finally(() => { if (!cancelled) setDataLoading(false) })
 
     return () => { cancelled = true }
   }, [sessionId])
-
-  const behaviors: Behavior[] = (() => {
-    if (!sessionDetail) return []
-    // No behaviors table yet — fall back to mock keyed by client name slug.
-    return mockBehaviors[toSlug(sessionDetail.clientName)] ?? []
-  })()
 
   const displayName = sessionDetail?.clientName ?? "Session"
   const billingCode = clientDetail?.cpt_codes?.[0] ?? "—"

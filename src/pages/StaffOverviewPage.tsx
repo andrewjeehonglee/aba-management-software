@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
@@ -7,11 +8,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { mockSessions } from "@/data/mockSessions"
-import { mockStaff } from "@/data/mockStaff"
-import { mockSupervision } from "@/data/mockSupervision"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
+import {
+  getSessionsByStaffId,
+  getStaff,
+  getSupervisionByStaffId,
+  type SessionRecord,
+  type StaffRecord,
+  type SupervisionRecord,
+} from "@/lib/supabase"
 import {
   CERT_URGENT_DAYS,
   CERT_WARNING_DAYS,
@@ -26,9 +32,8 @@ import {
   requiredHours,
   type ComplianceStatus,
 } from "@/lib/supervision"
-import type { Session } from "@/types/session"
+import type { SessionStatus } from "@/types/session"
 import type { Staff } from "@/types/staff"
-import type { RBTSupervision } from "@/types/supervision"
 
 // Compliance status display config — color + label per status. Mirrors the
 // shape of STATUS_CONFIG in src/lib/sessions.ts but for the supervision
@@ -91,7 +96,7 @@ function formatDate(iso: string) {
 // first BCBA assessment this week?") rather than hiding it.
 function deriveStaffRoleFromSessions(
   staffName: string,
-  sessions: Session[]
+  sessions: SessionRecord[]
 ): "Supervisor / BCBA" | "Technician" | null {
   const theirSessions = sessions.filter((s) => s.staffName === staffName)
   if (theirSessions.length === 0) return null
@@ -108,26 +113,46 @@ function deriveStaffRoleFromSessions(
 export function StaffOverviewPage() {
   const { staffId } = useParams<{ staffId: string }>()
 
-  // Slug-match on both sides — same canonical-form pattern used everywhere
-  // else for client/staff lookups. Resolves cleanly even if names later
-  // contain apostrophes, accents, or other punctuation.
-  const staff = staffId
-    ? mockStaff.find((s) => toSlug(s.name) === staffId)
-    : undefined
-  const supervision = staffId
-    ? mockSupervision.find((r) => toSlug(r.rbtName) === staffId)
-    : undefined
-  const staffSessions = staffId
-    ? mockSessions.filter((s) => toSlug(s.staffName) === staffId)
-    : []
+  // ── Live data ──────────────────────────────────────────────────────────────
+  const [staff, setStaff] = useState<StaffRecord | null>(null)
+  const [supervision, setSupervision] = useState<SupervisionRecord | null>(null)
+  const [staffSessions, setStaffSessions] = useState<SessionRecord[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState(false)
+
+  useEffect(() => {
+    if (!staffId) { setDataLoading(false); return }
+    let cancelled = false
+    setDataLoading(true)
+    setDataError(false)
+
+    getStaff()
+      .then(async (allStaff) => {
+        if (cancelled) return
+        const match = allStaff.find((s) => toSlug(s.name) === staffId)
+        if (!match) { if (!cancelled) setDataLoading(false); return }
+        setStaff(match)
+
+        const [supervisionRow, sessions] = await Promise.all([
+          getSupervisionByStaffId(match.id),
+          getSessionsByStaffId(match.id),
+        ])
+        if (cancelled) return
+        setSupervision(supervisionRow)
+        setStaffSessions(sessions)
+      })
+      .catch(() => { if (!cancelled) setDataError(true) })
+      .finally(() => { if (!cancelled) setDataLoading(false) })
+
+    return () => { cancelled = true }
+  }, [staffId])
 
   const displayName =
     staff?.name
     ?? staffSessions[0]?.staffName
-    ?? supervision?.rbtName
     ?? (staffId ? unslug(staffId) : "Unknown staff")
 
-  const derivedRole = deriveStaffRoleFromSessions(displayName, mockSessions)
+  const derivedRole = deriveStaffRoleFromSessions(displayName, staffSessions)
 
   // Header subtitle. Two distinct semantics encoded in one line:
   //   - With "· this week" suffix: what they're *doing* right now (derived
@@ -162,6 +187,22 @@ export function StaffOverviewPage() {
   // both. Supervision is independent (admin-tracked), so it gets its own
   // condition.
   const hasNoActivity = staffSessions.length === 0 && !supervision
+
+  if (dataLoading) {
+    return (
+      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+        Loading staff…
+      </div>
+    )
+  }
+
+  if (dataError || !staff) {
+    return (
+      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+        Staff member not found.
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
@@ -287,7 +328,7 @@ export function StaffOverviewPage() {
                         {s.sessionType}
                       </div>
                       <div className="flex items-center justify-end py-1.5">
-                        <SessionStatusBadge status={s.status} />
+                        <SessionStatusBadge status={s.status as SessionStatus} />
                       </div>
                     </div>
                   ))}
@@ -331,7 +372,7 @@ export function StaffOverviewPage() {
 // one per staff member — designed as a list so it extends naturally when the
 // data model adds more). Thresholds and parsing live in @/lib/staff so this
 // component stays declarative.
-function CertificationsDetail({ staff }: { staff: Staff }) {
+function CertificationsDetail({ staff }: { staff: StaffRecord }) {
   const TODAY = new Date()
   const parsed = parseCertification(staff.certification)
 
@@ -397,11 +438,11 @@ function CertificationsDetail({ staff }: { staff: Staff }) {
 // 4-row label/value detail grid. Uses semantic <dl>/<dt>/<dd> for screen-
 // reader-friendly definition list semantics. Same pattern as
 // ClientDetailGrid in ClientOverviewPage.
-function StaffDetailGrid({ staff }: { staff: Staff }) {
+function StaffDetailGrid({ staff }: { staff: StaffRecord }) {
   return (
     <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
       <dt className="text-muted-foreground">Role title</dt>
-      <dd>{ROLE_TITLE[staff.role]}</dd>
+      <dd>{ROLE_TITLE[staff.role as Staff["role"]]}</dd>
 
       <dt className="text-muted-foreground">Hire date</dt>
       <dd>{formatDate(staff.hireDate)}</dd>
@@ -424,8 +465,8 @@ function SupervisionDetail({
   supervision,
   staff,
 }: {
-  supervision: RBTSupervision
-  staff: Staff
+  supervision: SupervisionRecord
+  staff: StaffRecord
 }) {
   const { bar, text } = complianceClasses(supervision.supervisionPct)
   const status = complianceStatus(supervision.supervisionPct)
