@@ -783,11 +783,76 @@ The root cause of the multi-session debugging loop was that Supabase RLS blocks 
 
 ---
 
+## Session 19 — Phase 3 Day 6 (part 2): Session Calendar on live data
+
+**What landed:** The Session Calendar on `/clients/:id` now reads from the live `sessions` table instead of `mockCalendarSessions`. The sessions table section ("Last 7 days") is also live.
+
+### Supabase — database work
+- **54 historical session rows seeded** — 3 weeks of back-history per client (Sophia Bennett, Emma Torres, Liam Anderson, Olivia Parker — whichever clients had the most mock calendar data), plus today's 17 rows already seeded in Session 16. Covers the full 6-week window the calendar can scroll through.
+
+### Code changes
+- `src/lib/supabase.ts` — added `getSessionsByClientId(clientId)`: same SessionRow interface and mapping as `getSessionsToday`, ordered `scheduled_at ASC`, no date filter (returns full history).
+- `src/pages/ClientOverviewPage.tsx`:
+  - Added `liveSessions` state + `useEffect` that calls `getSessionsByClientId` when `isUUID`.
+  - `calendarSessions` → `liveSessions` when UUID-based, else `mockCalendarSessions` filtered by slug.
+  - `sortedClientSessions` (sessions table) → last-7-days window of `liveSessions` when UUID-based.
+  - `clientSessions` (chips / "today" count) → today-only filter of `liveSessions` when UUID-based.
+  - All `SessionStatus` casts updated so TypeScript strict mode stays happy.
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/lib/supabase.ts` | Added `getSessionsByClientId()` |
+| `src/pages/ClientOverviewPage.tsx` | Live session calendar + last-7-days table |
+
+---
+
+## Session 20 — Phase 3 Day 7: Session View wired to live Supabase data
+
+**What landed:** `SessionViewPage` no longer reads from any mock session, client, or goals fixture. All three are now fetched live from Supabase. `mockBehaviors` stays in place (no `behaviors` table yet — noted below).
+
+### Supabase — database work
+No schema changes. All required tables (`sessions`, `clients`, `goals`) were already in place from earlier sessions.
+
+### Code changes
+
+**`src/lib/supabase.ts`**
+- Added `SessionByIdRow` (private interface) — extends the base session row with `client_id`, `staff_id`, and single-object joins for `clients` and `staff`.
+- Added `SessionDetail` (exported interface) — `{ id, clientId, staffId, sessionType, scheduledAt, status, clientName, staffName }`.
+- Added `getSessionById(sessionId)` — queries `sessions` with `clients(first_name, last_name)` and `staff(full_name)` joins, uses `.maybeSingle()` so missing IDs return `null` cleanly rather than throwing.
+
+**`src/pages/SessionViewPage.tsx`**
+- Removed imports: `mockCalendarSessions`, `mockClients`, `mockGoals`.
+- Added imports: `getSessionById`, `getClientById`, `getGoalsByClientId`, `SessionDetail`, `ClientDetail`, `GoalRecord` from `@/lib/supabase`.
+- Replaced the 8-line synchronous mock-lookup block (lines 264–272) with:
+  - `useState` for `sessionDetail`, `goals`, `clientDetail`, `dataLoading`, `dataError`.
+  - `useEffect` with a cancellation flag that:
+    1. Calls `getSessionById(sessionId)`.
+    2. On success, fires `getGoalsByClientId` and `getClientById` in parallel via `Promise.all`.
+    3. Filters goals to `in-progress` and `hold` only before setting state.
+    4. Sets `dataError` on any rejection.
+- Added loading gate: renders "Loading session…" while `dataLoading` is true.
+- Added error gate: renders "Session not found." if `dataError` or `sessionDetail` is null.
+- `behaviors` still reads from `mockBehaviors` — keyed by `toSlug(sessionDetail.clientName)` (same slug logic as before, just sourced from the live name).
+- `displayName` → `sessionDetail.clientName`.
+- `billingCode` → `clientDetail?.cpt_codes?.[0] ?? "—"`.
+- Back/breadcrumb `Link` hrefs updated from old slug `clientId` to `sessionDetail.clientId` (UUID), so "Back" navigates correctly to `/clients/:uuid`.
+- Fixed `GoalStatus` cast at the goal-status badge render site (`goal.status as GoalStatus`) to satisfy TypeScript strict mode.
+
+### Files changed
+| File | Change |
+|---|---|
+| `src/lib/supabase.ts` | Added `SessionByIdRow`, `SessionDetail` interface, `getSessionById()` |
+| `src/pages/SessionViewPage.tsx` | Full data-layer swap: mock → live Supabase; loading + error gates added |
+
+---
+
 ## What's NOT done yet (next sessions, suggested order)
 
 **Phase 3 — remaining work:**
-1. **Client Overview — sessions, goals, auth sections** — still reading from `mockSessions`, `mockGoals`, `mockAuthorizations`. Replace with live Supabase queries once those tables have enough data.
-2. **Staff Overview page** — reads from `mockStaff`; now that the `staff` table is live, this is a straightforward `getStaff()` hookup.
+1. **Session View — behaviors** — `mockBehaviors` still in place. Needs a `behaviors` table (`id`, `practice_id` FK, `client_id` FK, `name`, `type`, `created_at`) + seed + `getBehaviorsByClientId()` + swap. Straightforward once the table is created.
+2. **Client Overview — auth utilization** — still reading from `mockAuthorizations`. Next: query `authorizations` table filtered by `client_id`.
+3. **Staff Overview page** — reads from `mockStaff`; `getStaff()` is already live, a simple hookup.
 
 **Phase 2 — remaining builds:**
 1. **Goal edit persistence** — edit mode in `GoalDetailModal` saves to local React state only; changes are lost on modal close.
@@ -809,4 +874,4 @@ The root cause of the multi-session debugging loop was that Supabase RLS blocks 
 
 ---
 
-*Last updated: May 29, 2026 (end of Session 18).*
+*Last updated: May 29, 2026 (end of Session 20).*

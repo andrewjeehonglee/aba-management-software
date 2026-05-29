@@ -23,7 +23,7 @@ import {
 } from "@/lib/authorization"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
-import { getClientById, type ClientDetail } from "@/lib/supabase"
+import { getClientById, getGoalsByClientId, getSessionsByClientId, type ClientDetail, type GoalRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
@@ -147,6 +147,9 @@ export function ClientOverviewPage() {
   const isUUID = UUID_RE.test(clientId ?? "")
   const [liveClient, setLiveClient] = useState<ClientDetail | null>(null)
   const [clientLoading, setClientLoading] = useState(isUUID)
+  const [liveGoals, setLiveGoals] = useState<GoalRecord[] | null>(null)
+  const [goalsLoading, setGoalsLoading] = useState(isUUID)
+  const [liveSessions, setLiveSessions] = useState<SessionRecord[] | null>(null)
 
   useEffect(() => {
     if (!isUUID || !clientId) return
@@ -156,15 +159,53 @@ export function ClientOverviewPage() {
       .finally(() => setClientLoading(false))
   }, [clientId, isUUID])
 
+  useEffect(() => {
+    if (!isUUID || !clientId) return
+    getGoalsByClientId(clientId)
+      .then(setLiveGoals)
+      .catch(console.error)
+      .finally(() => setGoalsLoading(false))
+  }, [clientId, isUUID])
+
+  useEffect(() => {
+    if (!isUUID || !clientId) return
+    getSessionsByClientId(clientId)
+      .then(setLiveSessions)
+      .catch(console.error)
+  }, [clientId, isUUID])
+
   // Slug used for mock lookups — derive from live name when available,
   // otherwise treat the param itself as the slug.
   const mockSlug = liveClient
     ? toSlug(`${liveClient.first_name} ${liveClient.last_name}`)
     : isUUID ? null : (clientId ?? null)
 
-  const clientSessions = mockSlug
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const liveSessionsToday = liveSessions?.filter(
+    (s) => s.time.slice(0, 10) === todayISO
+  ) ?? []
+  const liveSessionsLastWeek = liveSessions?.filter((s) => {
+    const d = new Date(s.time)
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7)
+    return d >= cutoff
+  }) ?? []
+
+  const mockClientSessions = mockSlug
     ? mockSessions.filter((s) => toSlug(s.clientName) === mockSlug)
     : []
+
+  const clientSessions = liveSessions ? liveSessionsToday : mockClientSessions
+
+  const uniqueStaff = Array.from(new Set(clientSessions.map((s) => s.staffName)))
+
+  const sortedClientSessions = liveSessions
+    ? [...liveSessionsLastWeek].sort((a, b) => a.time.localeCompare(b.time))
+    : [...mockClientSessions].sort((a, b) => a.time.localeCompare(b.time))
+
+  const calendarSessions = liveSessions
+    ? liveSessions
+    : (mockSlug ? mockCalendarSessions.filter((s) => toSlug(s.clientName) === mockSlug) : [])
+
   const auth = mockSlug
     ? mockAuthorizations.find((a) => toSlug(a.clientName) === mockSlug)
     : undefined
@@ -179,20 +220,10 @@ export function ClientOverviewPage() {
       ?? clientSessions[0]?.clientName
       ?? (clientId ? unslug(clientId) : "Unknown client")
 
-  const uniqueStaff = Array.from(new Set(clientSessions.map((s) => s.staffName)))
-
-  const sortedClientSessions = [...clientSessions].sort((a, b) =>
-    a.time.localeCompare(b.time)
-  )
-
-  const calendarSessions = mockSlug
-    ? mockCalendarSessions.filter((s) => toSlug(s.clientName) === mockSlug)
-    : []
-
-  const clientGoals = (mockSlug && mockGoals[mockSlug]) || []
+  const clientGoals: (Goal | GoalRecord)[] = liveGoals ?? (mockSlug ? (mockGoals[mockSlug] ?? []) : [])
   const sortedGoals = [...clientGoals].sort(
     (a, b) =>
-      GOAL_STATUS_ORDER[a.status] - GOAL_STATUS_ORDER[b.status] ||
+      GOAL_STATUS_ORDER[a.status as keyof typeof GOAL_STATUS_ORDER] - GOAL_STATUS_ORDER[b.status as keyof typeof GOAL_STATUS_ORDER] ||
       a.name.localeCompare(b.name)
   )
 
@@ -200,7 +231,8 @@ export function ClientOverviewPage() {
 
   const statusCounts: Partial<Record<SessionStatus, number>> = {}
   for (const s of clientSessions) {
-    statusCounts[s.status] = (statusCounts[s.status] ?? 0) + 1
+    const key = s.status as SessionStatus
+    statusCounts[key] = (statusCounts[key] ?? 0) + 1
   }
   const statusSummary = (Object.entries(statusCounts) as [SessionStatus, number][])
     .map(([status, count]) => `${count} ${STATUS_LABEL[status]}`)
@@ -281,7 +313,7 @@ export function ClientOverviewPage() {
 
           {/* Mock detail grid — fallback for slug-based navigation */}
           {!liveClient && profile && (
-            <ClientDetailGrid profile={profile} sessions={clientSessions} />
+            <ClientDetailGrid profile={profile} sessions={clientSessions as unknown as Session[]} />
           )}
         </CardContent>
       </Card>
@@ -303,7 +335,7 @@ export function ClientOverviewPage() {
       </Card>
 
       {/* Section 3 — Session Calendar */}
-      <SessionCalendar sessions={calendarSessions} />
+      <SessionCalendar sessions={calendarSessions as unknown as Session[]} />
 
       {/* Section 4 — Sessions table.
           Title says "Last 7 Days" but mock data is just today; the title
@@ -348,7 +380,7 @@ export function ClientOverviewPage() {
                     {s.sessionType}
                   </div>
                   <div className="flex items-center justify-end py-1.5">
-                    <SessionStatusBadge status={s.status} />
+                    <SessionStatusBadge status={s.status as SessionStatus} />
                   </div>
                 </div>
               ))}
@@ -363,14 +395,16 @@ export function ClientOverviewPage() {
           <CardTitle>Active Goals</CardTitle>
         </CardHeader>
         <CardContent>
-          {sortedGoals.length === 0 ? (
+          {goalsLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
+          ) : sortedGoals.length === 0 ? (
             <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               No active goals for this client.
             </div>
           ) : (
             <ul className="divide-y divide-border">
               {sortedGoals.map((goal) => (
-                <GoalRow key={goal.id} goal={goal} onSelect={() => setSelectedGoal(goal)} />
+                <GoalRow key={goal.id} goal={goal as Goal} onSelect={() => setSelectedGoal(goal as Goal)} />
               ))}
             </ul>
           )}

@@ -148,6 +148,69 @@ export async function getSessionsToday(): Promise<SessionRecord[]> {
   }))
 }
 
+export async function getSessionsByClientId(clientId: string): Promise<SessionRecord[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, scheduled_at, session_type, status, clients(first_name, last_name), staff(full_name, team)')
+    .eq('client_id', clientId)
+    .order('scheduled_at', { ascending: true })
+  if (error) throw error
+
+  return (data as unknown as SessionRow[]).map((row) => ({
+    id:          row.id,
+    time:        row.scheduled_at,
+    clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
+    staffName:   row.staff.full_name,
+    staffTeam:   row.staff.team,
+    sessionType: row.session_type,
+    status:      row.status,
+  }))
+}
+
+interface SessionByIdRow {
+  id: string
+  client_id: string
+  staff_id: string
+  session_type: string
+  scheduled_at: string
+  status: string
+  clients: { first_name: string; last_name: string }
+  staff: { full_name: string }
+}
+
+export interface SessionDetail {
+  id: string
+  clientId: string
+  staffId: string
+  sessionType: string
+  scheduledAt: string
+  status: string
+  clientName: string
+  staffName: string
+}
+
+export async function getSessionById(sessionId: string): Promise<SessionDetail | null> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, client_id, staff_id, session_type, scheduled_at, status, clients(first_name, last_name), staff(full_name)')
+    .eq('id', sessionId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return null
+
+  const row = data as unknown as SessionByIdRow
+  return {
+    id:           row.id,
+    clientId:     row.client_id,
+    staffId:      row.staff_id,
+    sessionType:  row.session_type,
+    scheduledAt:  row.scheduled_at,
+    status:       row.status,
+    clientName:   `${row.clients.first_name} ${row.clients.last_name}`,
+    staffName:    row.staff.full_name,
+  }
+}
+
 interface AuthRow {
   id: string
   used_units: number
@@ -250,6 +313,47 @@ export async function getOverdueNotes(): Promise<OverdueNoteRecord[]> {
     staffTeam:    row.staff.team,
     overdueCount: row.overdue_count,
     asOfDate:     row.as_of_date,
+  }))
+}
+
+interface GoalRowDB {
+  id: string
+  name: string
+  mastery_criteria: string
+  domain: string | null
+  status: string
+  streak_days: number
+  streak_percent: number
+  last_updated_days_ago: number
+}
+
+export interface GoalRecord {
+  id: string
+  name: string
+  masteryTarget: string
+  domain: string | null
+  status: string
+  streakDays: number
+  streakPercent: number
+  lastUpdatedDaysAgo: number
+}
+
+export async function getGoalsByClientId(clientId: string): Promise<GoalRecord[]> {
+  const { data, error } = await supabase
+    .from('goals')
+    .select('id, name, mastery_criteria, domain, status, streak_days, streak_percent, last_updated_days_ago')
+    .eq('client_id', clientId)
+  if (error) throw error
+
+  return (data as GoalRowDB[]).map((row) => ({
+    id:                  row.id,
+    name:                row.name,
+    masteryTarget:       row.mastery_criteria,
+    domain:              row.domain,
+    status:              row.status,
+    streakDays:          row.streak_days,
+    streakPercent:       row.streak_percent,
+    lastUpdatedDaysAgo:  row.last_updated_days_ago,
   }))
 }
 

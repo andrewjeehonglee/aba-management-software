@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { mockBehaviors, type Behavior } from "@/data/mockBehaviors"
-import { mockCalendarSessions } from "@/data/mockCalendarSessions"
-import { mockClients } from "@/data/mockClients"
-import { mockGoals } from "@/data/mockGoals"
+import { getClientById, getGoalsByClientId, getSessionById, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
 import { toSlug } from "@/lib/slug"
 import type { GoalStatus } from "@/types/goal"
 
@@ -262,14 +260,44 @@ export function SessionViewPage() {
   const navigate = useNavigate()
 
   // ── Data resolution ────────────────────────────────────────────────────────
-  const session = mockCalendarSessions.find(s => s.id === sessionId)
-  const clientId = session ? toSlug(session.clientName) : null
-  const clientProfile = clientId ? mockClients.find(c => toSlug(c.name) === clientId) : undefined
-  const allGoals = clientId ? (mockGoals[clientId] ?? []) : []
-  const goals = allGoals.filter(g => g.status === "in-progress" || g.status === "hold")
-  const behaviors: Behavior[] = clientId ? (mockBehaviors[clientId] ?? []) : []
-  const displayName = session?.clientName ?? "Session"
-  const billingCode = clientProfile?.cptCode ?? "—"
+  const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null)
+  const [goals, setGoals] = useState<GoalRecord[]>([])
+  const [clientDetail, setClientDetail] = useState<ClientDetail | null>(null)
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState(false)
+
+  useEffect(() => {
+    if (!sessionId) { setDataLoading(false); return }
+    let cancelled = false
+    setDataLoading(true)
+    setDataError(false)
+
+    getSessionById(sessionId)
+      .then(async (s) => {
+        if (cancelled || !s) { if (!cancelled) setDataLoading(false); return }
+        setSessionDetail(s)
+        const [goalRows, client] = await Promise.all([
+          getGoalsByClientId(s.clientId),
+          getClientById(s.clientId),
+        ])
+        if (cancelled) return
+        setGoals(goalRows.filter(g => g.status === "in-progress" || g.status === "hold"))
+        setClientDetail(client)
+      })
+      .catch(() => { if (!cancelled) setDataError(true) })
+      .finally(() => { if (!cancelled) setDataLoading(false) })
+
+    return () => { cancelled = true }
+  }, [sessionId])
+
+  const behaviors: Behavior[] = (() => {
+    if (!sessionDetail) return []
+    // No behaviors table yet — fall back to mock keyed by client name slug.
+    return mockBehaviors[toSlug(sessionDetail.clientName)] ?? []
+  })()
+
+  const displayName = sessionDetail?.clientName ?? "Session"
+  const billingCode = clientDetail?.cpt_codes?.[0] ?? "—"
 
   // ── Mode ───────────────────────────────────────────────────────────────────
   const [mode, setMode] = useState<"active" | "post">("active")
@@ -361,6 +389,22 @@ export function SessionViewPage() {
   const canSubmit = isCancelled ? cancelReason.trim().length > 0 : soapFilled && signatureCaptured
 
   // ─────────────────────────────────────────────────────────────────────────
+  if (dataLoading) {
+    return (
+      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+        Loading session…
+      </div>
+    )
+  }
+
+  if (dataError || !sessionDetail) {
+    return (
+      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+        Session not found.
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col">
 
@@ -368,7 +412,7 @@ export function SessionViewPage() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
         <div className="mx-auto max-w-6xl px-4 pt-3 pb-2 flex items-center gap-3">
           <Link
-            to={clientId ? `/clients/${clientId}` : "/"}
+            to={sessionDetail.clientId ? `/clients/${sessionDetail.clientId}` : "/"}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             <ArrowLeft className="size-4" />
@@ -377,7 +421,7 @@ export function SessionViewPage() {
 
           {/* Client name — tappable */}
           <Link
-            to={clientId ? `/clients/${clientId}` : "/"}
+            to={sessionDetail.clientId ? `/clients/${sessionDetail.clientId}` : "/"}
             className="font-semibold text-lg leading-tight hover:underline underline-offset-2 flex-1 truncate"
           >
             {displayName}
@@ -557,8 +601,8 @@ export function SessionViewPage() {
                               className="size-4 rounded shrink-0"
                             />
                             <span className="text-sm flex-1">{goal.name}</span>
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${GOAL_STATUS_CONFIG[goal.status].className}`}>
-                              {GOAL_STATUS_CONFIG[goal.status].label}
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${GOAL_STATUS_CONFIG[goal.status as GoalStatus].className}`}>
+                              {GOAL_STATUS_CONFIG[goal.status as GoalStatus].label}
                             </span>
                           </label>
                         ))}
