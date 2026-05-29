@@ -65,19 +65,21 @@ const SORT_OPTIONS = {
 type SortKey = keyof typeof SORT_OPTIONS
 
 type AxisTickProps = {
-  x?: number
-  y?: number
+  x?: number | string
+  y?: number | string
   payload?: { value: string }
   staff?: StaffRecord[]
 }
 
 function YAxisTick({ x = 0, y = 0, payload, staff = [] }: AxisTickProps) {
   if (!payload) return null
+  const numX = Number(x)
+  const numY = Number(y)
   const member = staff.find((s) => s.name === payload.value)
   const flagged = member ? isStaffFlagged(member as unknown as Staff) : false
 
   return (
-    <g transform={`translate(${x},${y})`}>
+    <g transform={`translate(${numX},${numY})`}>
       <foreignObject x={-120} y={-10} width={116} height={20}>
         <div
           className={`flex h-full items-center justify-end gap-1 text-xs ${

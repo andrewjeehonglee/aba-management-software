@@ -111,7 +111,7 @@ export async function getSessionsToday(): Promise<SessionRecord[]> {
     .order('scheduled_at', { ascending: true })
   if (error) throw error
 
-  return (data as SessionRow[]).map((row) => ({
+  return (data as unknown as SessionRow[]).map((row) => ({
     id:          row.id,
     time:        row.scheduled_at,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
@@ -150,7 +150,7 @@ export async function getAuthorizations(): Promise<AuthRecord[]> {
     .order('used_units', { ascending: false })
   if (error) throw error
 
-  return (data as AuthRow[]).map((row) => ({
+  return (data as unknown as AuthRow[]).map((row) => ({
     id:                  row.id,
     clientName:          `${row.clients.first_name} ${row.clients.last_name}`,
     clientTeam:          row.clients.team,
@@ -186,7 +186,7 @@ export async function getSupervision(): Promise<SupervisionRecord[]> {
     .order('supervision_pct', { ascending: true })
   if (error) throw error
 
-  return (data as SupervisionRow[]).map((row) => ({
+  return (data as unknown as SupervisionRow[]).map((row) => ({
     id:            row.id,
     staffName:     row.staff.full_name,
     staffTeam:     row.staff.team,
@@ -218,7 +218,7 @@ export async function getOverdueNotes(): Promise<OverdueNoteRecord[]> {
     .order('overdue_count', { ascending: false })
   if (error) throw error
 
-  return (data as OverdueNoteRow[]).map((row) => ({
+  return (data as unknown as OverdueNoteRow[]).map((row) => ({
     id:           row.id,
     staffName:    row.staff.full_name,
     staffTeam:    row.staff.team,
