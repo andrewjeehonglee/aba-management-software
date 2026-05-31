@@ -37,7 +37,7 @@ import {
 } from "@/lib/authorization"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
-import { createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, type AuthRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
+import { createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
@@ -498,6 +498,9 @@ export function ClientOverviewPage() {
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
   const [notesLoading, setNotesLoading] = useState(false)
 
+  const [behaviorIncidents, setBehaviorIncidents] = useState<BehaviorIncidentRecord[]>([])
+  const [incidentsLoading, setIncidentsLoading] = useState(false)
+
   const canViewNotes =
     practiceMembership?.role === "bcba" ||
     practiceMembership?.role === "owner" ||
@@ -510,6 +513,15 @@ export function ClientOverviewPage() {
       .then(setSessionNotes)
       .catch(console.error)
       .finally(() => setNotesLoading(false))
+  }, [clientId, isUUID, canViewNotes])
+
+  useEffect(() => {
+    if (!isUUID || !clientId || !canViewNotes) return
+    setIncidentsLoading(true)
+    getBehaviorIncidentsByClientId(clientId)
+      .then(setBehaviorIncidents)
+      .catch(console.error)
+      .finally(() => setIncidentsLoading(false))
   }, [clientId, isUUID, canViewNotes])
 
   const [behaviors, setBehaviors]                   = useState<BehaviorRecord[]>([])
@@ -875,7 +887,31 @@ export function ClientOverviewPage() {
         />
       )}
 
-      {/* Section 6 — Session Notes (BCBA / Supervisor / Owner only) */}
+      {/* Section 6 — Behavior Incidents (BCBA / Supervisor / Owner only) */}
+      {canViewNotes && isUUID && (
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <CardTitle>Behavior Incidents</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {incidentsLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
+            ) : behaviorIncidents.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No behavior incidents recorded.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {behaviorIncidents.map((incident) => (
+                  <BehaviorIncidentRow key={incident.id} incident={incident} />
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Section 7 — Session Notes (BCBA / Supervisor / Owner only) */}
       {canViewNotes && isUUID && (
         <Card className="w-full max-w-3xl">
           <CardHeader>
@@ -1129,6 +1165,88 @@ function SessionNoteRow({ note }: { note: SessionNoteRecord }) {
             </div>
           ))}
         </div>
+      )}
+    </li>
+  )
+}
+
+// Expandable row for a single behavior incident. Collapsed state shows date,
+// behavior name, and intensity chip. Expanded state shows antecedents,
+// consequences, and duration in the same labeled-grid layout as SessionNoteRow.
+function formatDuration(seconds: number | null): string {
+  if (seconds === null || seconds === undefined) return "—"
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m === 0) return `${s}s`
+  return s === 0 ? `${m}m` : `${m}m ${s}s`
+}
+
+const INTENSITY_CHIP: Record<string, string> = {
+  High:   "bg-red-100 text-red-700",
+  Medium: "bg-amber-100 text-amber-700",
+  Low:    "bg-slate-100 text-slate-700",
+}
+
+function BehaviorIncidentRow({ incident }: { incident: BehaviorIncidentRecord }) {
+  const [open, setOpen] = useState(false)
+  const date = new Date(incident.created_at).toLocaleDateString("en-US", {
+    month: "short",
+    day:   "numeric",
+    year:  "numeric",
+  })
+  const time = new Date(incident.created_at).toLocaleTimeString("en-US", {
+    hour:   "numeric",
+    minute: "2-digit",
+  })
+  const behaviorName = incident.behaviors?.name ?? "Unknown behavior"
+  const intensityCls = incident.intensity ? (INTENSITY_CHIP[incident.intensity] ?? "bg-slate-100 text-slate-700") : null
+
+  const antecedentsStr = incident.antecedents?.length ? incident.antecedents.join(", ") : "—"
+  const consequencesStr = incident.consequences?.length ? incident.consequences.join(", ") : "—"
+
+  return (
+    <li className="py-3 first:pt-0 last:pb-0">
+      <button
+        className="flex w-full items-start gap-2 text-left"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <span className="mt-0.5 shrink-0 text-muted-foreground">
+          {open
+            ? <ChevronDown className="size-4" />
+            : <ChevronRight className="size-4" />}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-sm font-medium">{date}</span>
+            <span className="text-xs text-muted-foreground">{time}</span>
+            <span className="text-sm font-semibold">{behaviorName}</span>
+            {intensityCls && (
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${intensityCls}`}>
+                {incident.intensity}
+              </span>
+            )}
+          </div>
+        </div>
+      </button>
+
+      {open && (
+        <dl className="mt-3 ml-6 grid grid-cols-[6rem_1fr] gap-x-4 gap-y-3 text-sm">
+          {([
+            { label: "Antecedents",  value: antecedentsStr  },
+            { label: "Consequences", value: consequencesStr },
+            { label: "Duration",     value: formatDuration(incident.duration_seconds) },
+          ]).map(({ label, value }) => (
+            <div key={label} className="contents">
+              <dt className="text-xs font-semibold text-muted-foreground pt-0.5 uppercase tracking-wide">
+                {label}
+              </dt>
+              <dd className="text-sm leading-relaxed">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
       )}
     </li>
   )

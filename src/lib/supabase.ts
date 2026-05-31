@@ -576,6 +576,28 @@ export interface SessionNoteRecord {
   created_at: string
 }
 
+export interface BehaviorIncidentRecord {
+  id:               string
+  session_id:       string
+  behavior_id:      string
+  antecedents:      string[] | null
+  consequences:     string[] | null
+  intensity:        string | null
+  duration_seconds: number | null
+  created_at:       string
+  behaviors:        { name: string } | null
+}
+
+export async function getBehaviorIncidentsByClientId(clientId: string): Promise<BehaviorIncidentRecord[]> {
+  const { data, error } = await supabase
+    .from('behavior_incidents')
+    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, created_at, behaviors(name)')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as unknown as BehaviorIncidentRecord[]
+}
+
 export async function getSessionNotesByClientId(clientId: string): Promise<SessionNoteRecord[]> {
   const { data, error } = await supabase
     .from('session_notes')
