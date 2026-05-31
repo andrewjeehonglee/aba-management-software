@@ -659,8 +659,8 @@ export async function saveBehaviorIncident(incident: BehaviorIncident): Promise<
   if (error) console.error('[saveBehaviorIncident]', error)
 }
 
-export function submitSessionNote(note: SessionNote): Promise<void> {
-  return supabase
+export async function submitSessionNote(note: SessionNote): Promise<void> {
+  const { error } = await supabase
     .from('session_notes')
     .insert({
       practice_id: note.practiceId,
@@ -672,31 +672,25 @@ export function submitSessionNote(note: SessionNote): Promise<void> {
       assessment:  note.assessment,
       plan:        note.plan,
     })
-    .then(({ error }) => {
-      if (error) console.error('[submitSessionNote]', error)
-    })
+  if (error) console.error('[submitSessionNote]', error)
 }
 
-export function completeSession(sessionId: string): Promise<void> {
-  return supabase
+export async function completeSession(sessionId: string): Promise<void> {
+  const { error } = await supabase
     .from('sessions')
     .update({ status: 'completed' })
     .eq('id', sessionId)
-    .then(({ error }) => {
-      if (error) console.error('[completeSession]', error)
-    })
+  if (error) console.error('[completeSession]', error)
 }
 
-export function updateGoalStatus(goalId: string, status: string, masteryCriteria?: string): Promise<void> {
+export async function updateGoalStatus(goalId: string, status: string, masteryCriteria?: string): Promise<void> {
   const patch: Record<string, unknown> = { status }
   if (masteryCriteria !== undefined) patch.mastery_criteria = masteryCriteria
-  return supabase
+  const { error } = await supabase
     .from('goals')
     .update(patch)
     .eq('id', goalId)
-    .then(({ error }) => {
-      if (error) console.error('[updateGoalStatus]', error)
-    })
+  if (error) console.error('[updateGoalStatus]', error)
 }
 
 export interface TrialResult {
@@ -707,8 +701,8 @@ export interface TrialResult {
   response:    'correct' | 'incorrect' | 'no_response' | 'prompted'
 }
 
-export function saveTrialResult(trial: TrialResult): Promise<void> {
-  return supabase
+export async function saveTrialResult(trial: TrialResult): Promise<void> {
+  const { error } = await supabase
     .from('session_trials')
     .insert({
       session_id:   trial.sessionId,
@@ -717,9 +711,7 @@ export function saveTrialResult(trial: TrialResult): Promise<void> {
       trial_number: trial.trialNumber,
       response:     trial.response,
     })
-    .then(({ error }) => {
-      if (error) console.error('[saveTrialResult]', error)
-    })
+  if (error) console.error('[saveTrialResult]', error)
 }
 
 export async function getUserRole(userId: string, practiceId: string): Promise<string> {

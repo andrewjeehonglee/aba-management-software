@@ -148,7 +148,7 @@ function NewGoalModal({ open, practiceId, clientId, onClose, onSuccess }: NewGoa
             <label className="text-sm font-medium">
               Domain <span className="text-red-500">*</span>
             </label>
-            <Select value={form.domain} onValueChange={v => set("domain", v)} disabled={loading}>
+            <Select value={form.domain ?? ""} onValueChange={v => set("domain", v ?? "")} disabled={loading}>
               <SelectTrigger>
                 <SelectValue placeholder="Select domain" />
               </SelectTrigger>
@@ -178,7 +178,7 @@ function NewGoalModal({ open, practiceId, clientId, onClose, onSuccess }: NewGoa
           {/* Status */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Status</label>
-            <Select value={form.status} onValueChange={v => set("status", v)} disabled={loading}>
+            <Select value={form.status ?? ""} onValueChange={v => set("status", v ?? "")} disabled={loading}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -449,6 +449,7 @@ export function ClientOverviewPage() {
   const [clientLoading, setClientLoading] = useState(isUUID)
   const [liveGoals, setLiveGoals] = useState<GoalRecord[] | null>(null)
   const [goalsLoading, setGoalsLoading] = useState(isUUID)
+  const [goalsRefreshKey, setGoalsRefreshKey] = useState(0)
   const [liveSessions, setLiveSessions] = useState<SessionRecord[] | null>(null)
 
   useEffect(() => {
@@ -485,7 +486,6 @@ export function ClientOverviewPage() {
   }, [clientId, isUUID])
 
   const [practiceMembership, setPracticeMembership] = useState<PracticeMembership | null>(null)
-  const [goalsRefreshKey, setGoalsRefreshKey] = useState(0)
   const [goalModalOpen, setGoalModalOpen] = useState(false)
 
   useEffect(() => {
@@ -630,12 +630,6 @@ export function ClientOverviewPage() {
   const statusSummary = (Object.entries(statusCounts) as [SessionStatus, number][])
     .map(([status, count]) => `${count} ${STATUS_LABEL[status]}`)
     .join(" · ")
-
-  const nextSession =
-    clientSessions.find((s) => s.status === "scheduled" || s.status === "in-progress") ??
-    calendarSessions.find((s) => s.status === "scheduled") ??
-    calendarSessions[0]
-  const startSessionId = nextSession?.id ?? `${clientId ?? "client"}-1`
 
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
