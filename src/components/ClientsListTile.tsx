@@ -180,7 +180,7 @@ function NewClientModal({ open, practiceId, onClose, onSuccess }: NewClientModal
               <label className="text-sm font-medium">
                 Team <span className="text-red-500">*</span>
               </label>
-              <Select value={form.team} onValueChange={v => set("team", v)} disabled={loading}>
+              <Select value={form.team ?? ""} onValueChange={v => set("team", v)} disabled={loading}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
@@ -193,7 +193,7 @@ function NewClientModal({ open, practiceId, onClose, onSuccess }: NewClientModal
             </div>
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Status</label>
-              <Select value={form.status} onValueChange={v => set("status", v)} disabled={loading}>
+              <Select value={form.status ?? ""} onValueChange={v => set("status", v)} disabled={loading}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

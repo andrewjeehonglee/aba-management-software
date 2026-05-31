@@ -123,7 +123,7 @@ function NewStaffModal({ open, practiceId, onClose, onSuccess }: NewStaffModalPr
               <label className="text-sm font-medium">
                 Role <span className="text-red-500">*</span>
               </label>
-              <Select value={form.role} onValueChange={v => set("role", v)} disabled={loading}>
+              <Select value={form.role ?? ""} onValueChange={v => set("role", v)} disabled={loading}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -139,7 +139,7 @@ function NewStaffModal({ open, practiceId, onClose, onSuccess }: NewStaffModalPr
               <label className="text-sm font-medium">
                 Team <span className="text-red-500">*</span>
               </label>
-              <Select value={form.team} onValueChange={v => set("team", v)} disabled={loading}>
+              <Select value={form.team ?? ""} onValueChange={v => set("team", v)} disabled={loading}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>

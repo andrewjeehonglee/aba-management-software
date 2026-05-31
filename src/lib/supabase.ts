@@ -643,8 +643,8 @@ export interface BehaviorIncident {
   durationSeconds?: number
 }
 
-export function saveBehaviorIncident(incident: BehaviorIncident): Promise<void> {
-  return supabase
+export async function saveBehaviorIncident(incident: BehaviorIncident): Promise<void> {
+  const { error } = await supabase
     .from('behavior_incidents')
     .insert({
       practice_id:      incident.practiceId,
@@ -656,9 +656,7 @@ export function saveBehaviorIncident(incident: BehaviorIncident): Promise<void> 
       intensity:        incident.intensity,
       duration_seconds: incident.durationSeconds,
     })
-    .then(({ error }) => {
-      if (error) console.error('[saveBehaviorIncident]', error)
-    })
+  if (error) console.error('[saveBehaviorIncident]', error)
 }
 
 export function submitSessionNote(note: SessionNote): Promise<void> {
