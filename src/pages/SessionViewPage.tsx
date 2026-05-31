@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Check, Minus, Plus, X } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
+import { completeSession, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, getUserPractice, saveBehaviorIncident, saveTrialResult, submitSessionNote, supabase, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
 import type { GoalStatus } from "@/types/goal"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -264,6 +264,7 @@ export function SessionViewPage() {
   const [behaviors, setBehaviors] = useState<BehaviorRecord[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(false)
+  const practiceIdRef = useRef<string>("")
 
   useEffect(() => {
     if (!sessionId) { setDataLoading(false); return }
@@ -284,6 +285,14 @@ export function SessionViewPage() {
         setGoals(goalRows.filter(g => g.status === "in-progress" || g.status === "hold"))
         setClientDetail(client)
         setBehaviors(behaviorRows)
+
+        // Resolve practice ID for trial inserts (non-blocking — failure is silent)
+        supabase.auth.getUser().then(({ data }) => {
+          if (!data.user) return
+          getUserPractice(data.user.id).then(m => {
+            if (m) practiceIdRef.current = m.practice_id
+          }).catch(() => {})
+        }).catch(() => {})
       })
       .catch(() => { if (!cancelled) setDataError(true) })
       .finally(() => { if (!cancelled) setDataLoading(false) })
@@ -297,10 +306,23 @@ export function SessionViewPage() {
   // ── Mode ───────────────────────────────────────────────────────────────────
   const [mode, setMode] = useState<"active" | "post">("active")
 
-  // ── Timer — auto-starts, pauses on End Session ─────────────────────────────
-  const [seconds, setSeconds] = useState(0)
+  // ── Timer — auto-starts, survives navigation, clears on submit ────────────
+  const timerKey = sessionId ? `session_timer_${sessionId}` : null
+
+  const [seconds, setSeconds] = useState(() => {
+    if (!timerKey) return 0
+    const stored = sessionStorage.getItem(timerKey)
+    if (!stored) return 0
+    const startTime = parseInt(stored, 10)
+    if (isNaN(startTime)) return 0
+    return Math.max(0, Math.floor((Date.now() - startTime) / 1000))
+  })
+
   useEffect(() => {
     if (mode !== "active") return
+    if (timerKey && !sessionStorage.getItem(timerKey)) {
+      sessionStorage.setItem(timerKey, String(Date.now()))
+    }
     const id = setInterval(() => setSeconds(s => s + 1), 1000)
     return () => clearInterval(id)
   }, [mode])
@@ -350,6 +372,15 @@ export function SessionViewPage() {
       duration: abcDraft.duration,
     }
     setAbcEntries(prev => ({ ...prev, [abcOpenId]: [...(prev[abcOpenId] ?? []), entry] }))
+    saveBehaviorIncident({
+      practiceId:    practiceIdRef.current,
+      sessionId:     sessionId!,
+      clientId:      sessionDetail?.clientId ?? "",
+      behaviorId:    abcOpenId,
+      antecedents:   abcDraft.antecedents.length > 0 ? abcDraft.antecedents : undefined,
+      consequences:  abcDraft.consequences.length > 0 ? abcDraft.consequences : undefined,
+      intensity:     abcDraft.intensity,
+    }).catch(() => {})
     setAbcOpenId(null)
   }
 
@@ -367,9 +398,17 @@ export function SessionViewPage() {
   }
 
   function addTrial(goalId: string, result: "correct" | "incorrect", reason?: string) {
+    const trialNumber = (trials[goalId] ?? []).length + 1
     const entry: TrialOutcome = result === "correct" ? { result: "correct" } : { result: "incorrect", reason: reason ?? "Other" }
     setTrials(prev => ({ ...prev, [goalId]: [...(prev[goalId] ?? []), entry] }))
     setWhyXGoal(null)
+    saveTrialResult({
+      sessionId:   sessionId!,
+      goalId,
+      practiceId:  practiceIdRef.current,
+      trialNumber,
+      response:    result,
+    }).catch(() => {})
   }
 
   // ── Post-session ───────────────────────────────────────────────────────────
@@ -382,6 +421,22 @@ export function SessionViewPage() {
   const soapFilled = SOAP_FIELDS.every(f => soap[f.key].trim().length > 0)
   const isCancelled = outcome === "cancelled" || outcome === "no-show"
   const canSubmit = isCancelled ? cancelReason.trim().length > 0 : soapFilled && signatureCaptured
+
+  function handleSubmitSession() {
+    if (timerKey) sessionStorage.removeItem(timerKey)
+    submitSessionNote({
+      practiceId: practiceIdRef.current,
+      sessionId:  sessionId!,
+      clientId:   sessionDetail!.clientId,
+      staffId:    sessionDetail!.staffId,
+      subjective: soap.subjective,
+      objective:  soap.objective,
+      assessment: soap.action,
+      plan:       soap.plan,
+    }).catch(() => {})
+    completeSession(sessionId!).catch(() => {})
+    navigate("/?refresh=notes")
+  }
 
   // ─────────────────────────────────────────────────────────────────────────
   if (dataLoading) {
@@ -843,7 +898,7 @@ export function SessionViewPage() {
                     size="lg"
                     className="w-full"
                     disabled={!canSubmit}
-                    onClick={() => navigate("/")}
+                    onClick={handleSubmitSession}
                   >
                     Submit Session
                   </Button>

@@ -50,6 +50,31 @@ export async function getClientById(id: string): Promise<ClientDetail | null> {
   return { ...row, assigned_staff: row.staff }
 }
 
+export interface NewClient {
+  practiceId:   string
+  firstName:    string
+  lastName:     string
+  dateOfBirth:  string
+  insurance?:   string
+  team:         string
+  status:       string
+}
+
+export async function createClient(client: NewClient): Promise<void> {
+  const { error } = await supabase
+    .from('clients')
+    .insert({
+      practice_id:   client.practiceId,
+      first_name:    client.firstName,
+      last_name:     client.lastName,
+      date_of_birth: client.dateOfBirth,
+      insurance:     client.insurance ?? null,
+      team:          client.team,
+      status:        client.status,
+    })
+  if (error) throw error
+}
+
 export async function getClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('clients')
@@ -82,6 +107,31 @@ export interface StaffRecord {
   indirectHours: number
   cancellationHours: number
   totalHours: number
+}
+
+export interface NewStaff {
+  practiceId:         string
+  name:               string
+  role:               string
+  team:               string
+  directHours?:       number
+  indirectHours?:     number
+  cancellationHours?: number
+}
+
+export async function createStaff(staff: NewStaff): Promise<void> {
+  const { error } = await supabase
+    .from('staff')
+    .insert({
+      practice_id:        staff.practiceId,
+      full_name:          staff.name,
+      role:               staff.role,
+      team:               staff.team,
+      direct_hours:       staff.directHours       ?? 0,
+      indirect_hours:     staff.indirectHours     ?? 0,
+      cancellation_hours: staff.cancellationHours ?? 0,
+    })
+  if (error) throw error
 }
 
 export async function getStaff(): Promise<StaffRecord[]> {
@@ -123,18 +173,32 @@ export interface SessionRecord {
   status: string
 }
 
-export async function getSessionsToday(): Promise<SessionRecord[]> {
+export async function getStaffByUserId(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('staff')
+    .select('id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  return data ? (data as { id: string }).id : null
+}
+
+export async function getSessionsToday(staffId?: string): Promise<SessionRecord[]> {
   // Build UTC boundaries for the user's local "today"
   const now   = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
   const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('sessions')
     .select('id, scheduled_at, session_type, status, clients(first_name, last_name), staff(full_name, team)')
     .gte('scheduled_at', start)
     .lt('scheduled_at', end)
     .order('scheduled_at', { ascending: true })
+
+  if (staffId) query = query.eq('staff_id', staffId)
+
+  const { data, error } = await query
   if (error) throw error
 
   return (data as unknown as SessionRow[]).map((row) => ({
@@ -399,6 +463,32 @@ export interface GoalRecord {
   lastUpdatedDaysAgo: number
 }
 
+export interface NewGoal {
+  practiceId:      string
+  clientId:        string
+  name:            string
+  masteryCriteria: string
+  domain:          string
+  status:          string
+}
+
+export async function createGoal(goal: NewGoal): Promise<void> {
+  const { error } = await supabase
+    .from('goals')
+    .insert({
+      practice_id:           goal.practiceId,
+      client_id:             goal.clientId,
+      name:                  goal.name,
+      mastery_criteria:      goal.masteryCriteria,
+      domain:                goal.domain,
+      status:                goal.status,
+      streak_days:           0,
+      streak_percent:        0,
+      last_updated_days_ago: 0,
+    })
+  if (error) throw error
+}
+
 export async function getGoalsByClientId(clientId: string): Promise<GoalRecord[]> {
   const { data, error } = await supabase
     .from('goals')
@@ -443,6 +533,220 @@ export async function getBehaviorsByClientId(clientId: string): Promise<Behavior
     name:        row.name,
     description: row.description,
   }))
+}
+
+export interface NewBehavior {
+  practiceId:   string
+  clientId:     string
+  name:         string
+  description?: string
+}
+
+export async function createBehavior(behavior: NewBehavior): Promise<void> {
+  const { error } = await supabase
+    .from('behaviors')
+    .insert({
+      practice_id:  behavior.practiceId,
+      client_id:    behavior.clientId,
+      name:         behavior.name.trim(),
+      description:  behavior.description?.trim() || null,
+    })
+  if (error) throw error
+}
+
+export interface SessionNote {
+  practiceId:  string
+  sessionId:   string
+  clientId:    string
+  staffId:     string
+  subjective:  string
+  objective:   string
+  assessment:  string
+  plan:        string
+}
+
+export interface SessionNoteRecord {
+  id:         string
+  session_id: string
+  staff_id:   string
+  subjective: string
+  objective:  string
+  assessment: string
+  plan:       string
+  created_at: string
+}
+
+export async function getSessionNotesByClientId(clientId: string): Promise<SessionNoteRecord[]> {
+  const { data, error } = await supabase
+    .from('session_notes')
+    .select('id, session_id, staff_id, subjective, objective, assessment, plan, created_at')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []) as SessionNoteRecord[]
+}
+
+export interface NewSession {
+  practiceId:  string
+  clientId:    string
+  staffId:     string
+  sessionType: string
+}
+
+export async function createSession(session: NewSession): Promise<string> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .insert({
+      practice_id:  session.practiceId,
+      client_id:    session.clientId,
+      staff_id:     session.staffId,
+      session_type: session.sessionType,
+      status:       'scheduled',
+      scheduled_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+  if (error) throw error
+  return (data as { id: string }).id
+}
+
+export interface BehaviorIncident {
+  practiceId:      string
+  sessionId:       string
+  clientId:        string
+  behaviorId:      string
+  antecedents?:    string[]
+  consequences?:   string[]
+  intensity?:      string
+  durationSeconds?: number
+}
+
+export function saveBehaviorIncident(incident: BehaviorIncident): Promise<void> {
+  return supabase
+    .from('behavior_incidents')
+    .insert({
+      practice_id:      incident.practiceId,
+      session_id:       incident.sessionId,
+      client_id:        incident.clientId,
+      behavior_id:      incident.behaviorId,
+      antecedents:      incident.antecedents,
+      consequences:     incident.consequences,
+      intensity:        incident.intensity,
+      duration_seconds: incident.durationSeconds,
+    })
+    .then(({ error }) => {
+      if (error) console.error('[saveBehaviorIncident]', error)
+    })
+}
+
+export function submitSessionNote(note: SessionNote): Promise<void> {
+  return supabase
+    .from('session_notes')
+    .insert({
+      practice_id: note.practiceId,
+      session_id:  note.sessionId,
+      client_id:   note.clientId,
+      staff_id:    note.staffId,
+      subjective:  note.subjective,
+      objective:   note.objective,
+      assessment:  note.assessment,
+      plan:        note.plan,
+    })
+    .then(({ error }) => {
+      if (error) console.error('[submitSessionNote]', error)
+    })
+}
+
+export function completeSession(sessionId: string): Promise<void> {
+  return supabase
+    .from('sessions')
+    .update({ status: 'completed' })
+    .eq('id', sessionId)
+    .then(({ error }) => {
+      if (error) console.error('[completeSession]', error)
+    })
+}
+
+export function updateGoalStatus(goalId: string, status: string, masteryCriteria?: string): Promise<void> {
+  const patch: Record<string, unknown> = { status }
+  if (masteryCriteria !== undefined) patch.mastery_criteria = masteryCriteria
+  return supabase
+    .from('goals')
+    .update(patch)
+    .eq('id', goalId)
+    .then(({ error }) => {
+      if (error) console.error('[updateGoalStatus]', error)
+    })
+}
+
+export interface TrialResult {
+  sessionId:   string
+  goalId:      string
+  practiceId:  string
+  trialNumber: number
+  response:    'correct' | 'incorrect' | 'no_response' | 'prompted'
+}
+
+export function saveTrialResult(trial: TrialResult): Promise<void> {
+  return supabase
+    .from('session_trials')
+    .insert({
+      session_id:   trial.sessionId,
+      goal_id:      trial.goalId,
+      practice_id:  trial.practiceId,
+      trial_number: trial.trialNumber,
+      response:     trial.response,
+    })
+    .then(({ error }) => {
+      if (error) console.error('[saveTrialResult]', error)
+    })
+}
+
+export async function getUserRole(userId: string, practiceId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('practice_members')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('practice_id', practiceId)
+    .single()
+  if (error) throw error
+  if (!data) throw new Error('No membership row found')
+  return (data as { role: string }).role
+}
+
+export async function joinPractice(userId: string, joinCode: string, displayName: string): Promise<void> {
+  const cleaned = joinCode.trim().toLowerCase()
+  if (!cleaned) throw new Error('Please enter a join code.')
+
+  const { data: practice, error: lookupError } = await supabase
+    .from('practices')
+    .select('id')
+    .like('id', `${cleaned}%`)
+    .maybeSingle()
+
+  if (lookupError) throw lookupError
+  if (!practice) throw new Error('No practice found with that code. Check with your supervisor.')
+
+  const { error: memberError } = await supabase
+    .from('practice_members')
+    .insert({ practice_id: practice.id, user_id: userId, role: 'technician' })
+
+  if (memberError) throw memberError
+
+  const { error: staffError } = await supabase
+    .from('staff')
+    .insert({
+      practice_id:        practice.id,
+      user_id:            userId,
+      full_name:          displayName.trim(),
+      role:               'Technician',
+      team:               'Team A',
+      direct_hours:       0,
+      indirect_hours:     0,
+      cancellation_hours: 0,
+    })
+
+  if (staffError) throw staffError
 }
 
 export async function getUserPractice(userId: string): Promise<PracticeMembership | null> {

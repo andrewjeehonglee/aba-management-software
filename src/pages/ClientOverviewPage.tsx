@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ArrowLeft, Play } from "lucide-react"
+import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Play, Plus } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
 import { SessionCalendar } from "@/components/SessionCalendar"
@@ -11,6 +11,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { mockAuthorizations } from "@/data/mockAuthorizations"
 import { mockCalendarSessions } from "@/data/mockCalendarSessions"
 import { mockClients } from "@/data/mockClients"
@@ -23,13 +37,299 @@ import {
 } from "@/lib/authorization"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
-import { getAuthorizationsByClientId, getClientById, getGoalsByClientId, getSessionsByClientId, type AuthRecord, type ClientDetail, type GoalRecord, type SessionRecord } from "@/lib/supabase"
+import { createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, type AuthRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// ─── Goal domains (standard ABA program areas) ────────────────────────────────
+const GOAL_DOMAINS = [
+  "Communication",
+  "Social Skills",
+  "Adaptive / Self-Care",
+  "Behavior Reduction",
+  "Motor Skills",
+  "Academic / Cognitive",
+] as const
+
+const GOAL_STATUSES: { value: string; label: string }[] = [
+  { value: "in-progress",  label: "In Progress"  },
+  { value: "hold",         label: "Hold"          },
+  { value: "discontinued", label: "Discontinued"  },
+  { value: "mastered",     label: "Mastered"      },
+]
+
+const EMPTY_GOAL_FORM = {
+  name:            "",
+  domain:          "" as string,
+  masteryCriteria: "",
+  status:          "in-progress",
+}
+
+// ─── New Goal Modal ───────────────────────────────────────────────────────────
+
+interface NewGoalModalProps {
+  open:       boolean
+  practiceId: string
+  clientId:   string
+  onClose:    () => void
+  onSuccess:  () => void
+}
+
+function NewGoalModal({ open, practiceId, clientId, onClose, onSuccess }: NewGoalModalProps) {
+  const [form, setForm]       = useState(EMPTY_GOAL_FORM)
+  const [error, setError]     = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  function reset() {
+    setForm(EMPTY_GOAL_FORM)
+    setError(null)
+    setLoading(false)
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) { reset(); onClose() }
+  }
+
+  function set<K extends keyof typeof EMPTY_GOAL_FORM>(key: K, value: string) {
+    setForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  const canSubmit = form.name.trim() && form.domain && form.masteryCriteria.trim()
+
+  async function handleSubmit() {
+    if (!canSubmit) return
+    setError(null)
+    setLoading(true)
+    try {
+      await createGoal({
+        practiceId,
+        clientId,
+        name:            form.name.trim(),
+        masteryCriteria: form.masteryCriteria.trim(),
+        domain:          form.domain,
+        status:          form.status,
+      })
+      reset()
+      onSuccess()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create goal.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>New Goal</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-1">
+          {/* Goal name */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Goal name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={form.name}
+              onChange={e => set("name", e.target.value)}
+              placeholder="e.g. Manding for preferred items"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Domain */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Domain <span className="text-red-500">*</span>
+            </label>
+            <Select value={form.domain} onValueChange={v => set("domain", v)} disabled={loading}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select domain" />
+              </SelectTrigger>
+              <SelectContent>
+                {GOAL_DOMAINS.map(d => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Mastery criteria */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Mastery criteria <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={form.masteryCriteria}
+              onChange={e => set("masteryCriteria", e.target.value)}
+              placeholder="e.g. 80% accuracy across 3 consecutive sessions"
+              rows={3}
+              disabled={loading}
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none disabled:opacity-50"
+            />
+          </div>
+
+          {/* Status */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Status</label>
+            <Select value={form.status} onValueChange={v => set("status", v)} disabled={loading}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {GOAL_STATUSES.map(s => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {error && (
+            <p className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { reset(); onClose() }}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!canSubmit || loading}
+            >
+              {loading ? "Saving…" : "Add Goal"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── New Behavior Modal ───────────────────────────────────────────────────────
+
+interface NewBehaviorModalProps {
+  open:       boolean
+  practiceId: string
+  clientId:   string
+  onClose:    () => void
+  onSuccess:  () => void
+}
+
+const EMPTY_BEHAVIOR_FORM = { name: "", description: "" }
+
+function NewBehaviorModal({ open, practiceId, clientId, onClose, onSuccess }: NewBehaviorModalProps) {
+  const [form, setForm]       = useState(EMPTY_BEHAVIOR_FORM)
+  const [error, setError]     = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  function reset() {
+    setForm(EMPTY_BEHAVIOR_FORM)
+    setError(null)
+    setLoading(false)
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) { reset(); onClose() }
+  }
+
+  const canSubmit = form.name.trim().length > 0
+
+  async function handleSubmit() {
+    if (!canSubmit) return
+    setError(null)
+    setLoading(true)
+    try {
+      await createBehavior({
+        practiceId,
+        clientId,
+        name:        form.name.trim(),
+        description: form.description.trim() || undefined,
+      })
+      reset()
+      onSuccess()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create behavior.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>New Behavior</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-1">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Behavior name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={form.name}
+              onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+              placeholder="e.g. Self-injurious behavior"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Description <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={form.description}
+              onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Operational definition — how this behavior is recognized and measured"
+              rows={3}
+              disabled={loading}
+              className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none disabled:opacity-50"
+            />
+          </div>
+
+          {error && (
+            <p className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { reset(); onClose() }}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!canSubmit || loading}
+            >
+              {loading ? "Saving…" : "Add Behavior"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // Display labels for the inline status summary line ("Today: 1 completed,
 // 1 in progress…"). Hyphens and tech-style enum values don't read well in
@@ -161,11 +461,12 @@ export function ClientOverviewPage() {
 
   useEffect(() => {
     if (!isUUID || !clientId) return
+    setGoalsLoading(true)
     getGoalsByClientId(clientId)
       .then(setLiveGoals)
       .catch(console.error)
       .finally(() => setGoalsLoading(false))
-  }, [clientId, isUUID])
+  }, [clientId, isUUID, goalsRefreshKey])
 
   useEffect(() => {
     if (!isUUID || !clientId) return
@@ -182,6 +483,78 @@ export function ClientOverviewPage() {
       .then(setLiveAuth)
       .catch(console.error)
   }, [clientId, isUUID])
+
+  const [practiceMembership, setPracticeMembership] = useState<PracticeMembership | null>(null)
+  const [goalsRefreshKey, setGoalsRefreshKey] = useState(0)
+  const [goalModalOpen, setGoalModalOpen] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      getUserPractice(user.id).then(m => { if (m) setPracticeMembership(m) }).catch(() => {})
+    }).catch(() => {})
+  }, [])
+
+  const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
+  const [notesLoading, setNotesLoading] = useState(false)
+
+  const canViewNotes =
+    practiceMembership?.role === "bcba" ||
+    practiceMembership?.role === "owner" ||
+    practiceMembership?.role === "supervisor"
+
+  useEffect(() => {
+    if (!isUUID || !clientId || !canViewNotes) return
+    setNotesLoading(true)
+    getSessionNotesByClientId(clientId)
+      .then(setSessionNotes)
+      .catch(console.error)
+      .finally(() => setNotesLoading(false))
+  }, [clientId, isUUID, canViewNotes])
+
+  const [behaviors, setBehaviors]                   = useState<BehaviorRecord[]>([])
+  const [behaviorsLoading, setBehaviorsLoading]     = useState(false)
+  const [behaviorsRefreshKey, setBehaviorsRefreshKey] = useState(0)
+  const [behaviorModalOpen, setBehaviorModalOpen]   = useState(false)
+
+  useEffect(() => {
+    if (!isUUID || !clientId) return
+    setBehaviorsLoading(true)
+    getBehaviorsByClientId(clientId)
+      .then(setBehaviors)
+      .catch(console.error)
+      .finally(() => setBehaviorsLoading(false))
+  }, [clientId, isUUID, behaviorsRefreshKey])
+
+  const canAddGoal = practiceMembership?.role === "bcba" || practiceMembership?.role === "owner"
+
+  const [startSessionLoading, setStartSessionLoading] = useState(false)
+  const [startSessionError, setStartSessionError] = useState<string | null>(null)
+
+  async function handleStartSession() {
+    if (!clientId) return
+    setStartSessionError(null)
+    setStartSessionLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error("Not signed in")
+      const membership = await getUserPractice(user.id)
+      if (!membership) throw new Error("No practice found for this account")
+      const staffRowId = await getStaffByUserId(user.id)
+      if (!staffRowId) throw new Error("Your account isn't linked to a staff profile yet. Ask your practice owner to set one up for you.")
+      const newSessionId = await createSession({
+        practiceId:  membership.practice_id,
+        clientId,
+        staffId:     staffRowId,
+        sessionType: "direct",
+      })
+      navigate(`/session/${newSessionId}`)
+    } catch (err) {
+      setStartSessionError(err instanceof Error ? err.message : "Failed to start session")
+    } finally {
+      setStartSessionLoading(false)
+    }
+  }
 
   // Slug used for mock lookups — derive from live name when available,
   // otherwise treat the param itself as the slug.
@@ -262,14 +635,24 @@ export function ClientOverviewPage() {
           <ArrowLeft className="size-4" />
           Back to dashboard
         </Link>
-        <Button
-          size="lg"
-          onClick={() => navigate(`/session/${startSessionId}`)}
-          className="gap-2 shadow-md"
-        >
-          <Play className="size-4 fill-current" />
-          Start Session
-        </Button>
+        <div className="flex flex-col items-end gap-1">
+          <Button
+            size="lg"
+            disabled={startSessionLoading}
+            onClick={handleStartSession}
+            className="gap-2 shadow-md"
+          >
+            {startSessionLoading
+              ? <Loader2 className="size-4 animate-spin" />
+              : <Play className="size-4 fill-current" />}
+            {startSessionLoading ? "Starting…" : "Start Session"}
+          </Button>
+          {startSessionError && (
+            <p className="text-xs text-red-600 text-right max-w-[200px]">
+              {startSessionError}
+            </p>
+          )}
+        </div>
       </header>
 
       {/* Section 1 — Client header */}
@@ -399,8 +782,19 @@ export function ClientOverviewPage() {
 
       {/* Section 4 — Active Goals */}
       <Card className="w-full max-w-3xl">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>Active Goals</CardTitle>
+          {canAddGoal && isUUID && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() => setGoalModalOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              New Goal
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {goalsLoading ? (
@@ -420,6 +814,90 @@ export function ClientOverviewPage() {
       </Card>
 
       <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} />
+
+      {canAddGoal && isUUID && clientId && practiceMembership && (
+        <NewGoalModal
+          open={goalModalOpen}
+          practiceId={practiceMembership.practice_id}
+          clientId={clientId}
+          onClose={() => setGoalModalOpen(false)}
+          onSuccess={() => { setGoalModalOpen(false); setGoalsRefreshKey(k => k + 1) }}
+        />
+      )}
+
+      {/* Section 5 — Behaviors */}
+      {isUUID && (
+        <Card className="w-full max-w-3xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle>Behaviors</CardTitle>
+            {canAddGoal && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2.5 text-xs gap-1"
+                onClick={() => setBehaviorModalOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                New Behavior
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {behaviorsLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
+            ) : behaviors.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No behaviors defined for this client.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {behaviors.map((b) => (
+                  <li key={b.id} className="py-3 first:pt-0 last:pb-0">
+                    <p className="text-sm font-medium">{b.name}</p>
+                    {b.description && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">{b.description}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {canAddGoal && isUUID && clientId && practiceMembership && (
+        <NewBehaviorModal
+          open={behaviorModalOpen}
+          practiceId={practiceMembership.practice_id}
+          clientId={clientId}
+          onClose={() => setBehaviorModalOpen(false)}
+          onSuccess={() => { setBehaviorModalOpen(false); setBehaviorsRefreshKey(k => k + 1) }}
+        />
+      )}
+
+      {/* Section 6 — Session Notes (BCBA / Supervisor / Owner only) */}
+      {canViewNotes && isUUID && (
+        <Card className="w-full max-w-3xl">
+          <CardHeader>
+            <CardTitle>Session Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {notesLoading ? (
+              <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
+            ) : sessionNotes.length === 0 ? (
+              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                No session notes yet.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {sessionNotes.map((note) => (
+                  <SessionNoteRow key={note.id} note={note} />
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
@@ -588,6 +1066,71 @@ function ClientDetailGrid({
         </Link>
       </dd>
     </dl>
+  )
+}
+
+// Expandable row for a single SOAP note. Collapsed by default — the date and
+// a truncated preview of the subjective field give enough context to decide
+// whether to open. Clicking anywhere on the header row toggles the body.
+function SessionNoteRow({ note }: { note: SessionNoteRecord }) {
+  const [open, setOpen] = useState(false)
+  const date = new Date(note.created_at).toLocaleDateString("en-US", {
+    month: "short",
+    day:   "numeric",
+    year:  "numeric",
+  })
+  const time = new Date(note.created_at).toLocaleTimeString("en-US", {
+    hour:   "numeric",
+    minute: "2-digit",
+  })
+
+  return (
+    <li className="py-3 first:pt-0 last:pb-0">
+      <button
+        className="flex w-full items-start gap-2 text-left"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <span className="mt-0.5 shrink-0 text-muted-foreground">
+          {open
+            ? <ChevronDown className="size-4" />
+            : <ChevronRight className="size-4" />}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-medium">{date}</span>
+            <span className="text-xs text-muted-foreground">{time}</span>
+          </div>
+          {!open && note.subjective && (
+            <p className="mt-0.5 text-xs text-muted-foreground truncate">
+              {note.subjective}
+            </p>
+          )}
+        </div>
+      </button>
+
+      {open && (
+        <div className="mt-3 ml-6 grid grid-cols-[5rem_1fr] gap-x-4 gap-y-3 text-sm">
+          {(
+            [
+              { label: "Subjective",  value: note.subjective  },
+              { label: "Objective",   value: note.objective   },
+              { label: "Assessment",  value: note.assessment  },
+              { label: "Plan",        value: note.plan        },
+            ] as const
+          ).map(({ label, value }) => (
+            <div key={label} className="contents">
+              <dt className="text-xs font-semibold text-muted-foreground pt-0.5 uppercase tracking-wide">
+                {label}
+              </dt>
+              <dd className="text-sm leading-relaxed whitespace-pre-wrap">
+                {value || <span className="text-muted-foreground italic">—</span>}
+              </dd>
+            </div>
+          ))}
+        </div>
+      )}
+    </li>
   )
 }
 

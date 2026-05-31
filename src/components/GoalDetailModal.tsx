@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { updateGoalStatus } from "@/lib/supabase"
 import { mockGoalHistory } from "@/data/mockGoalHistory"
 import type { Goal, GoalStatus } from "@/types/goal"
 
@@ -91,7 +92,10 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
   }
 
   function saveEdit() {
-    if (draft) setSaved(draft)
+    if (draft) {
+      setSaved(draft)
+      updateGoalStatus(goal!.id, draft.status, draft.masteryTarget || undefined).catch(() => {})
+    }
     setDraft(null)
     setEditing(false)
   }

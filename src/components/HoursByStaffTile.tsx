@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { TriangleAlert } from "lucide-react"
+import { Plus, TriangleAlert } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
   Bar,
@@ -22,18 +22,166 @@ import {
   type ChartConfig,
 } from "@/components/ui/chart"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getStaff, type StaffRecord } from "@/lib/supabase"
+import { createStaff, getStaff, type StaffRecord } from "@/lib/supabase"
 import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
+
+// ─── New Staff Modal ──────────────────────────────────────────────────────────
+
+const STAFF_ROLES = ["Technician", "Supervisor", "BCBA", "Owner"] as const
+const TEAMS       = ["A", "B", "C"] as const
+
+const EMPTY_STAFF_FORM = { name: "", role: "" as string, team: "" as string }
+
+interface NewStaffModalProps {
+  open:         boolean
+  practiceId:   string
+  onClose:      () => void
+  onSuccess:    () => void
+}
+
+function NewStaffModal({ open, practiceId, onClose, onSuccess }: NewStaffModalProps) {
+  const [form, setForm]       = useState(EMPTY_STAFF_FORM)
+  const [error, setError]     = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  function reset() {
+    setForm(EMPTY_STAFF_FORM)
+    setError(null)
+    setLoading(false)
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) { reset(); onClose() }
+  }
+
+  function set<K extends keyof typeof EMPTY_STAFF_FORM>(key: K, value: string) {
+    setForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  const canSubmit = form.name.trim() && form.role && form.team
+
+  async function handleSubmit() {
+    if (!canSubmit) return
+    setError(null)
+    setLoading(true)
+    try {
+      await createStaff({
+        practiceId,
+        name: form.name.trim(),
+        role: form.role,
+        team: `Team ${form.team}`,
+      })
+      reset()
+      onSuccess()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create staff member.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>New Staff Member</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-1">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={form.name}
+              onChange={e => set("name", e.target.value)}
+              placeholder="e.g. Maria Gonzalez"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Role <span className="text-red-500">*</span>
+              </label>
+              <Select value={form.role} onValueChange={v => set("role", v)} disabled={loading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STAFF_ROLES.map(r => (
+                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Team <span className="text-red-500">*</span>
+              </label>
+              <Select value={form.team} onValueChange={v => set("team", v)} disabled={loading}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select team" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEAMS.map(t => (
+                    <SelectItem key={t} value={t}>Team {t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {error && (
+            <p className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { reset(); onClose() }}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!canSubmit || loading}
+            >
+              {loading ? "Saving…" : "Add Staff"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ─── Chart config ─────────────────────────────────────────────────────────────
 
 const chartConfig = {
   directHours: { label: "Direct", color: "#10b981" },
@@ -106,18 +254,29 @@ function YAxisTick({ x = 0, y = 0, payload, staff = [] }: AxisTickProps) {
   )
 }
 
-export function HoursByStaffTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
-  const [sortKey, setSortKey] = useState<SortKey>("total")
-  const [allStaff, setAllStaff] = useState<StaffRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+interface HoursByStaffTileProps {
+  className?:      string
+  teamFilter?:     TeamFilter
+  refreshKey?:     number
+  practiceId?:     string
+  onStaffCreated?: () => void
+}
+
+export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId, onStaffCreated }: HoursByStaffTileProps) {
+  const [sortKey, setSortKey]     = useState<SortKey>("total")
+  const [allStaff, setAllStaff]   = useState<StaffRecord[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
+    setLoading(true)
+    setError(null)
     getStaff()
       .then(setAllStaff)
       .catch((err) => setError(err.message ?? "Failed to load staff"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [refreshKey])
 
   const teamStaff = teamFilter && teamFilter !== "All"
     ? allStaff.filter(s => s.team === teamFilter)
@@ -126,10 +285,22 @@ export function HoursByStaffTile({ className, teamFilter }: { className?: string
   const sortedStaff = [...teamStaff].sort(SORT_OPTIONS[sortKey].compare)
 
   return (
+    <>
     <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
         <CardTitle>Hours by Staff (Last 7 Days)</CardTitle>
         <CardAction>
+          {practiceId && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1 mr-2"
+              onClick={() => setModalOpen(true)}
+            >
+              <Plus className="size-3.5" />
+              New Staff
+            </Button>
+          )}
           <Select
             value={sortKey}
             onValueChange={(v) => setSortKey(v as SortKey)}
@@ -221,5 +392,15 @@ export function HoursByStaffTile({ className, teamFilter }: { className?: string
         )}
       </CardContent>
     </Card>
+
+    {practiceId && (
+      <NewStaffModal
+        open={modalOpen}
+        practiceId={practiceId}
+        onClose={() => setModalOpen(false)}
+        onSuccess={() => { setModalOpen(false); onStaffCreated?.() }}
+      />
+    )}
+    </>
   )
 }

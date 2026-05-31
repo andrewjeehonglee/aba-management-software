@@ -63,18 +63,20 @@ const SORT_OPTIONS = {
 
 type SortKey = keyof typeof SORT_OPTIONS
 
-export function NotesOverdueTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
+export function NotesOverdueTile({ className, teamFilter, refreshKey }: { className?: string; teamFilter?: TeamFilter; refreshKey?: number }) {
   const [sortKey, setSortKey] = useState<SortKey>("overdue")
   const [allNotes, setAllNotes] = useState<OverdueNoteRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    setLoading(true)
+    setError(null)
     getOverdueNotes()
       .then(setAllNotes)
       .catch((err) => setError(err.message ?? "Failed to load overdue notes"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [refreshKey])
 
   const teamNotes = teamFilter && teamFilter !== "All"
     ? allNotes.filter(n => n.staffTeam === teamFilter)

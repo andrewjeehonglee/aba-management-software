@@ -7,12 +7,14 @@ import { AuthPage } from "@/pages/AuthPage"
 import { CreatePracticePage } from "@/pages/CreatePracticePage"
 import { SessionViewPage } from "@/pages/SessionViewPage"
 import { StaffOverviewPage } from "@/pages/StaffOverviewPage"
-import { supabase, getUserPractice } from "@/lib/supabase"
+import { supabase, getUserPractice, getUserRole, getStaffByUserId } from "@/lib/supabase"
 import type { PracticeMembership } from "@/lib/supabase"
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [practice, setPractice] = useState<PracticeMembership | null>(null)
+  const [userRole, setUserRole] = useState<string>("technician")
+  const [currentStaffId, setCurrentStaffId] = useState<string | null>(null)
   // loading stays true until BOTH the session check AND the practice check
   // (when applicable) have resolved — prevents any intermediate flash.
   const [loading, setLoading] = useState(true)
@@ -22,6 +24,14 @@ function App() {
     const data = await getUserPractice(userId)
     console.log('[App] checkPractice result:', data)
     setPractice(data)
+    if (data) {
+      getUserRole(userId, data.practice_id)
+        .then(setUserRole)
+        .catch(err => console.error('[App] getUserRole failed:', err))
+      getStaffByUserId(userId)
+        .then(setCurrentStaffId)
+        .catch(err => console.error('[App] getStaffByUserId failed:', err))
+    }
   }
 
   useEffect(() => {
@@ -83,7 +93,7 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<DashboardPage />} />
+      <Route path="/" element={<DashboardPage practiceId={practice.practice_id} userRole={userRole} currentStaffId={currentStaffId} />} />
       <Route path="/clients/:clientId" element={<ClientOverviewPage />} />
       <Route path="/staff/:staffId" element={<StaffOverviewPage />} />
       <Route path="/session/:sessionId" element={<SessionViewPage />} />
