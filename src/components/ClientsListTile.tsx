@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createClient, getClients, type Client } from "@/lib/supabase"
+import { createNewClient, getClients, type Client } from "@/lib/supabase"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -96,7 +96,7 @@ function NewClientModal({ open, practiceId, onClose, onSuccess }: NewClientModal
     setError(null)
     setLoading(true)
     try {
-      await createClient({
+      await createNewClient({
         practiceId,
         firstName:   form.firstName.trim(),
         lastName:    form.lastName.trim(),

@@ -60,7 +60,7 @@ export interface NewClient {
   status:       string
 }
 
-export async function createClient(client: NewClient): Promise<void> {
+export async function createNewClient(client: NewClient): Promise<void> {
   const { error } = await supabase
     .from('clients')
     .insert({
