@@ -296,6 +296,43 @@ export interface AuthRecord {
   endDate: string
 }
 
+export interface NewAuthorization {
+  practiceId:           string
+  clientId:             string
+  totalAuthorizedHours: number
+  authStartDate:        string
+  authEndDate:          string
+  cptCodes:             string[]
+}
+
+export async function createAuthorization(auth: NewAuthorization): Promise<void> {
+  const { error } = await supabase
+    .from('authorizations')
+    .insert({
+      practice_id:      auth.practiceId,
+      client_id:        auth.clientId,
+      authorized_units: auth.totalAuthorizedHours,
+      used_units:       0,
+      cpt_code:         auth.cptCodes.join(", "),
+      start_date:       auth.authStartDate,
+      end_date:         auth.authEndDate,
+    })
+  if (error) throw error
+}
+
+export async function updateAuthorization(id: string, auth: Partial<NewAuthorization>): Promise<void> {
+  const patch: Record<string, unknown> = {}
+  if (auth.totalAuthorizedHours !== undefined) patch.authorized_units = auth.totalAuthorizedHours
+  if (auth.authStartDate        !== undefined) patch.start_date       = auth.authStartDate
+  if (auth.authEndDate          !== undefined) patch.end_date         = auth.authEndDate
+  if (auth.cptCodes             !== undefined) patch.cpt_code         = auth.cptCodes.join(", ")
+  const { error } = await supabase
+    .from('authorizations')
+    .update(patch)
+    .eq('id', id)
+  if (error) throw error
+}
+
 export async function getAuthorizations(): Promise<AuthRecord[]> {
   const { data, error } = await supabase
     .from('authorizations')

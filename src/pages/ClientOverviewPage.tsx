@@ -37,13 +37,187 @@ import {
 } from "@/lib/authorization"
 import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
-import { createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
+import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+// ─── New / Edit Authorization Modal ──────────────────────────────────────────
+
+const EMPTY_AUTH_FORM = { totalHours: "", startDate: "", endDate: "", cptCodes: "" }
+
+interface NewAuthorizationModalProps {
+  open:          boolean
+  practiceId:    string
+  clientId:      string
+  existingAuth?: AuthRecord | null
+  onClose:       () => void
+  onSuccess:     () => void
+}
+
+function NewAuthorizationModal({ open, practiceId, clientId, existingAuth, onClose, onSuccess }: NewAuthorizationModalProps) {
+  const [form, setForm]       = useState(EMPTY_AUTH_FORM)
+  const [error, setError]     = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  // Pre-populate when opening in edit mode
+  useEffect(() => {
+    if (open && existingAuth) {
+      setForm({
+        totalHours: existingAuth.totalAuthorizedHours.toString(),
+        startDate:  existingAuth.startDate,
+        endDate:    existingAuth.endDate,
+        cptCodes:   existingAuth.cptCode,
+      })
+    }
+  }, [open])
+
+  function reset() {
+    setForm(EMPTY_AUTH_FORM)
+    setError(null)
+    setLoading(false)
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) { reset(); onClose() }
+  }
+
+  function set<K extends keyof typeof EMPTY_AUTH_FORM>(key: K, value: string) {
+    setForm(prev => ({ ...prev, [key]: value }))
+  }
+
+  const parsedHours = parseFloat(form.totalHours)
+  const canSubmit =
+    form.totalHours.trim() && !isNaN(parsedHours) && parsedHours > 0 &&
+    form.startDate && form.endDate && form.cptCodes.trim()
+
+  async function handleSubmit() {
+    if (!canSubmit) return
+    setError(null)
+    setLoading(true)
+    const cptCodes = form.cptCodes.split(",").map(s => s.trim()).filter(Boolean)
+    try {
+      if (existingAuth) {
+        await updateAuthorization(existingAuth.id, {
+          totalAuthorizedHours: parsedHours,
+          authStartDate:        form.startDate,
+          authEndDate:          form.endDate,
+          cptCodes,
+        })
+      } else {
+        await createAuthorization({
+          practiceId,
+          clientId,
+          totalAuthorizedHours: parsedHours,
+          authStartDate:        form.startDate,
+          authEndDate:          form.endDate,
+          cptCodes,
+        })
+      }
+      reset()
+      onSuccess()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save authorization.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{existingAuth ? "Edit Authorization" : "Add Authorization"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 pt-1">
+          {/* Total authorized hours */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              Total authorized hours <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              value={form.totalHours}
+              onChange={e => set("totalHours", e.target.value)}
+              placeholder="e.g. 200"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Date range */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                Start date <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="date"
+                value={form.startDate}
+                onChange={e => set("startDate", e.target.value)}
+                disabled={loading}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">
+                End date <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="date"
+                value={form.endDate}
+                onChange={e => set("endDate", e.target.value)}
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          {/* CPT codes */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">
+              CPT codes <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={form.cptCodes}
+              onChange={e => set("cptCodes", e.target.value)}
+              placeholder="e.g. 97153, 97155"
+              disabled={loading}
+            />
+            <p className="text-xs text-muted-foreground">Comma-separated if multiple.</p>
+          </div>
+
+          {error && (
+            <p className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { reset(); onClose() }}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={!canSubmit || loading}
+            >
+              {loading ? "Saving…" : existingAuth ? "Save Changes" : "Add Authorization"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // ─── Goal domains (standard ABA program areas) ────────────────────────────────
 const GOAL_DOMAINS = [
@@ -477,13 +651,15 @@ export function ClientOverviewPage() {
   }, [clientId, isUUID])
 
   const [liveAuth, setLiveAuth] = useState<AuthRecord | null>(null)
+  const [authRefreshKey, setAuthRefreshKey] = useState(0)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   useEffect(() => {
     if (!isUUID || !clientId) return
     getAuthorizationsByClientId(clientId)
       .then(setLiveAuth)
       .catch(console.error)
-  }, [clientId, isUUID])
+  }, [clientId, isUUID, authRefreshKey])
 
   const [practiceMembership, setPracticeMembership] = useState<PracticeMembership | null>(null)
   const [goalModalOpen, setGoalModalOpen] = useState(false)
@@ -717,8 +893,18 @@ export function ClientOverviewPage() {
 
       {/* Section 2 — Authorization utilization */}
       <Card className="w-full max-w-3xl">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>Authorization utilization</CardTitle>
+          {canAddGoal && isUUID && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2.5 text-xs gap-1"
+              onClick={() => setAuthModalOpen(true)}
+            >
+              {liveAuth ? "Edit" : <><Plus className="size-3.5" />Add Authorization</>}
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {auth ? (
@@ -730,6 +916,17 @@ export function ClientOverviewPage() {
           )}
         </CardContent>
       </Card>
+
+      {canAddGoal && isUUID && clientId && practiceMembership && (
+        <NewAuthorizationModal
+          open={authModalOpen}
+          practiceId={practiceMembership.practice_id}
+          clientId={clientId}
+          existingAuth={liveAuth}
+          onClose={() => setAuthModalOpen(false)}
+          onSuccess={() => { setAuthModalOpen(false); setAuthRefreshKey(k => k + 1) }}
+        />
+      )}
 
       {/* Section 3 — Session Calendar */}
       <SessionCalendar sessions={calendarSessions as unknown as Session[]} />
