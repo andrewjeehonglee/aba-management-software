@@ -3,6 +3,13 @@ import { joinPractice, supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface Props {
   userId: string
@@ -17,6 +24,7 @@ export function CreatePracticePage({ userId, onPracticeCreated }: Props) {
 
   const [joinCode, setJoinCode] = useState("")
   const [joinDisplayName, setJoinDisplayName] = useState("")
+  const [joinRole, setJoinRole] = useState("Technician")
   const [joinError, setJoinError] = useState<string | null>(null)
   const [joinLoading, setJoinLoading] = useState(false)
 
@@ -24,7 +32,7 @@ export function CreatePracticePage({ userId, onPracticeCreated }: Props) {
     setJoinError(null)
     setJoinLoading(true)
     try {
-      await joinPractice(userId, joinCode, joinDisplayName.trim())
+      await joinPractice(userId, joinCode, joinDisplayName.trim(), joinRole)
       onPracticeCreated()
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : "Failed to join practice.")
@@ -180,6 +188,23 @@ export function CreatePracticePage({ userId, onPracticeCreated }: Props) {
                 placeholder="e.g. Maria Gonzalez"
                 disabled={joinLoading}
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="join-role">
+                Your role
+              </label>
+              <Select value={joinRole} onValueChange={setJoinRole} disabled={joinLoading}>
+                <SelectTrigger id="join-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Owner">Owner</SelectItem>
+                  <SelectItem value="BCBA">BCBA</SelectItem>
+                  <SelectItem value="Supervisor">Supervisor</SelectItem>
+                  <SelectItem value="Technician">Technician</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1.5">

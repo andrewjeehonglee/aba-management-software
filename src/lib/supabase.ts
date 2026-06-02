@@ -763,7 +763,7 @@ export async function getUserRole(userId: string, practiceId: string): Promise<s
   return (data as { role: string }).role
 }
 
-export async function joinPractice(userId: string, joinCode: string, displayName: string): Promise<void> {
+export async function joinPractice(userId: string, joinCode: string, displayName: string, role: string = 'technician'): Promise<void> {
   const cleaned = joinCode.trim().toLowerCase()
   if (!cleaned) throw new Error('Please enter a join code.')
 
@@ -778,7 +778,7 @@ export async function joinPractice(userId: string, joinCode: string, displayName
 
   const { error: memberError } = await supabase
     .from('practice_members')
-    .insert({ practice_id: practice.id, user_id: userId, role: 'technician' })
+    .insert({ practice_id: practice.id, user_id: userId, role: role.toLowerCase() })
 
   if (memberError) throw memberError
 
