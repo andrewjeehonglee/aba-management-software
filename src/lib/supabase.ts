@@ -3,7 +3,18 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Persist the session to localStorage and refresh the access token in the
+    // background before it expires. Without these, the JWT silently expires on
+    // a timer and the next auth event delivers a null session, logging the
+    // user out mid-use.
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  },
+})
 
 // Shape returned by getUserPractice. Keeping it flat for now — the nested
 // practices join requires an explicit FK declaration in PostgREST; we'll
@@ -773,7 +784,13 @@ export async function joinPractice(userId: string, joinCode: string, displayName
     .like('id', `${cleaned}%`)
     .maybeSingle()
 
-  if (lookupError) throw lookupError
+  // A query/RLS error means we couldn't verify the code — surface it as an
+  // operational failure, NOT as "no practice with that code".
+  if (lookupError) {
+    console.error('[joinPractice] practice lookup failed:', lookupError)
+    throw new PracticeLookupError('Could not verify that join code right now. Please try again.', lookupError)
+  }
+  // Query succeeded with zero rows — the code genuinely matches no practice.
   if (!practice) throw new Error('No practice found with that code. Check with your supervisor.')
 
   const { error: memberError } = await supabase
@@ -798,6 +815,24 @@ export async function joinPractice(userId: string, joinCode: string, displayName
   if (staffError) throw staffError
 }
 
+// Thrown when a practice lookup fails for an operational reason (network
+// error, RLS/SELECT error, or timeout) — i.e. we could NOT determine whether
+// the user has a practice. This is deliberately distinct from a successful
+// query that simply returns zero rows ("no practice yet"), which is a normal
+// state represented by a null return value rather than an error.
+export class PracticeLookupError extends Error {
+  readonly cause?: unknown
+  constructor(message: string, cause?: unknown) {
+    super(message)
+    this.name = 'PracticeLookupError'
+    this.cause = cause
+  }
+}
+
+// Resolves to the membership row, or null ONLY when the query genuinely
+// succeeds and finds zero rows. On any query error or timeout it throws a
+// PracticeLookupError instead of returning null, so callers can tell
+// "no practice" apart from "couldn't check".
 export async function getUserPractice(userId: string): Promise<PracticeMembership | null> {
   console.log('[getUserPractice] querying practice_members for', userId)
 
@@ -813,19 +848,31 @@ export async function getUserPractice(userId: string): Promise<PracticeMembershi
     .maybeSingle()
 
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('getUserPractice timed out after 8 s — check SELECT policy on practice_members')), 8000)
+    setTimeout(
+      () => reject(new PracticeLookupError('Timed out loading your practice. Check your connection and try again. (SELECT policy on practice_members may also be blocking the query.)')),
+      8000,
+    )
   )
 
+  let result: Awaited<typeof queryPromise>
   try {
-    const { data, error } = await Promise.race([queryPromise, timeoutPromise])
-    if (error) {
-      console.error('[getUserPractice] Supabase error:', error)
-      return null
-    }
-    console.log('[getUserPractice] result:', data)
-    return data as PracticeMembership | null
+    result = await Promise.race([queryPromise, timeoutPromise])
   } catch (err) {
-    console.error('[getUserPractice] caught:', err)
-    return null
+    // Timeout or an unexpected throw (e.g. network failure). NOT "no practice".
+    console.error('[getUserPractice] lookup failed:', err)
+    if (err instanceof PracticeLookupError) throw err
+    throw new PracticeLookupError('Could not load your practice. Please try again.', err)
   }
+
+  const { data, error } = result
+  if (error) {
+    // A real query / RLS error — surface it rather than masquerading as
+    // "no practice", which would wrongly drop the user onto onboarding.
+    console.error('[getUserPractice] Supabase error:', error)
+    throw new PracticeLookupError('Could not load your practice. Please try again.', error)
+  }
+
+  // Genuine success: the membership row, or null when zero rows matched.
+  console.log('[getUserPractice] result:', data)
+  return (data as PracticeMembership | null) ?? null
 }
