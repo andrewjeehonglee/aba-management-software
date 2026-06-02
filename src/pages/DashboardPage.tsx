@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,6 +20,8 @@ import {
 // Normalise the lowercase DB role string ("owner", "bcba", …) to the display
 // casing used throughout canSee so the rest of the component is unchanged.
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
+
+const ROLES: Role[] = ["Owner", "BCBA", "Supervisor", "Technician"]
 
 function normaliseRole(raw: string): Role {
   const map: Record<string, Role> = {
@@ -43,14 +45,29 @@ function canSee(role: Role): { hoursByStaff: boolean; authUtilization: boolean; 
 
 export function DashboardPage({ practiceId, userRole, currentStaffId }: { practiceId?: string; userRole?: string; currentStaffId?: string | null }) {
   const role = normaliseRole(userRole ?? "technician")
+
+  // Owners can preview the dashboard as any role. Non-owners are locked to their real role.
+  const [viewRole, setViewRole] = useState<Role>(role)
+
+  // Sync viewRole when the real role finishes loading from the DB (async in App.tsx).
+  // Use a ref so the first async settle always wins, but a manual owner toggle afterwards
+  // is not overwritten by a stale effect re-run.
+  const roleSettled = useRef(false)
+  useEffect(() => {
+    if (!roleSettled.current) {
+      roleSettled.current = true
+      setViewRole(role)
+    }
+  }, [userRole]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const [searchParams, setSearchParams] = useSearchParams()
 
   // Apply smart team default when no explicit ?team= param is present.
-  const rawTeam = searchParams.get("team") ?? ROLE_DEFAULT_TEAM[role] ?? "All"
+  const rawTeam = searchParams.get("team") ?? ROLE_DEFAULT_TEAM[viewRole] ?? "All"
   const teamFilter: TeamFilter = (TEAM_FILTERS as string[]).includes(rawTeam)
     ? (rawTeam as TeamFilter)
     : "All"
-  const visible = canSee(role)
+  const visible = canSee(viewRole)
 
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
   const [clientsRefreshKey, setClientsRefreshKey] = useState(0)
@@ -88,11 +105,29 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
           <span className="text-sm text-muted-foreground">Last 7 days</span>
         </div>
 
-        {/* Sign out + role badge */}
+        {/* Sign out + role badge / owner view toggle */}
         <div className="flex items-center gap-3 shrink-0">
-          <span className="hidden sm:inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            {role}
-          </span>
+          {role === "Owner" ? (
+            <div className="hidden sm:flex items-center rounded-full border border-border bg-muted p-0.5 gap-px">
+              {ROLES.map(r => (
+                <button
+                  key={r}
+                  onClick={() => setViewRole(r)}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    viewRole === r
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="hidden sm:inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+              {role}
+            </span>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -133,7 +168,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
         <div className={visible.hoursByStaff ? "" : "lg:col-span-2"}>
           <TodaySessionsTile
             teamFilter={teamFilter}
-            staffId={role === "Technician" ? (currentStaffId ?? undefined) : undefined}
+            staffId={viewRole === "Technician" ? (currentStaffId ?? undefined) : undefined}
           />
         </div>
         {visible.hoursByStaff && (
