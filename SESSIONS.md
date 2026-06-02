@@ -1118,3 +1118,84 @@ export async function joinPractice(userId: string, joinCode: string, displayName
 ---
 
 *Last updated: Jun 1, 2026 (end of Session 23).*
+
+---
+
+## Session 24 — Session-token refresh fix + practice-lookup error handling (Jun 1, 2026)
+
+### The reported bug
+
+Users were getting **randomly logged out, roughly on a timer** — not on every action. Symptom pointed at session token refresh: the JWT was expiring/refreshing on a schedule and something in the auth gate was bouncing the user back to the login page when it shouldn't.
+
+### What landed
+
+#### 1. Explicit Supabase auth config (`src/lib/supabase.ts`)
+
+The client was created with **no `auth` options at all** (`createClient(url, key)`). Relying on defaults left session persistence and token refresh ambiguous. Made it explicit:
+
+```ts
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  },
+})
+```
+
+`storage` is guarded behind a `window` check so non-browser/SSR contexts don't throw; in the browser it resolves to `localStorage`.
+
+#### 2. Event-aware `onAuthStateChange` (`src/App.tsx`) — the real bug
+
+The auth gate is purely `if (!session) return <AuthPage />`, and the old handler called `setSession(session)` for **every** event. Two failure modes:
+- A transient **null** session payload during a refresh cycle instantly bounced the user to login.
+- Every `TOKEN_REFRESHED` (fires on a timer — matches the symptom) re-ran `checkPractice` → `getUserPractice`, whose 8-second timeout returned `null` on a slow query and dropped the user onto onboarding.
+
+New handler logic:
+- **Only `SIGNED_OUT`** clears session/practice/staff and routes to `AuthPage`.
+- A `null` session on any other event is **ignored** (keep current session) — covers the transient-refresh case.
+- A valid session payload is always applied via `setSession` (carries freshly rotated tokens) → session persists across refreshes.
+- `TOKEN_REFRESHED` / `USER_UPDATED` **no longer re-run** `checkPractice`, so routine refreshes never hit the timeout query path.
+
+#### 3. `PracticeLookupError` — distinguish "no practice" from "couldn't check" (`src/lib/supabase.ts` + `src/App.tsx`)
+
+`getUserPractice` previously swallowed query errors **and** timeouts into `null`, identical to a genuine zero-row result — so a slow/failed query made a real member look practice-less and dumped them on onboarding.
+
+- Added exported `PracticeLookupError` class.
+- `getUserPractice` now **throws** `PracticeLookupError` on query error or timeout, and returns `null` **only** on a genuine zero-row success.
+- The **join-code lookup** in `joinPractice` now logs and throws `PracticeLookupError` on a query/RLS failure, while keeping the friendly `"No practice found with that code"` message strictly for the genuine zero-row case.
+- `App.checkPractice` wraps the call in `try/catch`: on success it sets practice (null = truly no practice yet); on throw it sets a visible `practiceError` and **keeps** any existing practice instead of bouncing to onboarding.
+- Added a **retryable error screen** in `App.tsx` that renders on a lookup failure (between the session check and the onboarding check), with a "Try again" button that re-runs `checkPractice`.
+
+Verified the other `getUserPractice` call sites (`ClientOverviewPage`, `SessionViewPage`) already wrap in `try/catch` or `.catch(() => {})`, so the new throwing behavior is safe.
+
+**Commit:** `6c9de6b` — *fix: persist session across token refresh and distinguish practice lookup failures*
+
+#### 4. Vercel TS build fix — join-role `Select` null coalesce (`src/pages/CreatePracticePage.tsx`)
+
+Base UI `Select` passes `string | null` to `onValueChange`, but `setJoinRole` expects `string`. Applied the same pattern used in the May 30 build fix for other Selects:
+
+```tsx
+<Select value={joinRole} onValueChange={(v) => setJoinRole(v ?? 'Technician')} disabled={joinLoading}>
+```
+
+Grepped the file — this was the only `onValueChange` handler, no second instance.
+
+**Commit:** `543e0f4` — *fix: coalesce null in join-role Select onValueChange to satisfy Vercel TS check*
+
+### Files changed
+- `src/lib/supabase.ts` — explicit auth config; `PracticeLookupError`; throwing `getUserPractice`; join-code lookup error handling
+- `src/App.tsx` — event-aware `onAuthStateChange`; `checkPractice` error handling; retryable practice-lookup error screen
+- `src/pages/CreatePracticePage.tsx` — join-role `Select` null coalesce
+
+### Commits (both pushed to `main`)
+- `543e0f4` — join-role Select TS fix
+- `6c9de6b` — session refresh persistence + practice-lookup error handling
+
+### Follow-up noted (not yet done)
+- The 8-second timeout message in `getUserPractice` still references a possible missing SELECT policy on `practice_members`. Worth confirming the RLS policy is in place in production so the timeout path is genuinely rare.
+
+---
+
+*Last updated: Jun 1, 2026 (end of Session 24).*
