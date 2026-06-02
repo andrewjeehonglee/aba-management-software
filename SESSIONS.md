@@ -908,3 +908,213 @@ No schema changes. All required tables (`sessions`, `clients`, `goals`) were alr
 ---
 
 *Last updated: May 29, 2026 (end of Session 21).*
+
+---
+
+# Session 22 — Sat May 30, 2026 (Evening)
+**ABA Management Software: Jenny-Readiness Sprint + Vercel Build Fixes**
+
+Session ran ~9 PM PT. Picked up after the main daytime session (see `2026-05-29-bi-weekly-review-and-automation-rebuild.md` for the full day's log including Stock Analyst AI, MLB, and ABA Phase 4 write path).
+
+---
+
+## What Was Built This Evening
+
+### 1. Staff Auto-Link on Join (close the last Phase 4 gap)
+- `joinPractice` now accepts a `displayName` parameter and auto-creates a `staff` row with `user_id`, `full_name`, and default role/team
+- `CreatePracticePage.tsx` join form: added "Your name" input (required before Join enables)
+- Owner create-practice flow: added "Your name" field + Step 3 staff row insert — owners now get a staff row automatically, same as joining staff
+- **Why it matters:** `getStaffByUserId` returns the staff PK; `sessions.staff_id` is a FK to `staff.id`. Without this, `createSession` would insert the auth user ID as `staff_id`, breaking the sessions join and the TodaySessionsTile scoping filter.
+
+### 2. `createSession` Staff ID Bug Fix
+- `handleStartSession` in `ClientOverviewPage` was passing `staffId: user.id` (auth UUID) to `createSession`
+- Fixed to call `getStaffByUserId(user.id)` first and use the staff table PK
+- Added user-facing error if no staff row found: "Your account isn't linked to a staff profile yet"
+
+### 3. SOAP Notes Read View
+- `supabase.ts`: added `SessionNoteRecord` interface + `getSessionNotesByClientId` (select from `session_notes` by `client_id`, ordered newest-first)
+- `ClientOverviewPage`: new "Session Notes" card (Section 6) — BCBA/supervisor/owner only (`canViewNotes` gate)
+- Expandable per-note rows (`SessionNoteRow` component): collapsed shows date + time; expanded shows S/O/A/P fields in labeled grid with `whitespace-pre-wrap`
+
+### 4. Behaviors Pre-Definition UI
+- `supabase.ts`: added `NewBehavior` interface + `createBehavior` function
+- `ClientOverviewPage`: new "Behaviors" card (Section 5) listing pre-defined behaviors per client
+- `NewBehaviorModal`: BCBA/owner only. Fields: name (required) + operational definition (optional). Same modal pattern as `NewGoalModal`. `behaviorsRefreshKey` triggers re-fetch on success.
+- **Why it matters:** `SessionViewPage` pulls behaviors via `getBehaviorsByClientId` to populate the behavior recording UI. Without pre-defined behaviors, therapists have nothing to select during sessions.
+
+### 5. Behavior Incidents Read View
+- `supabase.ts`: added `BehaviorIncidentRecord` interface + `getBehaviorIncidentsByClientId` (joins `behaviors(name)` in one query)
+- `ClientOverviewPage`: new "Behavior Incidents" card between Behaviors and Session Notes — same `canViewNotes` gate
+- `BehaviorIncidentRow`: expandable rows. Collapsed: date + behavior name + color-coded intensity chip (red=high, amber=medium, slate=low). Expanded: antecedents + consequences (joined arrays), duration formatted as `Xm Ys`
+
+### 6. Authorization Create/Edit UI
+- `supabase.ts`: added `NewAuthorization` interface + `createAuthorization` (inserts with `used_units: 0`) + `updateAuthorization` (patch-only, never touches `used_units`)
+- `ClientOverviewPage`: `NewAuthorizationModal` with pre-population from `existingAuth` when editing. Fields: total hours, start date, end date, CPT codes (comma-separated → array on save)
+- Authorization card header: shows "Add Authorization" (+ icon) when no record exists, "Edit" button when one does — both BCBA/owner only
+- `authRefreshKey` in `getAuthorizationsByClientId` dep array — save triggers live re-fetch of the utilization bar
+
+---
+
+## Supabase Write Helpers Added This Evening
+
+| Function | Table | Notes |
+|----------|-------|-------|
+| `saveTrialResult` | `session_trials` | Fire-and-forget, silent fail |
+| `updateGoalStatus` | `goals` | Fire-and-forget, silent fail |
+| `submitSessionNote` | `session_notes` | Fire-and-forget, silent fail |
+| `completeSession` | `sessions` | Fire-and-forget, silent fail |
+| `saveBehaviorIncident` | `behavior_incidents` | Fire-and-forget, silent fail |
+| `createSession` | `sessions` | Throws — caller owns error UX |
+| `createNewClient` | `clients` | Throws |
+| `createStaff` | `staff` | Throws |
+| `createGoal` | `goals` | Throws |
+| `createBehavior` | `behaviors` | Throws |
+| `createAuthorization` | `authorizations` | Throws |
+| `updateAuthorization` | `authorizations` | Throws |
+| `joinPractice` | `practice_members` + `staff` | Throws — two inserts atomically |
+| `getUserRole` | `practice_members` | Throws if no row |
+| `getStaffByUserId` | `staff` | Returns null if no row |
+
+---
+
+## Vercel Build Fixes (4 rounds)
+
+The build was clean locally (Vite/HMR) but failed on Vercel's strict `tsc -b` pass. Fixed across 3–4 push cycles:
+
+| Error | Root Cause | Fix |
+|-------|-----------|-----|
+| `string \| null` not assignable to `string` on `Select value` props | Base UI `Select.Root.onValueChange` passes `string \| null`, not `string` (unlike Radix UI) | Added `?? ""` to all `value` props and `v ?? ""` to all `onValueChange` callbacks |
+| `PromiseLike<void>` missing `catch`/`finally` | 5 fire-and-forget helpers used `.then()` on Supabase query builder which returns `PromiseLike` not `Promise` | Converted all 5 to `async/await` |
+| `goalsRefreshKey` used before declaration | State declared after the `useEffect` that depended on it | Moved declaration before the goals `useEffect` |
+| `startSessionId` / `nextSession` declared but never read | Unused variables left over from mock-data era | Removed both |
+| `createClient` name collision | Helper shadowed Supabase's own named export from `@supabase/supabase-js` | Renamed helper to `createNewClient` throughout |
+
+---
+
+## Jenny-Readiness Checklist — Final State
+
+| Item | Status |
+|------|--------|
+| Full write path (trials, SOAP, behavior incidents, goal status, session lifecycle) | ✅ |
+| Session timer persistence across navigation (sessionStorage) | ✅ |
+| Multi-user join flow + staff row auto-link | ✅ |
+| Owner create-practice flow + owner staff row | ✅ |
+| Add client / staff / goal / behavior modals (role-gated) | ✅ |
+| Real role enforcement from DB (no mock toggle) | ✅ |
+| Invite Your Team card with join code (owner only) | ✅ |
+| Team filter persists in URL (`?team=`) | ✅ |
+| TodaySessionsTile scoped to current staff member (Technician role) | ✅ |
+| SOAP notes read view (BCBA/supervisor/owner) | ✅ |
+| Behavior incidents read view (BCBA/supervisor/owner) | ✅ |
+| Behaviors pre-definition UI | ✅ |
+| Authorization create/edit UI (BCBA/owner) | ✅ |
+| Notes Overdue tile refreshes after session submit | ✅ |
+| `createSession` staff ID bug fixed | ✅ |
+| Live on Vercel (build green) | ✅ |
+
+---
+
+## One Remaining Non-Code Step
+
+Before Jenny's existing seeded staff can start sessions, run in Supabase production:
+
+```sql
+alter table staff add column if not exists user_id uuid references auth.users(id);
+-- Then for each existing staff member:
+update staff set user_id = '<auth-user-uuid>' where full_name = 'Staff Name';
+```
+
+New accounts (create or join flow) auto-populate `user_id` going forward.
+
+---
+
+## Repo
+`https://github.com/andrewjeehonglee/aba-management-software` — all commits on `main`, deployed to `aba-management-software.vercel.app`
+
+---
+
+*Last updated: May 30, 2026 (end of Session 22).*
+
+---
+
+## Session 23 — Owner role-view toggle + join-with-role (Jun 1, 2026)
+
+### What landed
+
+#### 1. `AuthPage.tsx` — signUp() confirmed clean
+Checked `supabase.auth.signUp()` for a `emailRedirectTo` option pointing to localhost. The call only passes `{ email, password }` — no redirect option present. No change needed.
+
+#### 2. Owner-only role-view toggle restored on dashboard header (`DashboardPage.tsx`)
+
+The Phase 2 segmented role toggle was removed in Session 22 when real DB role enforcement was added. Tonight it came back — but scoped correctly so real enforcement stays intact.
+
+**How it works:**
+- `role` = real normalized role from `practice_members` (lowercase DB value → Title Case). Used only to decide who sees the toggle and whether to show the Invite card.
+- `viewRole` = new local `useState<Role>` — starts equal to `role` after the first async DB load, then owners can change it freely.
+- A `useRef` (`roleSettled`) ensures the first DB-load sync wins, but subsequent owner toggle selections are not overwritten by re-renders.
+- All tile gating (`canSee(viewRole)`), team defaults (`ROLE_DEFAULT_TEAM[viewRole]`), and session scoping (`viewRole === "Technician"`) drive off `viewRole`.
+
+**UI:**
+- Owners → segmented pill control: `Owner | BCBA | Supervisor | Technician` (rounded-full border, active segment gets `bg-background shadow-sm`)
+- Non-owners → unchanged read-only muted pill badge showing their real role
+
+**Real enforcement untouched:** `ClientOverviewPage` gates (`canViewNotes`, `canAddGoal`, etc.) still read from `practiceMembership.role` (live DB value). The toggle is purely a local dashboard-view concern.
+
+**Files changed:** `src/pages/DashboardPage.tsx`
+**Commit:** `4b12459` — *Restore owner-only role view toggle on dashboard header*
+
+---
+
+#### 3. Role selector added to "Join a practice" card (`CreatePracticePage.tsx` + `supabase.ts`)
+
+Previously every user who joined via join code was inserted as `'technician'` regardless. Now the joining user picks their role.
+
+**`CreatePracticePage.tsx`:**
+- Imported shadcn `Select` / `SelectContent` / `SelectItem` / `SelectTrigger` / `SelectValue`
+- Added `joinRole` state defaulting to `"Technician"`
+- New labeled `Select` field between "Your name" and "Join code" in the Join card. Options: Owner, BCBA, Supervisor, Technician
+- `handleJoin` passes `joinRole` as the fourth argument to `joinPractice()`
+
+**`supabase.ts` — `joinPractice` signature change:**
+
+```ts
+// Before
+export async function joinPractice(userId: string, joinCode: string, displayName: string): Promise<void>
+
+// After
+export async function joinPractice(userId: string, joinCode: string, displayName: string, role: string = 'technician'): Promise<void>
+```
+
+- `role` defaults to `'technician'` so any existing callers without the argument continue to work
+- Inserted value uses `role.toLowerCase()` to match DB convention (all-lowercase membership roles)
+
+**Files changed:** `src/pages/CreatePracticePage.tsx`, `src/lib/supabase.ts`
+**Commit:** `19fd79a` — *Add role selector to Join a Practice card; pass role into joinPractice()*
+
+---
+
+### Updated checklist
+
+| Item | Status |
+|------|--------|
+| Full write path (trials, SOAP, behavior incidents, goal status, session lifecycle) | ✅ |
+| Session timer persistence across navigation (sessionStorage) | ✅ |
+| Multi-user join flow + staff row auto-link | ✅ |
+| Owner create-practice flow + owner staff row | ✅ |
+| Add client / staff / goal / behavior modals (role-gated) | ✅ |
+| Real role enforcement from DB | ✅ |
+| Owner-only role-view toggle (preview dashboard as any role) | ✅ |
+| Joining user selects their own role (Owner/BCBA/Supervisor/Technician) | ✅ |
+| Invite Your Team card with join code (owner only) | ✅ |
+| Team filter persists in URL (`?team=`) | ✅ |
+| TodaySessionsTile scoped to current staff member (Technician view) | ✅ |
+| SOAP notes read view (BCBA/supervisor/owner) | ✅ |
+| Behavior incidents read view (BCBA/supervisor/owner) | ✅ |
+| Behaviors pre-definition UI | ✅ |
+| Authorization create/edit UI (BCBA/owner) | ✅ |
+| Notes Overdue tile refreshes after session submit | ✅ |
+| Live on Vercel (build green) | ✅ |
+
+---
+
+*Last updated: Jun 1, 2026 (end of Session 23).*
