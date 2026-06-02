@@ -1193,8 +1193,8 @@ Grepped the file — this was the only `onValueChange` handler, no second instan
 - `543e0f4` — join-role Select TS fix
 - `6c9de6b` — session refresh persistence + practice-lookup error handling
 
-### Follow-up noted (not yet done)
-- The 8-second timeout message in `getUserPractice` still references a possible missing SELECT policy on `practice_members`. Worth confirming the RLS policy is in place in production so the timeout path is genuinely rare.
+### Follow-up — CLOSED
+- ~~Confirm the `practice_members` SELECT RLS policy is in place in production so the 8s timeout path is genuinely rare.~~ **Verified clean (Jun 1, 2026):** two SELECT policies, both scoped to `user_id = auth.uid()` — each user can only read their own membership row, which is exactly right. There is **no policy gap**, so the `getUserPractice` 8-second timeout path will not be triggered by missing/blocking RLS. (The timeout remains as a safety net for genuine network stalls.)
 
 ---
 
