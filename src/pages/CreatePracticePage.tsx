@@ -194,7 +194,7 @@ export function CreatePracticePage({ userId, onPracticeCreated }: Props) {
               <label className="text-sm font-medium" htmlFor="join-role">
                 Your role
               </label>
-              <Select value={joinRole} onValueChange={setJoinRole} disabled={joinLoading}>
+              <Select value={joinRole} onValueChange={(v) => setJoinRole(v ?? 'Technician')} disabled={joinLoading}>
                 <SelectTrigger id="join-role">
                   <SelectValue />
                 </SelectTrigger>
