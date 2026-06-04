@@ -140,7 +140,7 @@ export function PracticeHeroTile() {
                       borderRadius: 6,
                       background: '#fff',
                     }}
-                    formatter={(value: number) => [value, 'Sessions']}
+                    formatter={(value) => [value, 'Sessions']}
                     labelFormatter={(_label, payload) => {
                       const p = payload?.[0]?.payload as { date?: string } | undefined
                       return p?.date ?? ''
