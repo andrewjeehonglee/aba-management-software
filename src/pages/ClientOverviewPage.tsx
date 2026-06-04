@@ -693,7 +693,6 @@ export function ClientOverviewPage() {
 
   async function handleStartSession() {
     if (!clientId) return
-    if (isDemo) { toast.info("Create a free account to save data."); return }
     setStartSessionError(null)
     setStartSessionLoading(true)
     try {

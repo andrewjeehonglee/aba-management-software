@@ -428,7 +428,11 @@ export function SessionViewPage() {
   const canSubmit = isCancelled ? cancelReason.trim().length > 0 : soapFilled && signatureCaptured
 
   function handleSubmitSession() {
-    if (isDemo) { toast.info("Create a free account to save data."); return }
+    if (isDemo) {
+      if (timerKey) sessionStorage.removeItem(timerKey)
+      navigate("/?refresh=notes")
+      return
+    }
     if (timerKey) sessionStorage.removeItem(timerKey)
     submitSessionNote({
       practiceId: practiceIdRef.current,
