@@ -1310,6 +1310,170 @@ Each card shows: time (mono font) | client name (linked to `/clients/:uuid`) | s
 
 ---
 
-## Session 27 — (placeholder for next session)
+## Session 27 — Public Landing Page, Routing Overhaul, and Data Fixes
 
-*Last updated: Jun 3, 2026 (end of Session 26).*
+*Date: Jun 4, 2026*
+
+### Goal
+Ship a public-facing landing page at `/` for unauthenticated visitors, wire clean routing for the full sign-in / sign-up / demo funnel, and fix two silent data bugs in the live demo (team filter mismatch + missing today's sessions).
+
+---
+
+### Step A — Landing page (`src/pages/LandingPage.tsx`) — new file
+
+Full marketing page at the unauthenticated `/` route. Sections in order:
+
+**Nav** — Pulse wordmark (text-xl font-bold, pulse-primary) + single "Get started" CTA button (→ `/signup`). No "Log in" in nav — keeps the front door clean.
+
+**Hero** — `text-5xl md:whitespace-nowrap` headline: "Keep your ABA practice connected." One CTA: "Get started" → `/signup`. Subhead: "One platform for your whole team, so you can focus on your clients." (`text-xl text-pulse-text/80 text-balance`).
+
+**Problem section** (`bg-pulse-surface`) — Heading: "In ABA, up to 1 in 3 claims gets denied." Three icon blocks in a `md:grid-cols-3` grid, each with a BellRing / ClipboardList / Clock icon, a `text-lg font-semibold` title, a `font-semibold` punch line, and a `text-sm text-pulse-muted` detail line:
+- "An authorization lapsed" — "You already delivered the hours. Now they are unbillable." — detail on renewal/denial mechanics
+- "A note was incomplete" — "One missing signature voids the whole claim." — detail on payer rejection criteria
+- "Nobody caught it in time" — "You find out weeks later, when the denial lands." — detail on appeal window
+
+**Bridge / punchline** (white section, `py-10`) — `text-4xl font-bold`, `md:whitespace-nowrap`: "Pulse catches all three `<span class="text-pulse-primary">before the claim does</span>`"
+
+**Feature cards** — Heading: "How Pulse catches each one." Three `Card` components with `border-l-4 border-l-pulse-primary` left accent, `p-8`, `text-xl font-semibold` titles, `text-base leading-snug` bodies:
+1. "Authorization tracking, always current" — expiring auths surface on dashboard before lapsed hours get booked
+2. "Documentation that closes before you leave" — notes, behavior data, billing code in one flow before session closes
+3. "Everyone sees what they need to act on" — every role sees open items at login, never buried in a spreadsheet
+
+**Demo CTA band** (`bg-pulse-primary`) — Heading: "See it for yourself." Button: "Try the demo" — calls `supabase.auth.signInWithPassword` with demo credentials directly; on success, `App.tsx`'s `onAuthStateChange` SIGNED_IN event takes over and navigates to dashboard.
+
+**Footer** — "Pulse · Built by Andrew Lee" + greyed "Privacy" placeholder (no navigation).
+
+Design notes: `bg-gradient-to-b from-slate-50 to-white` outer wrapper. All CTAs use `buttonVariants()` on `<Link>` elements (not `asChild`, which doesn't exist on this project's `@base-ui/react` Button). Section vertical padding tightened globally: hero `py-12 md:py-16`, problem `py-12`, bridge `py-10`, features `py-12`.
+
+---
+
+### Step B — Routing overhaul (`src/App.tsx`)
+
+**Before:** `if (!session) return <AuthPage />` — single component, no routes, no URL differentiation.
+
+**After — unauthenticated block:**
+```tsx
+<Routes>
+  <Route path="/"       element={<LandingPage />} />
+  <Route path="/login"  element={<AuthPage mode="login" />} />
+  <Route path="/signup" element={<AuthPage mode="signup" />} />
+  <Route path="*"       element={<Navigate to="/" replace />} />
+</Routes>
+```
+
+**After — authenticated block:** added `<Route path="*" element={<Navigate to="/" replace />} />` to the existing authenticated Routes. Critical bug fix: without this, a user signing in from `/login` or `/signup` stays on that URL while authenticated, no route matches, blank screen.
+
+Both wildcard catches (`*`) ensure no URL ever reaches a dead end.
+
+---
+
+### Step C — AuthPage (`src/pages/AuthPage.tsx`)
+
+- Added `mode?: "login" | "signup"` prop (defaults to `"login"`)
+- Heading adapts: "Welcome back" / "Sign in to your practice" for login; "Create your account" / "Start your free Pulse practice" for signup
+- Primary button swaps: Sign In is primary for login mode, Sign Up is primary for signup mode
+- Added "← Back to home" `<Link to="/">` at top of right panel (ArrowLeft icon from lucide-react)
+- Removed local `DashboardMockup` function — replaced with import from shared component (see Step D)
+
+---
+
+### Step D — Shared `DashboardMockup` component (`src/components/DashboardMockup.tsx`) — new file
+
+Extracted `DashboardMockup` from `AuthPage.tsx` into a shared component with a `size` prop:
+
+- `size="sm"` (default) — compact white-on-teal mockup used in AuthPage left panel (visually identical to the old local function)
+- `size="lg"` — richer mockup used in the landing page hero (later removed from hero in favor of typography-only). Includes: teal app header with "Owner" role badge, labeled KPI cards (28 sessions / 2 overdue / 91% supervision), teal bar chart with day labels, authorization utilization bar, today's sessions list with Complete / In Progress / Scheduled status chips
+
+`AuthPage.tsx` now imports from `@/components/DashboardMockup`. `size="lg"` is available for future reuse.
+
+---
+
+### Step E — Dashboard sign-out button (`src/pages/DashboardPage.tsx`)
+
+The existing sign-out button was wrapped in `{!isDemo && (...)}` — invisible in demo mode. Removed the guard. Button is now always visible (`variant="ghost" size="sm" className="text-pulse-muted hover:text-pulse-text"`), for demo and real accounts alike. The DemoBanner "Create your free account →" button also still works for demo sign-out; the header button is the second path out.
+
+---
+
+### Step F — Build fix: `asChild` not available on `@base-ui/react` Button
+
+Vercel build failed:
+```
+error TS2322: Property 'asChild' does not exist on type '...'
+```
+
+Root cause: this project's shadcn uses `@base-ui/react/button`, not Radix UI. `asChild` is a Radix pattern and doesn't exist here.
+
+Fix: replaced all `<Button asChild><Link>...</Link></Button>` patterns in `LandingPage.tsx` with:
+```tsx
+import { buttonVariants } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+
+<Link to="/signup" className={cn(buttonVariants({ size: "lg" }), "bg-pulse-primary ...")}>
+  Get started
+</Link>
+```
+Visually identical; TypeScript-correct.
+
+---
+
+### Step G — Data fix: team filter mismatch (`src/lib/supabase.ts`)
+
+**Root cause:** The DB stores team as bare letters (`'A'`, `'B'`, `'C'`). The dashboard's team filter chips and `ROLE_DEFAULT_TEAM` in `src/types/team.ts` compare against `"Team A"` / `"Team B"` / `"Team C"`. The string comparison `'A' === "Team A"` is always false, so toggling any team filter other than "All" blanked every tile.
+
+**Fix:** Added a `teamLabel()` normalizer at the top of `supabase.ts`:
+```ts
+function teamLabel(raw: string | null | undefined): string {
+  if (!raw) return ''
+  return raw.startsWith('Team') ? raw : `Team ${raw}`
+}
+```
+
+Applied to all 9 mapper sites that previously returned raw `.team` values:
+- `getStaff()` → `team: teamLabel(row.team)`
+- `getSessionsToday()`, `getSessionsByClientId()`, `getSessionsByStaffId()` → `staffTeam: teamLabel(row.staff.team)`
+- `getAuthorizations()`, `getAuthorizationsByClientId()` → `clientTeam: teamLabel(row.clients.team)`
+- `getSupervisionCompliance()`, `getSupervisionByStaffId()` → `staffTeam: teamLabel(row.staff.team)`
+- `getOverdueNotes()` → `staffTeam: teamLabel(row.staff.team)`
+
+Already-normalised values (e.g. "Team A" from the add-staff form) pass through unchanged. No DB migration needed.
+
+---
+
+### Step H — Data fix: today's sessions dated wrong + 6 staff with no today entry
+
+**Root cause:** `getSessionsToday()` queries using real `new Date()`. All seeded "today" sessions were timestamped `2026-06-03`. As of Jun 4, the dashboard showed 0 sessions today, and 6 staff (Sarah Chen, David Kim, Rachel Lee, Kevin Martinez, Jennifer Nguyen, Laura Chen) had no Jun 4 entry, so their profile pages hit the empty "No session activity" state.
+
+**Fix — SQL patch (`patch_sessions_jun4.sql`):** Run once in the Supabase SQL Editor.
+- `UPDATE` 8 existing sessions from `2026-06-03T*` → `2026-06-04T*`
+- `INSERT` 6 new sessions on Jun 4 (one per missing staff, with realistic session types and statuses) using UUIDs `30000000-...-000000000071` through `000000000076`
+
+**Fix — seed file (`seed_coastal_aba.sql`):** Updated "today's sessions" block to use Jun 4 timestamps and include all 14 session rows (8 original + 6 new), so future re-seeds are correct from the start.
+
+---
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `src/pages/LandingPage.tsx` | **new** — full public landing page |
+| `src/components/DashboardMockup.tsx` | **new** — shared sm/lg mockup component |
+| `src/App.tsx` | Unauthenticated routes block; authenticated wildcard fix |
+| `src/pages/AuthPage.tsx` | `mode` prop, back-to-home link, import shared DashboardMockup |
+| `src/pages/DashboardPage.tsx` | Sign-out button always visible (removed `!isDemo` guard) |
+| `src/lib/supabase.ts` | `teamLabel()` helper; applied to 9 mapper sites |
+| `seed_coastal_aba.sql` | Today's sessions updated to Jun 4 + 6 new staff rows |
+| `patch_sessions_jun4.sql` | **new** — one-time SQL to fix live DB dates + add missing sessions |
+
+### Commits
+- `3482cae` — *Add public landing page with full unauthenticated routing*
+- `42a8f47` — *Fix build: replace asChild Button with buttonVariants on Link elements*
+- `2ae84c4` — *Fix team filter mismatch and seed today sessions for all 11 staff*
+
+### Deployment
+All three commits pushed to `main` → auto-deployed to Vercel at https://aba-management-software.vercel.app
+
+**Pending manual step:** Run `patch_sessions_jun4.sql` in the Supabase SQL Editor to fix the live demo DB (date shift + 6 missing-staff sessions).
+
+---
+
+*Last updated: Jun 4, 2026 (end of Session 27).*
