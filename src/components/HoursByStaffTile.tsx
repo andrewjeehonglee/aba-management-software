@@ -331,9 +331,23 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
         {!loading && !error && sortedStaff.length === 0 && (
-          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border py-10 text-center">
             <Users className="w-8 h-8 text-[#14A0A5]" />
-            No staff found.
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-[#1E2A2A]">No staff yet</p>
+              <p className="text-xs text-muted-foreground max-w-xs">Staff are the BCBAs and RBTs who run sessions and supervise your team.</p>
+            </div>
+            {practiceId && (
+              <button
+                className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
+                onClick={() => {
+                  if (isDemo) { toast.info("Create a free account to save data."); return }
+                  setModalOpen(true)
+                }}
+              >
+                Add your first staff member →
+              </button>
+            )}
           </div>
         )}
         {!loading && !error && sortedStaff.length > 0 && (

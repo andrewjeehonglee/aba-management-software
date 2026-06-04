@@ -148,9 +148,12 @@ export function TodaySessionsTile({ className, teamFilter, staffId }: { classNam
           <p className="py-8 text-center text-sm text-destructive">{error}</p>
         )}
         {!loading && !error && sortedSessions.length === 0 && (
-          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border py-10 text-center">
             <CalendarOff className="w-8 h-8 text-[#14A0A5]" />
-            No sessions match this filter.
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-[#1E2A2A]">No sessions today</p>
+              <p className="text-xs text-muted-foreground">Sessions will appear here once your team starts logging their work.</p>
+            </div>
           </div>
         )}
         {!loading && !error && sortedSessions.length > 0 && (

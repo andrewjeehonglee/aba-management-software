@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { ShieldCheck } from "lucide-react"
+import { AlertCircle, AlertTriangle, Info, ShieldCheck } from "lucide-react"
 import {
   Card,
   CardAction,
@@ -25,12 +25,21 @@ import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 
-// Severity coloring for the BIG headline number — count of RBTs below the
-// 5% threshold. >=5 flagged is a systemic problem; 1-4 is a coaching moment;
-// 0 is "all compliant" and earns the green badge.
-function headlineClass(flaggedCount: number): string {
-  if (flaggedCount >= 5) return "text-red-600"
-  if (flaggedCount >= 1) return "text-amber-600"
+// Urgency thresholds
+const CRITICAL_THRESHOLD = 5
+const WARNING_THRESHOLD  = 1
+
+type Urgency = "critical" | "warning" | "healthy"
+
+function urgencyLevel(flagged: number): Urgency {
+  if (flagged >= CRITICAL_THRESHOLD) return "critical"
+  if (flagged >= WARNING_THRESHOLD)  return "warning"
+  return "healthy"
+}
+
+function headlineColorClass(flagged: number): string {
+  if (flagged >= 5) return "text-red-600"
+  if (flagged >= 1) return "text-amber-600"
   return "text-emerald-600"
 }
 
@@ -38,10 +47,7 @@ function MiniBar({ pct }: { pct: number }) {
   const { bar } = complianceClasses(pct)
   return (
     <div className="relative h-2 w-44 overflow-hidden rounded-full bg-slate-200">
-      <div
-        className={`h-full ${bar}`}
-        style={{ width: `${Math.min(pct, 100)}%` }}
-      />
+      <div className={`h-full ${bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       <div
         className="absolute inset-y-0 w-px bg-slate-500/70"
         style={{ left: `${SUPERVISION_THRESHOLD}%` }}
@@ -55,8 +61,7 @@ const SORT_OPTIONS = {
   pctAsc: {
     label: "Compliance % (low → high)",
     compare: (a: SupervisionRecord, b: SupervisionRecord) =>
-      a.supervisionPct - b.supervisionPct ||
-      a.staffName.localeCompare(b.staffName),
+      a.supervisionPct - b.supervisionPct || a.staffName.localeCompare(b.staffName),
   },
   name: {
     label: "RBT name (A → Z)",
@@ -66,8 +71,7 @@ const SORT_OPTIONS = {
   pctDesc: {
     label: "Compliance % (high → low)",
     compare: (a: SupervisionRecord, b: SupervisionRecord) =>
-      b.supervisionPct - a.supervisionPct ||
-      a.staffName.localeCompare(b.staffName),
+      b.supervisionPct - a.supervisionPct || a.staffName.localeCompare(b.staffName),
   },
 } as const
 
@@ -91,34 +95,45 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
     : allSupervision
 
   const sortedRBTs = [...teamSupervision].sort(SORT_OPTIONS[sortKey].compare)
-
-  const flaggedCount = sortedRBTs.filter(
-    (r) => r.supervisionPct < SUPERVISION_THRESHOLD
-  ).length
+  const flaggedCount = sortedRBTs.filter(r => r.supervisionPct < SUPERVISION_THRESHOLD).length
   const totalRBTs = sortedRBTs.length
+  const urgency = urgencyLevel(flaggedCount)
 
-  const borderClass = flaggedCount >= 1 ? "border-l-4 border-l-red-500" : ""
+  const borderClass = urgency === "critical" ? "border-l-4 border-l-red-500"
+                    : urgency === "warning"  ? "border-l-4 border-l-amber-500"
+                    : ""
+  const shadowClass = urgency !== "healthy" ? "shadow-md" : ""
+
+  const UrgencyIcon = urgency === "critical" ? (
+    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" aria-hidden />
+  ) : urgency === "warning" ? (
+    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" aria-hidden />
+  ) : null
 
   return (
-    <Card size="sm" className={cn("w-full", borderClass, className)}>
+    <Card size="sm" className={cn("w-full", borderClass, shadowClass, className)}>
       <CardHeader>
-        <CardTitle>Supervision Compliance</CardTitle>
+        <CardTitle className="flex items-center gap-1.5">
+          {UrgencyIcon}
+          Supervision Compliance
+          <span
+            title={`RBTs must receive at least ${SUPERVISION_THRESHOLD}% of their direct hours as supervision each month. Staff below this threshold are flagged.`}
+            className="inline-flex cursor-help ml-0.5"
+          >
+            <Info className="w-3.5 h-3.5 text-slate-400" />
+          </span>
+        </CardTitle>
         <CardDescription className="text-xs">
           RBTs below {SUPERVISION_THRESHOLD}% supervision threshold flagged
         </CardDescription>
         <CardAction>
-          <Select
-            value={sortKey}
-            onValueChange={(v) => setSortKey(v as SortKey)}
-          >
+          <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
             <SelectTrigger className="h-8 w-[180px] text-xs">
               <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
-                <SelectItem key={key} value={key} className="text-xs">
-                  {label}
-                </SelectItem>
+                <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -132,17 +147,15 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
         {!loading && !error && sortedRBTs.length === 0 && (
-          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-8 text-center">
             <ShieldCheck className="w-8 h-8 text-[#14A0A5]" />
-            No supervision records found.
+            <p className="text-sm text-muted-foreground">No supervision records found.</p>
           </div>
         )}
         {!loading && !error && sortedRBTs.length > 0 && (
           <>
             <div className="flex items-baseline gap-2">
-              <span
-                className={`text-4xl font-bold tracking-tight tabular-nums leading-none ${headlineClass(flaggedCount)}`}
-              >
+              <span className={`text-4xl font-bold tracking-tight tabular-nums leading-none ${headlineColorClass(flaggedCount)}`}>
                 {flaggedCount}
               </span>
               <span className="text-xs text-muted-foreground">
@@ -154,15 +167,9 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
               {sortedRBTs.map((rbt) => {
                 const { text } = complianceClasses(rbt.supervisionPct)
                 return (
-                  <li
-                    key={rbt.id}
-                    className="flex items-center gap-3 text-sm"
-                  >
+                  <li key={rbt.id} className="flex items-center gap-3 text-sm">
                     <span className="flex-1 truncate min-w-0">
-                      <Link
-                        to={"/staff/" + toSlug(rbt.staffName)}
-                        className="hover:underline underline-offset-2"
-                      >
+                      <Link to={"/staff/" + toSlug(rbt.staffName)} className="hover:underline underline-offset-2">
                         {rbt.staffName}
                       </Link>
                     </span>
@@ -180,4 +187,3 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
     </Card>
   )
 }
-

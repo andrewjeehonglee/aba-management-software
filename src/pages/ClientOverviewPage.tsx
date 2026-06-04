@@ -953,8 +953,25 @@ export function ClientOverviewPage() {
           {goalsLoading ? (
             <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
           ) : sortedGoals.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No active goals for this client.
+            <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border py-10 text-center">
+              <svg className="w-8 h-8 text-[#14A0A5]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+              </svg>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-[#1E2A2A]">No goals yet</p>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">Goals track what this client is working toward and how they're progressing.</p>
+              </div>
+              {canAddGoal && isUUID && (
+                <button
+                  className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
+                  onClick={() => {
+                    if (isDemo) { toast.info("Create a free account to save data."); return }
+                    setGoalModalOpen(true)
+                  }}
+                >
+                  Add a goal →
+                </button>
+              )}
             </div>
           ) : (
             <ul className="divide-y divide-border">
