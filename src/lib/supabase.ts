@@ -202,6 +202,8 @@ export async function getSessionsToday(staffId?: string): Promise<SessionRecord[
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
   const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
 
+  console.log('[getSessionsToday] UTC boundaries:', start, '→', end, '| staffId filter:', staffId ?? 'none')
+
   let query = supabase
     .from('sessions')
     .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
@@ -213,6 +215,8 @@ export async function getSessionsToday(staffId?: string): Promise<SessionRecord[
 
   const { data, error } = await query
   if (error) throw error
+
+  console.log('[getSessionsToday] rows returned from Supabase:', data?.length ?? 0)
 
   return (data as unknown as SessionRow[]).map((row) => ({
     id:          row.id,

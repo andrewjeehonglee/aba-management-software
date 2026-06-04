@@ -1,6 +1,7 @@
-﻿Block 7 design upgrade: urgency icons, tooltips, educational empty states, auth mockup
+﻿Fix demo mode: role toggle, role sync timing, session diagnostics
 
-AlertTriangle/AlertCircle icons on critical/warning tiles with shadow-md elevation.
-Info tooltips on Notes Overdue, Supervision, Auth Utilization with metric explanations.
-Educational empty states with context copy and CTAs for clients, staff, sessions, goals.
-Auth page: dashboard mockup in left panel, HIPAA badge, last-email hint.
+Fix 1: Remove isDemo header branch that replaced role toggle with CTA button.
+Fix 2: Replace roleSettled gate with unconditional sync so owner role arriving
+async from DB actually updates viewRole (was silently dropped on second effect run).
+Fix 3: Add console.log to getSessionsToday showing UTC boundaries and row count.
+Fix 4: TodaySessionsTile already uses clientId UUID correctly - no change needed.

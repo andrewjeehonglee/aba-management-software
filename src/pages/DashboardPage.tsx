@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -50,15 +50,14 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
   // Owners can preview the dashboard as any role. Non-owners are locked to their real role.
   const [viewRole, setViewRole] = useState<Role>(role)
 
-  // Sync viewRole when the real role finishes loading from the DB (async in App.tsx).
-  // Use a ref so the first async settle always wins, but a manual owner toggle afterwards
-  // is not overwritten by a stale effect re-run.
-  const roleSettled = useRef(false)
+  // Sync viewRole whenever the real role arrives from the DB (async in App.tsx).
+  // The initial render uses the "technician" default; this effect fires again once
+  // getUserRole() resolves and the prop updates to the real value (e.g. "owner").
+  // Safe to run unconditionally because userRole only changes on auth events —
+  // an Owner's manual view-toggle won't be overwritten here.
   useEffect(() => {
-    if (!roleSettled.current) {
-      roleSettled.current = true
-      setViewRole(role)
-    }
+    console.log('[DashboardPage] userRole prop:', userRole, '→ role:', role)
+    setViewRole(role)
   }, [userRole]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [searchParams, setSearchParams] = useSearchParams()
@@ -109,15 +108,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
 
         {/* Right: role controls + sign out */}
         <div className="flex items-center gap-3 shrink-0">
-          {isDemo ? (
-            <Button
-              size="sm"
-              className="bg-[#0D7377] hover:bg-[#0a5f63] text-white"
-              onClick={async () => { await supabase.auth.signOut(); window.location.href = "/signup" }}
-            >
-              Create your practice →
-            </Button>
-          ) : role === "Owner" ? (
+          {role === "Owner" ? (
             <div className="hidden sm:flex items-center rounded-full border border-[#D0DCDC] bg-[#E8F7F7] p-0.5 gap-px">
               {ROLES.map(r => (
                 <button
