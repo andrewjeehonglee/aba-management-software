@@ -36,7 +36,7 @@ import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
-import type { Goal, GoalStatus } from "@/types/goal"
+import type { Goal } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -854,8 +854,8 @@ export function ClientOverviewPage() {
           )}
         </CardHeader>
         <CardContent>
-          {auth ? (
-            <AuthorizationDetail auth={auth} />
+          {liveAuth ? (
+            <AuthorizationDetail auth={liveAuth} />
           ) : (
             <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               No authorization data for this client.
