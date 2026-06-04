@@ -1198,4 +1198,118 @@ Grepped the file — this was the only `onValueChange` handler, no second instan
 
 ---
 
-*Last updated: Jun 1, 2026 (end of Session 24).*
+*Last updated: Jun 3, 2026 (end of Session 27).*
+
+---
+
+## Session 25 — Demo mode fixes (Jun 3, 2026)
+
+**What landed:** Four targeted fixes to the demo account experience.
+
+### Fix 1 — Role toggle restored in demo mode
+`DashboardPage.tsx` had an `isDemo ? <Create your practice button>` branch in the header that replaced the role toggle for demo users. Removed it. The demo banner (amber top bar) already carries the "Create your free account →" CTA, so the upsell path was duplicated and the role toggle was lost.
+
+### Fix 2 — Owner role not resolving (root cause: `roleSettled` ref)
+**Bug:** `Hours by Staff`, `Auth Utilization`, and `Adoption Health` tiles were hidden in the demo. Root cause: `canSee("Technician")` was returning `false` for all three because `viewRole` was stuck on `"Technician"` even though the demo user is an Owner.
+
+**Why it happened:** `App.tsx` initialises `userRole` state as `"technician"` (the default), then fires `getUserRole()` async. `DashboardPage` had a `roleSettled` ref that ran `setViewRole(role)` only on the _first_ effect execution — which happened with the default `"technician"` value, before the DB call resolved. When `"owner"` arrived from the DB, `roleSettled.current` was already `true` so the update was silently dropped.
+
+**Fix:** Removed the `roleSettled` ref entirely. The effect now unconditionally syncs `viewRole` to `role` on every `userRole` prop change. Safe to do because `userRole` only changes on auth events (not on Owner view-toggles), so manual toggles are never overwritten.
+
+Added `console.log('[DashboardPage] userRole prop:', userRole, '→ role:', role)` for live debugging.
+
+### Fix 3 — Today's Sessions diagnostic logging
+Added `console.log` to `getSessionsToday()` in `supabase.ts` printing the UTC start/end boundaries and the raw Supabase row count before any JS-side filtering. This was partly auto-fixed by Fix 2 (staffId filter was being applied in Technician view, excluding all sessions not assigned to the demo staff member), but the log remains for future debugging.
+
+### Fix 4 — Client link (already correct)
+Audited `TodaySessionsTile.tsx` line 172 — link uses `s.clientId` (UUID), not a slug. No change needed.
+
+### Files changed
+- `src/pages/DashboardPage.tsx` — removed `roleSettled` ref; removed isDemo header CTA branch; added role console.log
+- `src/lib/supabase.ts` — added UTC boundary + row count console.log to `getSessionsToday`
+
+### Commits
+- `65c8ab0` — *Fix demo mode: role toggle, role sync timing, session diagnostics*
+
+---
+
+## Session 26 — Block 7 final: design upgrade (Jun 3, 2026)
+
+**What landed:** Six design steps completing the Pulse visual upgrade. Zero TypeScript errors. Two new components, two redesigned components, full dashboard grid restructure.
+
+### Step A — Brand color short aliases
+Added `--color-pulse-medium`, `--color-pulse-light`, `--color-pulse-text`, `--color-pulse-muted` as short aliases in `index.css` `@theme inline` alongside the existing long-form names. Both naming conventions now work (e.g., `bg-pulse-medium` and `bg-pulse-primary-medium` are equivalent).
+
+### Step B — Dashboard header polish
+Changed `border-slate-100` → `border-slate-200` and added `shadow-sm` to the header so it lifts cleanly above the `bg-[#F0F4F4]` page surface.
+
+### Step C — PracticeHeroTile (the hero/WOW element)
+New full-width tile at the top of the dashboard.
+
+**Left 60%:** Recharts `AreaChart` showing session counts per day for the last 14 days. Teal gradient fill (`#14A0A5` at 40% → transparent). `#0D7377` stroke, 2px. Today's data point renders with a larger dot + outer glow ring via a custom `ChartDot` component. X-axis shows single day-letter labels (M T W T F S S). No Y-axis — just the shape of the curve.
+
+**Right 40%:** 2×2 grid of stat bubbles on `bg-[#E8F7F7]` rounded tiles:
+- Sessions This Week
+- Completion Rate (color-coded: emerald ≥80%, amber ≥60%, red <60%)
+- Staff Active This Week
+- Active Clients
+
+New data functions in `supabase.ts`:
+- `getSessionsLast14Days()` — queries sessions, groups by `scheduled_at` date, pre-fills all 14 days with 0 for a continuous chart
+- `getPracticeHeroStats()` — calls `getAdoptionHealthStats` + `getSessionsLast14Days` + active client count in parallel; returns `{ sessionsThisWeek, completionRate, staffOnTrack, activeClients, dailySessions }`
+
+New component: `src/components/PracticeHeroTile.tsx`
+
+### Step C (cont.) — AdoptionHealthBanner
+Replaced the old full-card `AdoptionHealthTile` in Row 4 with a new slim banner component (`AdoptionHealthBanner.tsx`). Renders as a single `rounded-xl border` flex row: `Activity` icon + "Adoption Health" label + "X/Y staff active" + "Z% completion rate" + "View overdue notes ↓" link. Owner-only.
+
+New component: `src/components/AdoptionHealthBanner.tsx`
+
+### Step D — Supervision pills (replaced mini-bars)
+`SupervisionComplianceTile.tsx`: removed the `MiniBar` component and the horizontal bar list entirely. Replaced with a `flex flex-wrap gap-2` grid of pill chips — one per RBT:
+- `h-14 w-[4.75rem]` rounded-xl chip
+- First name truncated, compliance % below it
+- Red border + red-50 background if below threshold; teal border + teal-light background if passing
+- Hover tooltip shows full name
+- Two red chips pop out immediately at a glance
+
+Removed unused `complianceClasses` import (MiniBar was its only consumer).
+
+### Step E — Dashboard grid restructure
+New layout in `DashboardPage.tsx`:
+- **Row 1 (full width):** `PracticeHeroTile`
+- **Row 2 (3 cols):** `NotesOverdueTile` | `SupervisionComplianceTile` | `AuthorizationUtilizationTile`
+- **Row 3 (2 cols):** `TodaySessionsTile` | `HoursByStaffTile`
+- **Row 4 (full width, Owner only):** `AdoptionHealthBanner`
+
+`ClientsListTile` removed from the dashboard. Clients are accessible by clicking any client name in Today's Sessions (UUID-based routing). Removed the team invite card as well to reduce clutter.
+
+Removed unused `Card/CardContent/CardHeader/CardTitle` and `ClientsListTile` imports.
+
+### Step F — Today's Sessions card list (replaced table)
+`TodaySessionsTile.tsx`: replaced the dense `<table>`-style grid with a card list. Each session is a `rounded-lg border border-l-4` card with a left border color that communicates status instantly:
+- Emerald (`border-l-emerald-500`) — completed
+- Blue (`border-l-blue-500`) — in-progress
+- Amber (`border-l-amber-400`) — scheduled
+- Red (`border-l-red-400`) — no-show / cancelled
+
+Each card shows: time (mono font) | client name (linked to `/clients/:uuid`) | staff name | session type (hidden on mobile) | status badge.
+
+### Files changed
+- `src/index.css` — short alias color tokens
+- `src/lib/supabase.ts` — `DailySessionCount`, `PracticeHeroStats` interfaces; `getSessionsLast14Days()`, `getPracticeHeroStats()` functions
+- `src/components/PracticeHeroTile.tsx` — **new**
+- `src/components/AdoptionHealthBanner.tsx` — **new**
+- `src/components/SupervisionComplianceTile.tsx` — pill chips, removed MiniBar
+- `src/components/TodaySessionsTile.tsx` — card list
+- `src/pages/DashboardPage.tsx` — grid restructure, import cleanup
+
+### Commits
+- `b6d32ab` — *Block 7 final: PracticeHeroTile, supervision pills, session cards, new grid layout*
+- `f47138c` — *Fix TS2322: remove explicit number type on Tooltip formatter value param* (Recharts `Tooltip` types `formatter` first arg as `ValueType | undefined`; explicit `number` caused Vercel build failure)
+
+---
+
+## Session 27 — (placeholder for next session)
+
+*Last updated: Jun 3, 2026 (end of Session 26).*
