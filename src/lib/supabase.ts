@@ -16,6 +16,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 })
 
+// Normalise DB team values to the "Team X" format used by the dashboard
+// filters. The DB seeds store bare letters ('A', 'B', 'C'); the UI expects
+// "Team A" / "Team B" / "Team C". Already-normalised values pass through.
+function teamLabel(raw: string | null | undefined): string {
+  if (!raw) return ''
+  return raw.startsWith('Team') ? raw : `Team ${raw}`
+}
+
 // Shape returned by getUserPractice. Keeping it flat for now — the nested
 // practices join requires an explicit FK declaration in PostgREST; we'll
 // add the practice name once we confirm the base flow works end-to-end.
@@ -155,7 +163,7 @@ export async function getStaff(): Promise<StaffRecord[]> {
     id: row.id,
     name: row.full_name,
     role: row.role,
-    team: row.team,
+    team: teamLabel(row.team),
     hireDate: row.hire_date,
     certification: row.certification,
     directHours: row.direct_hours,
@@ -224,7 +232,7 @@ export async function getSessionsToday(staffId?: string): Promise<SessionRecord[
     clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
     staffName:   row.staff.full_name,
-    staffTeam:   row.staff.team,
+    staffTeam:   teamLabel(row.staff.team),
     sessionType: row.session_type,
     status:      row.status,
   }))
@@ -244,7 +252,7 @@ export async function getSessionsByClientId(clientId: string): Promise<SessionRe
     clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
     staffName:   row.staff.full_name,
-    staffTeam:   row.staff.team,
+    staffTeam:   teamLabel(row.staff.team),
     sessionType: row.session_type,
     status:      row.status,
   }))
@@ -362,7 +370,7 @@ export async function getAuthorizations(): Promise<AuthRecord[]> {
   return (data as unknown as AuthRow[]).map((row) => ({
     id:                  row.id,
     clientName:          `${row.clients.first_name} ${row.clients.last_name}`,
-    clientTeam:          row.clients.team,
+    clientTeam:          teamLabel(row.clients.team),
     utilizationPct:      Math.round((row.used_units / row.authorized_units) * 100),
     totalAuthorizedHours: row.authorized_units,
     cptCode:             row.cpt_code,
@@ -384,7 +392,7 @@ export async function getAuthorizationsByClientId(clientId: string): Promise<Aut
   return {
     id:                   row.id,
     clientName:           `${row.clients.first_name} ${row.clients.last_name}`,
-    clientTeam:           row.clients.team,
+    clientTeam:           teamLabel(row.clients.team),
     utilizationPct:       Math.round((row.used_units / row.authorized_units) * 100),
     totalAuthorizedHours: row.authorized_units,
     cptCode:              row.cpt_code,
@@ -420,7 +428,7 @@ export async function getSupervision(): Promise<SupervisionRecord[]> {
   return (data as unknown as SupervisionRow[]).map((row) => ({
     id:            row.id,
     staffName:     row.staff.full_name,
-    staffTeam:     row.staff.team,
+    staffTeam:     teamLabel(row.staff.team),
     supervisionPct: row.supervision_pct,
     periodStart:   row.period_start,
     periodEnd:     row.period_end,
@@ -440,7 +448,7 @@ export async function getSupervisionByStaffId(staffId: string): Promise<Supervis
   return {
     id:             row.id,
     staffName:      row.staff.full_name,
-    staffTeam:      row.staff.team,
+    staffTeam:      teamLabel(row.staff.team),
     supervisionPct: row.supervision_pct,
     periodStart:    row.period_start,
     periodEnd:      row.period_end,
@@ -461,7 +469,7 @@ export async function getSessionsByStaffId(staffId: string): Promise<SessionReco
     clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
     staffName:   row.staff.full_name,
-    staffTeam:   row.staff.team,
+    staffTeam:   teamLabel(row.staff.team),
     sessionType: row.session_type,
     status:      row.status,
   }))
@@ -492,7 +500,7 @@ export async function getOverdueNotes(): Promise<OverdueNoteRecord[]> {
   return (data as unknown as OverdueNoteRow[]).map((row) => ({
     id:           row.id,
     staffName:    row.staff.full_name,
-    staffTeam:    row.staff.team,
+    staffTeam:    teamLabel(row.staff.team),
     overdueCount: row.overdue_count,
     asOfDate:     row.as_of_date,
   }))
