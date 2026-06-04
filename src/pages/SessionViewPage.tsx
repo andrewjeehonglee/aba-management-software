@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Check, Minus, Plus, X } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { toast } from "sonner"
 import { useDemo } from "@/context/DemoContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
