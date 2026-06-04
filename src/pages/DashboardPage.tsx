@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
+import { AdoptionHealthTile } from "@/components/AdoptionHealthTile"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
@@ -43,7 +44,7 @@ function canSee(role: Role): { hoursByStaff: boolean; authUtilization: boolean; 
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export function DashboardPage({ practiceId, userRole, currentStaffId }: { practiceId?: string; userRole?: string; currentStaffId?: string | null }) {
+export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: { practiceId?: string; userRole?: string; currentStaffId?: string | null; isDemo?: boolean }) {
   const role = normaliseRole(userRole ?? "technician")
 
   // Owners can preview the dashboard as any role. Non-owners are locked to their real role.
@@ -96,27 +97,36 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
   }, [])
 
   return (
-    <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-3 p-4">
+    <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
 
       {/* ── Header ── */}
-      <header className="flex w-full max-w-7xl items-center justify-between gap-4 border-b border-border py-5">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">ABA Dashboard</h1>
-          <span className="text-sm text-muted-foreground">Last 7 days</span>
+      <header className={`-mx-4 -mt-4 mb-0 flex w-[calc(100%+2rem)] items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 ${isDemo ? "bg-amber-50/60" : "bg-white"}`}>
+        {/* Left: Pulse wordmark + subtitle */}
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-xl font-bold tracking-tight text-[#0D7377] shrink-0">Pulse</span>
+          <span className="hidden sm:block text-sm text-slate-400 truncate">ABA Management</span>
         </div>
 
-        {/* Sign out + role badge / owner view toggle */}
+        {/* Right: role controls + sign out */}
         <div className="flex items-center gap-3 shrink-0">
-          {role === "Owner" ? (
-            <div className="hidden sm:flex items-center rounded-full border border-border bg-muted p-0.5 gap-px">
+          {isDemo ? (
+            <Button
+              size="sm"
+              className="bg-[#0D7377] hover:bg-[#0a5f63] text-white"
+              onClick={async () => { await supabase.auth.signOut(); window.location.href = "/signup" }}
+            >
+              Create your practice →
+            </Button>
+          ) : role === "Owner" ? (
+            <div className="hidden sm:flex items-center rounded-full border border-[#D0DCDC] bg-[#E8F7F7] p-0.5 gap-px">
               {ROLES.map(r => (
                 <button
                   key={r}
                   onClick={() => setViewRole(r)}
                   className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                     viewRole === r
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-white text-[#0D7377] shadow-sm"
+                      : "text-[#4A5C5C] hover:text-[#0D7377]"
                   }`}
                 >
                   {r}
@@ -124,17 +134,20 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
               ))}
             </div>
           ) : (
-            <span className="hidden sm:inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            <span className="hidden sm:inline-flex items-center rounded-full bg-[#E8F7F7] px-2.5 py-1 text-xs font-medium text-[#0D7377]">
               {role}
             </span>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => supabase.auth.signOut()}
-          >
-            Sign Out
-          </Button>
+          {!isDemo && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-[#D0DCDC] text-[#4A5C5C] hover:bg-[#E8F7F7]"
+              onClick={() => supabase.auth.signOut()}
+            >
+              Sign Out
+            </Button>
+          )}
         </div>
       </header>
 
@@ -148,8 +161,8 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
               onClick={() => setSearchParams({ team: t })}
               className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                 teamFilter === t
-                  ? "bg-foreground text-background border-foreground"
-                  : "border-border text-muted-foreground hover:border-foreground/60 hover:text-foreground"
+                  ? "bg-[#0D7377] text-white border-[#0D7377]"
+                  : "border-[#D0DCDC] text-[#4A5C5C] hover:border-[#14A0A5] hover:text-[#0D7377]"
               }`}
             >
               {t === "All" ? "All Teams" : t}
@@ -176,6 +189,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
             teamFilter={teamFilter}
             refreshKey={staffRefreshKey}
             practiceId={practiceId}
+            isDemo={isDemo}
             onStaffCreated={() => setStaffRefreshKey(k => k + 1)}
           />
         )}
@@ -183,10 +197,19 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
 
       {/* ── Lower KPI tiles ── */}
       <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
-        <NotesOverdueTile teamFilter={teamFilter} refreshKey={notesRefreshKey} />
+        <div id="notes-overdue">
+          <NotesOverdueTile teamFilter={teamFilter} refreshKey={notesRefreshKey} />
+        </div>
         <SupervisionComplianceTile teamFilter={teamFilter} />
         {visible.authUtilization && <AuthorizationUtilizationTile teamFilter={teamFilter} />}
       </div>
+
+      {/* ── Adoption Health — Owner only ── */}
+      {viewRole === "Owner" && (
+        <div className="w-full max-w-7xl">
+          <AdoptionHealthTile />
+        </div>
+      )}
 
       {/* ── Clients (live Supabase data) ── */}
       <div className="w-full max-w-7xl">
@@ -194,6 +217,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId }: { practi
           refreshKey={clientsRefreshKey}
           canAddClient={visible.addClient}
           practiceId={practiceId}
+          isDemo={isDemo}
           onClientCreated={() => setClientsRefreshKey(k => k + 1)}
         />
       </div>

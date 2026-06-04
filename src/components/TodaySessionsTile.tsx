@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { CalendarOff } from "lucide-react"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import {
   Card,
@@ -18,7 +19,6 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { getSessionsToday, type SessionRecord } from "@/lib/supabase"
 import { STATUS_ORDER, formatTime } from "@/lib/sessions"
-import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { SessionStatus } from "@/types/session"
 import type { TeamFilter } from "@/types/team"
@@ -148,7 +148,8 @@ export function TodaySessionsTile({ className, teamFilter, staffId }: { classNam
           <p className="py-8 text-center text-sm text-destructive">{error}</p>
         )}
         {!loading && !error && sortedSessions.length === 0 && (
-          <div className="py-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+            <CalendarOff className="w-8 h-8 text-[#14A0A5]" />
             No sessions match this filter.
           </div>
         )}
@@ -165,7 +166,7 @@ export function TodaySessionsTile({ className, teamFilter, staffId }: { classNam
             {sortedSessions.map((s) => (
               <Link
                 key={s.id}
-                to={"/clients/" + toSlug(s.clientName)}
+                to={"/clients/" + s.clientId}
                 className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] gap-x-3 -mx-2 px-2 rounded items-center transition-colors hover:bg-muted/60 cursor-pointer"
               >
                 <div className="font-mono text-muted-foreground tabular-nums py-1.5">

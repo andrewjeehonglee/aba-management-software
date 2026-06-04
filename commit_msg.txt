@@ -1,0 +1,6 @@
+﻿Add demo mode, Coastal ABA seed data, and Pulse design upgrade
+
+Demo account, isDemo context, DemoBanner, Try Demo button, write intercepts.
+Coastal ABA seed SQL with 11 staff, 12 clients, 70 sessions, 28 goals.
+Pulse brand: teal palette, F0F4F4 surface, white card shadows, split-screen auth.
+Dashboard header with Pulse wordmark, urgency tile borders, teal empty-state icons.

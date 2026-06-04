@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Plus, TriangleAlert } from "lucide-react"
+import { Plus, TriangleAlert, Users } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
   Bar,
@@ -36,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { toast } from "sonner"
 import { createStaff, getStaff, type StaffRecord } from "@/lib/supabase"
 import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
@@ -259,10 +260,11 @@ interface HoursByStaffTileProps {
   teamFilter?:     TeamFilter
   refreshKey?:     number
   practiceId?:     string
+  isDemo?:         boolean
   onStaffCreated?: () => void
 }
 
-export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId, onStaffCreated }: HoursByStaffTileProps) {
+export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId, isDemo, onStaffCreated }: HoursByStaffTileProps) {
   const [sortKey, setSortKey]     = useState<SortKey>("total")
   const [allStaff, setAllStaff]   = useState<StaffRecord[]>([])
   const [loading, setLoading]     = useState(true)
@@ -295,7 +297,10 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
               size="sm"
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1 mr-2"
-              onClick={() => setModalOpen(true)}
+              onClick={() => {
+                if (isDemo) { toast.info("Create a free account to save data."); return }
+                setModalOpen(true)
+              }}
             >
               <Plus className="size-3.5" />
               New Staff
@@ -326,7 +331,10 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
         {!loading && !error && sortedStaff.length === 0 && (
-          <p className="py-10 text-center text-sm text-muted-foreground">No staff found.</p>
+          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+            <Users className="w-8 h-8 text-[#14A0A5]" />
+            No staff found.
+          </div>
         )}
         {!loading && !error && sortedStaff.length > 0 && (
           <>

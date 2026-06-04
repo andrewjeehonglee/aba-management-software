@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Route, Routes } from "react-router-dom"
+import { Toaster } from "sonner"
 import type { Session } from "@supabase/supabase-js"
 import { ClientOverviewPage } from "@/pages/ClientOverviewPage"
 import { DashboardPage } from "@/pages/DashboardPage"
@@ -7,8 +8,12 @@ import { AuthPage } from "@/pages/AuthPage"
 import { CreatePracticePage } from "@/pages/CreatePracticePage"
 import { SessionViewPage } from "@/pages/SessionViewPage"
 import { StaffOverviewPage } from "@/pages/StaffOverviewPage"
+import { DemoBanner } from "@/components/DemoBanner"
+import { DemoContext } from "@/context/DemoContext"
 import { supabase, getUserPractice, getUserRole, getStaffByUserId } from "@/lib/supabase"
 import type { PracticeMembership } from "@/lib/supabase"
+
+const DEMO_EMAIL = "demo@pulseaba.app"
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -156,13 +161,19 @@ function App() {
     )
   }
 
+  const isDemo = session.user.email === DEMO_EMAIL
+
   return (
-    <Routes>
-      <Route path="/" element={<DashboardPage practiceId={practice.practice_id} userRole={userRole} currentStaffId={currentStaffId} />} />
-      <Route path="/clients/:clientId" element={<ClientOverviewPage />} />
-      <Route path="/staff/:staffId" element={<StaffOverviewPage />} />
-      <Route path="/session/:sessionId" element={<SessionViewPage />} />
-    </Routes>
+    <DemoContext.Provider value={isDemo}>
+      <Toaster position="top-center" richColors />
+      {isDemo && <DemoBanner />}
+      <Routes>
+        <Route path="/" element={<DashboardPage practiceId={practice.practice_id} userRole={userRole} currentStaffId={currentStaffId} isDemo={isDemo} />} />
+        <Route path="/clients/:clientId" element={<ClientOverviewPage />} />
+        <Route path="/staff/:staffId" element={<StaffOverviewPage />} />
+        <Route path="/session/:sessionId" element={<SessionViewPage />} />
+      </Routes>
+    </DemoContext.Provider>
   )
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Plus } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -242,10 +243,11 @@ interface ClientsListTileProps {
   refreshKey?:      number
   canAddClient?:    boolean
   practiceId?:      string
+  isDemo?:          boolean
   onClientCreated?: () => void
 }
 
-export function ClientsListTile({ refreshKey, canAddClient, practiceId, onClientCreated }: ClientsListTileProps) {
+export function ClientsListTile({ refreshKey, canAddClient, practiceId, isDemo, onClientCreated }: ClientsListTileProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -275,7 +277,10 @@ export function ClientsListTile({ refreshKey, canAddClient, practiceId, onClient
               size="sm"
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1"
-              onClick={() => setModalOpen(true)}
+              onClick={() => {
+                if (isDemo) { toast.info("Create a free account to save data."); return }
+                setModalOpen(true)
+              }}
             >
               <Plus className="size-3.5" />
               New Client

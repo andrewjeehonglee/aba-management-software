@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useDemo } from "@/context/DemoContext"
 import {
   CartesianGrid,
   Line,
@@ -67,6 +68,7 @@ interface EditState {
 }
 
 export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
+  const isDemo = useDemo()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<EditState | null>(null)
 
@@ -94,7 +96,9 @@ export function GoalDetailModal({ goal, onClose }: GoalDetailModalProps) {
   function saveEdit() {
     if (draft) {
       setSaved(draft)
-      updateGoalStatus(goal!.id, draft.status, draft.masteryTarget || undefined).catch(() => {})
+      if (!isDemo) {
+        updateGoalStatus(goal!.id, draft.status, draft.masteryTarget || undefined).catch(() => {})
+      }
     }
     setDraft(null)
     setEditing(false)

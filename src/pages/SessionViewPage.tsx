@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Check, Minus, Plus, X } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
+import { toast } from "sonner"
+import { useDemo } from "@/context/DemoContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -256,6 +258,7 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
 export function SessionViewPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
+  const isDemo = useDemo()
 
   // ── Data resolution ────────────────────────────────────────────────────────
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null)
@@ -402,13 +405,15 @@ export function SessionViewPage() {
     const entry: TrialOutcome = result === "correct" ? { result: "correct" } : { result: "incorrect", reason: reason ?? "Other" }
     setTrials(prev => ({ ...prev, [goalId]: [...(prev[goalId] ?? []), entry] }))
     setWhyXGoal(null)
-    saveTrialResult({
-      sessionId:   sessionId!,
-      goalId,
-      practiceId:  practiceIdRef.current,
-      trialNumber,
-      response:    result,
-    }).catch(() => {})
+    if (!isDemo) {
+      saveTrialResult({
+        sessionId:   sessionId!,
+        goalId,
+        practiceId:  practiceIdRef.current,
+        trialNumber,
+        response:    result,
+      }).catch(() => {})
+    }
   }
 
   // ── Post-session ───────────────────────────────────────────────────────────
@@ -423,6 +428,7 @@ export function SessionViewPage() {
   const canSubmit = isCancelled ? cancelReason.trim().length > 0 : soapFilled && signatureCaptured
 
   function handleSubmitSession() {
+    if (isDemo) { toast.info("Create a free account to save data."); return }
     if (timerKey) sessionStorage.removeItem(timerKey)
     submitSessionNote({
       practiceId: practiceIdRef.current,
@@ -533,7 +539,7 @@ export function SessionViewPage() {
       {mode === "active" && (
         <>
           <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
               {/* ── LEFT: Behaviors ── */}
               <section className="space-y-4">

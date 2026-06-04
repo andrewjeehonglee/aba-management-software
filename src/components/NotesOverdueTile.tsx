@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { CheckCircle2 } from "lucide-react"
 import {
   Card,
   CardAction,
@@ -87,8 +88,10 @@ export function NotesOverdueTile({ className, teamFilter, refreshKey }: { classN
   const totalOverdue = sortedNotes.reduce((sum, row) => sum + row.overdueCount, 0)
   const staffWithOverdue = sortedNotes.length
 
+  const borderClass = totalOverdue > 0 ? "border-l-4 border-l-red-500" : ""
+
   return (
-    <Card size="sm" className={cn("w-full", className)}>
+    <Card size="sm" className={cn("w-full", borderClass, className)}>
       <CardHeader>
         <CardTitle>Notes Overdue</CardTitle>
         <CardAction>
@@ -116,11 +119,17 @@ export function NotesOverdueTile({ className, teamFilter, refreshKey }: { classN
         {error && (
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
-        {!loading && !error && (
+        {!loading && !error && sortedNotes.length === 0 && (
+          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+            <CheckCircle2 className="w-8 h-8 text-[#14A0A5]" />
+            All notes are up to date.
+          </div>
+        )}
+        {!loading && !error && sortedNotes.length > 0 && (
           <>
             <div className="flex items-baseline gap-2">
               <span
-                className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(totalOverdue)}`}
+                className={`text-4xl font-bold tracking-tight tabular-nums leading-none ${headlineClass(totalOverdue)}`}
               >
                 {totalOverdue}
               </span>

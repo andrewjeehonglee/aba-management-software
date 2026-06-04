@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react"
 import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Play, Plus } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
+import { toast } from "sonner"
+import { useDemo } from "@/context/DemoContext"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
 import { SessionCalendar } from "@/components/SessionCalendar"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
@@ -25,11 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { mockAuthorizations } from "@/data/mockAuthorizations"
-import { mockCalendarSessions } from "@/data/mockCalendarSessions"
-import { mockClients } from "@/data/mockClients"
-import { mockGoals } from "@/data/mockGoals"
-import { mockSessions } from "@/data/mockSessions"
 import {
   FLAGGED_THRESHOLD,
   usedHours,
@@ -39,7 +36,6 @@ import { formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
-import type { ClientProfile } from "@/types/client"
 import type { Goal, GoalStatus } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
 
@@ -520,17 +516,19 @@ const STATUS_LABEL: Record<SessionStatus, string> = {
 // Sort order: in-progress first (active work), then hold (needs review),
 // then mastered (completed successfully), then discontinued (inactive, muted).
 const GOAL_STATUS_CONFIG: Record<
-  GoalStatus,
+  string,
   { label: string; className: string }
 > = {
-  "in-progress": { label: "In progress",  className: "bg-blue-100 text-blue-800"       },
-  hold:          { label: "Hold",         className: "bg-amber-100 text-amber-800"     },
-  mastered:      { label: "Mastered",     className: "bg-emerald-100 text-emerald-800" },
-  discontinued:  { label: "Discontinued", className: "bg-gray-100 text-gray-500"       },
+  "in-progress":  { label: "In progress",  className: "bg-blue-100 text-blue-800"       },
+  "in_progress":  { label: "In progress",  className: "bg-blue-100 text-blue-800"       },
+  hold:           { label: "Hold",         className: "bg-amber-100 text-amber-800"     },
+  mastered:       { label: "Mastered",     className: "bg-emerald-100 text-emerald-800" },
+  discontinued:   { label: "Discontinued", className: "bg-gray-100 text-gray-500"       },
 }
 
-const GOAL_STATUS_ORDER: Record<GoalStatus, number> = {
+const GOAL_STATUS_ORDER: Record<string, number> = {
   "in-progress": 0,
+  "in_progress": 0,
   hold:          1,
   mastered:      2,
   discontinued:  3,
@@ -544,13 +542,13 @@ function Chip({ children }: { children: React.ReactNode }) {
   )
 }
 
-function GoalStatusBadge({ status }: { status: GoalStatus }) {
-  const { label, className } = GOAL_STATUS_CONFIG[status]
+function GoalStatusBadge({ status }: { status: string }) {
+  const config = GOAL_STATUS_CONFIG[status] ?? { label: status, className: "bg-gray-100 text-gray-500" }
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${config.className}`}
     >
-      {label}
+      {config.label}
     </span>
   )
 }
@@ -584,37 +582,11 @@ function formatDate(iso: string) {
   })
 }
 
-// Derive the care-team roles from this client's session history. Map session
-// types to ABA staff roles:
-//   - "Direct therapy"               → Technician (RBT)
-//   - "Supervision"                  → Supervisor
-//   - "Assessment" / "Parent training" → BCBA
-// When no session of the relevant type exists for this client, fall back to
-// the explicit value on the ClientProfile. This means the page reflects the
-// current operational reality (who's actually working with this kid this
-// week) when sessions are present, and the assigned-on-paper roster
-// otherwise.
-function deriveStaffRoles(sessions: Session[], profile: ClientProfile) {
-  const technicianFromSessions = sessions.find(
-    (s) => s.sessionType === "Direct therapy"
-  )?.staffName
-  const supervisorFromSessions = sessions.find(
-    (s) => s.sessionType === "Supervision"
-  )?.staffName
-  const bcbaFromSessions = sessions.find(
-    (s) => s.sessionType === "Assessment" || s.sessionType === "Parent training"
-  )?.staffName
-
-  return {
-    technician: technicianFromSessions ?? profile.technician,
-    supervisor: supervisorFromSessions ?? profile.supervisor,
-    bcba:       bcbaFromSessions       ?? profile.bcba,
-  }
-}
 
 export function ClientOverviewPage() {
   const { clientId } = useParams<{ clientId: string }>()
   const navigate = useNavigate()
+  const isDemo = useDemo()
 
   // If the URL param is a UUID, fetch the client from Supabase.
   // If it's a slug (old links / manual nav), fall back to mock matching.
@@ -721,6 +693,7 @@ export function ClientOverviewPage() {
 
   async function handleStartSession() {
     if (!clientId) return
+    if (isDemo) { toast.info("Create a free account to save data."); return }
     setStartSessionError(null)
     setStartSessionLoading(true)
     try {
@@ -730,9 +703,11 @@ export function ClientOverviewPage() {
       if (!membership) throw new Error("No practice found for this account")
       const staffRowId = await getStaffByUserId(user.id)
       if (!staffRowId) throw new Error("Your account isn't linked to a staff profile yet. Ask your practice owner to set one up for you.")
+      // Use the real UUID from liveClient if loaded; fall back to URL param only if it's already a UUID
+      const resolvedClientId = liveClient?.id ?? clientId
       const newSessionId = await createSession({
         practiceId:  membership.practice_id,
-        clientId,
+        clientId:    resolvedClientId,
         staffId:     staffRowId,
         sessionType: "direct",
       })
@@ -744,12 +719,6 @@ export function ClientOverviewPage() {
     }
   }
 
-  // Slug used for mock lookups — derive from live name when available,
-  // otherwise treat the param itself as the slug.
-  const mockSlug = liveClient
-    ? toSlug(`${liveClient.first_name} ${liveClient.last_name}`)
-    : isUUID ? null : (clientId ?? null)
-
   const todayISO = new Date().toISOString().slice(0, 10)
   const liveSessionsToday = liveSessions?.filter(
     (s) => s.time.slice(0, 10) === todayISO
@@ -760,36 +729,16 @@ export function ClientOverviewPage() {
     return d >= cutoff
   }) ?? []
 
-  const mockClientSessions = mockSlug
-    ? mockSessions.filter((s) => toSlug(s.clientName) === mockSlug)
-    : []
-
-  const clientSessions = liveSessions ? liveSessionsToday : mockClientSessions
-
+  const clientSessions = liveSessionsToday
   const uniqueStaff = Array.from(new Set(clientSessions.map((s) => s.staffName)))
-
-  const sortedClientSessions = liveSessions
-    ? [...liveSessionsLastWeek].sort((a, b) => a.time.localeCompare(b.time))
-    : [...mockClientSessions].sort((a, b) => a.time.localeCompare(b.time))
-
-  const calendarSessions = liveSessions
-    ? liveSessions
-    : (mockSlug ? mockCalendarSessions.filter((s) => toSlug(s.clientName) === mockSlug) : [])
-
-  const auth = liveAuth
-    ?? (mockSlug ? mockAuthorizations.find((a) => toSlug(a.clientName) === mockSlug) : undefined)
-  const profile = mockSlug
-    ? mockClients.find((c) => toSlug(c.name) === mockSlug)
-    : undefined
+  const sortedClientSessions = [...liveSessionsLastWeek].sort((a, b) => a.time.localeCompare(b.time))
+  const calendarSessions = liveSessions ?? []
 
   const displayName = liveClient
     ? `${liveClient.first_name} ${liveClient.last_name}`
-    : profile?.name
-      ?? auth?.clientName
-      ?? clientSessions[0]?.clientName
-      ?? (clientId ? unslug(clientId) : "Unknown client")
+    : (clientId ? unslug(clientId) : "Unknown client")
 
-  const clientGoals: (Goal | GoalRecord)[] = liveGoals ?? (mockSlug ? (mockGoals[mockSlug] ?? []) : [])
+  const clientGoals: GoalRecord[] = liveGoals ?? []
   const sortedGoals = [...clientGoals].sort(
     (a, b) =>
       GOAL_STATUS_ORDER[a.status as keyof typeof GOAL_STATUS_ORDER] - GOAL_STATUS_ORDER[b.status as keyof typeof GOAL_STATUS_ORDER] ||
@@ -879,14 +828,9 @@ export function ClientOverviewPage() {
             </p>
           )}
 
-          {/* Live header detail — shown when navigated from the Clients tile */}
+          {/* Client detail — shown once the live record loads */}
           {!clientLoading && liveClient && (
-            <LiveClientDetailGrid client={liveClient} />
-          )}
-
-          {/* Mock detail grid — fallback for slug-based navigation */}
-          {!liveClient && profile && (
-            <ClientDetailGrid profile={profile} sessions={clientSessions as unknown as Session[]} />
+            <LiveClientDetailGrid client={liveClient} auth={liveAuth} />
           )}
         </CardContent>
       </Card>
@@ -900,7 +844,10 @@ export function ClientOverviewPage() {
               size="sm"
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1"
-              onClick={() => setAuthModalOpen(true)}
+              onClick={() => {
+                if (isDemo) { toast.info("Create a free account to save data."); return }
+                setAuthModalOpen(true)
+              }}
             >
               {liveAuth ? "Edit" : <><Plus className="size-3.5" />Add Authorization</>}
             </Button>
@@ -992,7 +939,10 @@ export function ClientOverviewPage() {
               size="sm"
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1"
-              onClick={() => setGoalModalOpen(true)}
+              onClick={() => {
+                if (isDemo) { toast.info("Create a free account to save data."); return }
+                setGoalModalOpen(true)
+              }}
             >
               <Plus className="size-3.5" />
               New Goal
@@ -1038,7 +988,10 @@ export function ClientOverviewPage() {
                 size="sm"
                 variant="outline"
                 className="h-7 px-2.5 text-xs gap-1"
-                onClick={() => setBehaviorModalOpen(true)}
+                onClick={() => {
+                  if (isDemo) { toast.info("Create a free account to save data."); return }
+                  setBehaviorModalOpen(true)
+                }}
               >
                 <Plus className="size-3.5" />
                 New Behavior
@@ -1167,9 +1120,10 @@ function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
   )
 }
 
-// Live detail grid — rendered when the page is loaded via a UUID-based URL
-// from the Clients tile. Shows the fields available in the clients table.
-function LiveClientDetailGrid({ client }: { client: ClientDetail }) {
+// Detail grid shown when the page loads via a UUID-based URL. All fields come
+// from the clients row; auth-period and CPT code fall back to the separate
+// authorizations row when the client record doesn't carry those values directly.
+function LiveClientDetailGrid({ client, auth }: { client: ClientDetail; auth?: AuthRecord | null }) {
   const STATUS_STYLES: Record<string, string> = {
     active:     "bg-green-100 text-green-800",
     inactive:   "bg-amber-100 text-amber-800",
@@ -1177,6 +1131,13 @@ function LiveClientDetailGrid({ client }: { client: ClientDetail }) {
   }
   const statusLabel = client.status ?? "unknown"
   const statusCls = STATUS_STYLES[statusLabel.toLowerCase()] ?? "bg-gray-100 text-gray-500"
+
+  const authStart = client.auth_start_date ?? auth?.startDate ?? null
+  const authEnd   = client.auth_end_date   ?? auth?.endDate   ?? null
+  const cptDisplay =
+    (client.cpt_codes && client.cpt_codes.length > 0)
+      ? client.cpt_codes.join(", ")
+      : auth?.cptCode ?? null
 
   return (
     <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
@@ -1190,23 +1151,20 @@ function LiveClientDetailGrid({ client }: { client: ClientDetail }) {
       <dt className="text-muted-foreground">Date of birth</dt>
       <dd>{client.date_of_birth ? formatDate(client.date_of_birth) : "—"}</dd>
 
-      <dt className="text-muted-foreground">Team</dt>
-      <dd>{client.team ?? "—"}</dd>
-
       <dt className="text-muted-foreground">Insurance</dt>
       <dd>{client.insurance ?? "—"}</dd>
 
       <dt className="text-muted-foreground">Authorization period</dt>
       <dd>
-        {client.auth_start_date && client.auth_end_date
-          ? `${formatDate(client.auth_start_date)} – ${formatDate(client.auth_end_date)}`
+        {authStart && authEnd
+          ? `${formatDate(authStart)} – ${formatDate(authEnd)}`
           : "—"}
       </dd>
 
       <dt className="text-muted-foreground">CPT / billing code</dt>
       <dd>
-        {client.cpt_codes && client.cpt_codes.length > 0
-          ? <span className="font-mono">{client.cpt_codes.join(", ")}</span>
+        {cptDisplay
+          ? <span className="font-mono">{cptDisplay}</span>
           : "—"}
       </dd>
 
@@ -1223,78 +1181,13 @@ function LiveClientDetailGrid({ client }: { client: ClientDetail }) {
           )
           : "—"}
       </dd>
+
+      <dt className="text-muted-foreground">Team</dt>
+      <dd>{client.team ?? "—"}</dd>
     </dl>
   )
 }
 
-// Extracted to keep the main component readable. Renders the 8-row label/value
-// detail block (DOB, address, insurance, auth period, billing code, care team)
-// with a thin top border that visually separates it from the chips/status/
-// "Working with" block above it within the same card.
-function ClientDetailGrid({
-  profile,
-  sessions,
-}: {
-  profile: ClientProfile
-  sessions: Session[]
-}) {
-  const { bcba, supervisor, technician } = deriveStaffRoles(sessions, profile)
-
-  return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
-      <dt className="text-muted-foreground">Date of birth</dt>
-      <dd>{formatDate(profile.dateOfBirth)}</dd>
-
-      <dt className="text-muted-foreground">Address</dt>
-      <dd>{profile.address}</dd>
-
-      <dt className="text-muted-foreground">Insurance</dt>
-      <dd>{profile.insurance}</dd>
-
-      <dt className="text-muted-foreground">Authorization period</dt>
-      <dd>
-        {formatDate(profile.authorizationPeriodStart)} –{" "}
-        {formatDate(profile.authorizationPeriodEnd)}
-      </dd>
-
-      <dt className="text-muted-foreground">CPT / billing code</dt>
-      <dd>
-        <span className="font-mono">{profile.cptCode}</span>
-        <span className="text-muted-foreground"> — {profile.cptLabel}</span>
-      </dd>
-
-      <dt className="text-muted-foreground">BCBA</dt>
-      <dd>
-        <Link
-          to={"/staff/" + toSlug(bcba)}
-          className="hover:underline underline-offset-2"
-        >
-          {bcba}
-        </Link>
-      </dd>
-
-      <dt className="text-muted-foreground">Supervisor</dt>
-      <dd>
-        <Link
-          to={"/staff/" + toSlug(supervisor)}
-          className="hover:underline underline-offset-2"
-        >
-          {supervisor}
-        </Link>
-      </dd>
-
-      <dt className="text-muted-foreground">Technician</dt>
-      <dd>
-        <Link
-          to={"/staff/" + toSlug(technician)}
-          className="hover:underline underline-offset-2"
-        >
-          {technician}
-        </Link>
-      </dd>
-    </dl>
-  )
-}
 
 // Expandable row for a single SOAP note. Collapsed by default — the date and
 // a truncated preview of the subjective field give enough context to decide

@@ -170,6 +170,7 @@ interface SessionRow {
   scheduled_at: string
   session_type: string
   status: string
+  client_id: string
   clients: { first_name: string; last_name: string }
   staff: { full_name: string; team: string }
 }
@@ -177,6 +178,7 @@ interface SessionRow {
 export interface SessionRecord {
   id: string
   time: string
+  clientId: string
   clientName: string
   staffName: string
   staffTeam: string
@@ -202,7 +204,7 @@ export async function getSessionsToday(staffId?: string): Promise<SessionRecord[
 
   let query = supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, clients(first_name, last_name), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
     .gte('scheduled_at', start)
     .lt('scheduled_at', end)
     .order('scheduled_at', { ascending: true })
@@ -215,6 +217,7 @@ export async function getSessionsToday(staffId?: string): Promise<SessionRecord[
   return (data as unknown as SessionRow[]).map((row) => ({
     id:          row.id,
     time:        row.scheduled_at,
+    clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
     staffName:   row.staff.full_name,
     staffTeam:   row.staff.team,
@@ -226,7 +229,7 @@ export async function getSessionsToday(staffId?: string): Promise<SessionRecord[
 export async function getSessionsByClientId(clientId: string): Promise<SessionRecord[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, clients(first_name, last_name), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
     .eq('client_id', clientId)
     .order('scheduled_at', { ascending: true })
   if (error) throw error
@@ -234,6 +237,7 @@ export async function getSessionsByClientId(clientId: string): Promise<SessionRe
   return (data as unknown as SessionRow[]).map((row) => ({
     id:          row.id,
     time:        row.scheduled_at,
+    clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
     staffName:   row.staff.full_name,
     staffTeam:   row.staff.team,
@@ -442,7 +446,7 @@ export async function getSupervisionByStaffId(staffId: string): Promise<Supervis
 export async function getSessionsByStaffId(staffId: string): Promise<SessionRecord[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, clients(first_name, last_name), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
     .eq('staff_id', staffId)
     .order('scheduled_at', { ascending: true })
   if (error) throw error
@@ -450,6 +454,7 @@ export async function getSessionsByStaffId(staffId: string): Promise<SessionReco
   return (data as unknown as SessionRow[]).map((row) => ({
     id:          row.id,
     time:        row.scheduled_at,
+    clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
     staffName:   row.staff.full_name,
     staffTeam:   row.staff.team,
@@ -639,9 +644,9 @@ export interface BehaviorIncidentRecord {
 export async function getBehaviorIncidentsByClientId(clientId: string): Promise<BehaviorIncidentRecord[]> {
   const { data, error } = await supabase
     .from('behavior_incidents')
-    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, created_at, behaviors(name)')
+    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, behaviors(name)')
     .eq('client_id', clientId)
-    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
   if (error) throw error
   return (data ?? []) as unknown as BehaviorIncidentRecord[]
 }
@@ -649,9 +654,9 @@ export async function getBehaviorIncidentsByClientId(clientId: string): Promise<
 export async function getSessionNotesByClientId(clientId: string): Promise<SessionNoteRecord[]> {
   const { data, error } = await supabase
     .from('session_notes')
-    .select('id, session_id, staff_id, subjective, objective, assessment, plan, created_at')
+    .select('id, session_id, staff_id, subjective, objective, assessment, plan')
     .eq('client_id', clientId)
-    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
   if (error) throw error
   return (data ?? []) as SessionNoteRecord[]
 }
@@ -875,4 +880,48 @@ export async function getUserPractice(userId: string): Promise<PracticeMembershi
   // Genuine success: the membership row, or null when zero rows matched.
   console.log('[getUserPractice] result:', data)
   return (data as PracticeMembership | null) ?? null
+}
+
+// ─── Adoption Health Stats ────────────────────────────────────────────────────
+
+export interface AdoptionHealthStats {
+  activeStaffThisWeek: number
+  totalStaff: number
+  completionRate: number
+  totalSessionsThisWeek: number
+}
+
+export async function getAdoptionHealthStats(): Promise<AdoptionHealthStats> {
+  const now = new Date()
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() - now.getDay())
+  weekStart.setHours(0, 0, 0, 0)
+
+  const [sessionsResp, staffResp] = await Promise.all([
+    supabase
+      .from('sessions')
+      .select('staff_id, status')
+      .gte('scheduled_at', weekStart.toISOString()),
+    supabase
+      .from('staff')
+      .select('id', { count: 'exact', head: true }),
+  ])
+
+  if (sessionsResp.error) throw sessionsResp.error
+  if (staffResp.error) throw staffResp.error
+
+  const sessions = (sessionsResp.data ?? []) as { staff_id: string; status: string }[]
+  const totalStaff = staffResp.count ?? 0
+
+  const activeStaffIds = new Set(sessions.map(s => s.staff_id))
+  const completed = sessions.filter(s => s.status === 'completed').length
+  const countable = sessions.filter(s => s.status !== 'cancelled' && s.status !== 'no-show').length
+  const completionRate = countable > 0 ? Math.round((completed / countable) * 100) : 0
+
+  return {
+    activeStaffThisWeek: activeStaffIds.size,
+    totalStaff,
+    completionRate,
+    totalSessionsThisWeek: sessions.length,
+  }
 }

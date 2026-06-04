@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { BadgeCheck } from "lucide-react"
 import {
   Card,
   CardAction,
@@ -96,8 +97,10 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
   ).length
   const totalClients = sortedClients.length
 
+  const borderClass = flaggedCount >= 1 ? "border-l-4 border-l-red-500" : ""
+
   return (
-    <Card size="sm" className={cn("w-full", className)}>
+    <Card size="sm" className={cn("w-full", borderClass, className)}>
       <CardHeader>
         <CardTitle>Authorization Utilization</CardTitle>
         <CardDescription className="text-xs">
@@ -128,11 +131,17 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
         {error && (
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
-        {!loading && !error && (
+        {!loading && !error && sortedClients.length === 0 && (
+          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+            <BadgeCheck className="w-8 h-8 text-[#14A0A5]" />
+            No authorizations found.
+          </div>
+        )}
+        {!loading && !error && sortedClients.length > 0 && (
           <>
             <div className="flex items-baseline gap-2">
               <span
-                className={`text-4xl font-semibold tabular-nums leading-none ${headlineClass(flaggedCount)}`}
+                className={`text-4xl font-bold tracking-tight tabular-nums leading-none ${headlineClass(flaggedCount)}`}
               >
                 {flaggedCount}
               </span>
@@ -171,3 +180,4 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
     </Card>
   )
 }
+
