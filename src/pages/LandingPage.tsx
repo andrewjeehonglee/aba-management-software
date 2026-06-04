@@ -1,8 +1,9 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
 import { LayoutDashboard, ClipboardList, BellRing, Clock } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 
 const DEMO_EMAIL    = "demo@pulseaba.app"
@@ -71,9 +72,12 @@ export function LandingPage() {
       <header className="sticky top-0 z-10 border-b border-pulse-light bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 md:px-6">
           <span className="text-xl font-bold tracking-tight text-pulse-primary">Pulse</span>
-          <Button className="bg-pulse-primary hover:bg-pulse-primary/90 text-white" asChild>
-            <Link to="/signup">Get started</Link>
-          </Button>
+          <Link
+            to="/signup"
+            className={cn(buttonVariants(), "bg-pulse-primary hover:bg-pulse-primary/90 text-white")}
+          >
+            Get started
+          </Link>
         </div>
       </header>
 
@@ -89,13 +93,12 @@ export function LandingPage() {
             One platform for your whole team, so you can focus on your clients.
           </p>
           <div className="mt-10">
-            <Button
-              size="lg"
-              className="bg-pulse-primary hover:bg-pulse-primary/90 text-white text-lg font-bold px-10 py-4 rounded-xl"
-              asChild
+            <Link
+              to="/signup"
+              className={cn(buttonVariants({ size: "lg" }), "bg-pulse-primary hover:bg-pulse-primary/90 text-white text-lg font-bold px-10 py-4 rounded-xl")}
             >
-              <Link to="/signup">Get started</Link>
-            </Button>
+              Get started
+            </Link>
           </div>
         </section>
 
