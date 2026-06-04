@@ -116,16 +116,14 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
               {role}
             </span>
           )}
-          {!isDemo && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[#D0DCDC] text-[#4A5C5C] hover:bg-[#E8F7F7]"
-              onClick={() => supabase.auth.signOut()}
-            >
-              Sign Out
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-pulse-muted hover:text-pulse-text"
+            onClick={() => supabase.auth.signOut()}
+          >
+            Sign out
+          </Button>
         </div>
       </header>
 

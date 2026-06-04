@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react"
-import { Route, Routes } from "react-router-dom"
+import { Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "sonner"
 import type { Session } from "@supabase/supabase-js"
 import { ClientOverviewPage } from "@/pages/ClientOverviewPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { AuthPage } from "@/pages/AuthPage"
+import { LandingPage } from "@/pages/LandingPage"
 import { CreatePracticePage } from "@/pages/CreatePracticePage"
 import { SessionViewPage } from "@/pages/SessionViewPage"
 import { StaffOverviewPage } from "@/pages/StaffOverviewPage"
@@ -129,7 +130,16 @@ function App() {
     )
   }
 
-  if (!session) return <AuthPage />
+  if (!session) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<AuthPage mode="login" />} />
+        <Route path="/signup" element={<AuthPage mode="signup" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    )
+  }
 
   // The practice lookup failed operationally (query error / timeout). Show a
   // visible, retryable error instead of the onboarding screen — the user may
@@ -172,6 +182,7 @@ function App() {
         <Route path="/clients/:clientId" element={<ClientOverviewPage />} />
         <Route path="/staff/:staffId" element={<StaffOverviewPage />} />
         <Route path="/session/:sessionId" element={<SessionViewPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </DemoContext.Provider>
   )

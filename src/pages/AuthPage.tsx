@@ -1,8 +1,10 @@
 import { useState } from "react"
-import { Check, Shield } from "lucide-react"
+import { Link } from "react-router-dom"
+import { ArrowLeft, Check, Shield } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DashboardMockup } from "@/components/DashboardMockup"
 
 const DEMO_EMAIL    = "demo@pulseaba.app"
 const DEMO_PASSWORD = "PulseDemo2026!"
@@ -13,50 +15,12 @@ const VALUE_PROPS = [
   "Complete visibility across your team",
 ]
 
-// Mini dashboard mockup — approximates the card grid layout
-function DashboardMockup() {
-  return (
-    <div className="w-full max-w-xs rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm">
-      {/* Header bar */}
-      <div className="mb-2.5 flex items-center justify-between px-0.5">
-        <div className="h-2 w-10 rounded-full bg-white/60" />
-        <div className="flex gap-1">
-          <div className="h-1.5 w-5 rounded-full bg-white/30" />
-          <div className="h-1.5 w-5 rounded-full bg-white/20" />
-        </div>
-      </div>
 
-      {/* KPI row */}
-      <div className="grid grid-cols-3 gap-1.5 mb-1.5">
-        <div className="rounded-lg bg-white/15 p-2">
-          <div className="text-base font-bold text-white tabular-nums">28</div>
-          <div className="mt-1 h-1 w-8 rounded-full bg-white/25" />
-        </div>
-        <div className="rounded-lg border border-red-300/40 bg-red-400/20 p-2">
-          <div className="text-base font-bold text-white tabular-nums">2</div>
-          <div className="mt-1 h-1 w-6 rounded-full bg-white/25" />
-        </div>
-        <div className="rounded-lg bg-white/15 p-2">
-          <div className="text-base font-bold text-white tabular-nums">91%</div>
-          <div className="mt-1 h-1 w-5 rounded-full bg-white/25" />
-        </div>
-      </div>
-
-      {/* Session list approximation */}
-      <div className="rounded-lg bg-white/15 px-2.5 py-2 space-y-1.5">
-        {[["Emma R.", "8:00 AM", "#4ade80"], ["Liam T.", "9:00 AM", "#fbbf24"], ["Isabella J.", "10:00 AM", "#f87171"]].map(([name, time, dot]) => (
-          <div key={name} className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: dot }} />
-            <div className="h-1.5 flex-1 rounded-full bg-white/30" />
-            <div className="text-[8px] text-white/50 tabular-nums shrink-0">{time}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
+interface AuthPageProps {
+  mode?: "login" | "signup"
 }
 
-export function AuthPage() {
+export function AuthPage({ mode = "login" }: AuthPageProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -149,6 +113,15 @@ export function AuthPage() {
       <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 py-12">
         <div className="w-full max-w-sm space-y-7">
 
+          {/* Back to home */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm text-[#4A5C5C] hover:text-[#0D7377] transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to home
+          </Link>
+
           {/* Mobile-only wordmark */}
           <div className="space-y-1 md:hidden text-center">
             <p className="text-2xl font-bold tracking-tight text-[#0D7377]">Pulse</p>
@@ -158,9 +131,11 @@ export function AuthPage() {
           {/* Form header */}
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight text-[#1E2A2A]">
-              Welcome back
+              {mode === "signup" ? "Create your account" : "Welcome back"}
             </h1>
-            <p className="text-sm text-[#4A5C5C]">Sign in to your practice</p>
+            <p className="text-sm text-[#4A5C5C]">
+              {mode === "signup" ? "Start your free Pulse practice" : "Sign in to your practice"}
+            </p>
           </div>
 
           {/* Fields */}
@@ -214,21 +189,43 @@ export function AuthPage() {
             )}
 
             <div className="flex gap-2 pt-1">
-              <Button
-                className="flex-1 bg-[#0D7377] hover:bg-[#0a5f63] text-white"
-                onClick={handleSignIn}
-                disabled={loading || !email || !password}
-              >
-                {loading ? "Signing in…" : "Sign In"}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 border-[#D0DCDC] text-[#1E2A2A] hover:bg-[#E8F7F7] hover:border-[#14A0A5]"
-                onClick={handleSignUp}
-                disabled={loading || !email || !password}
-              >
-                Sign Up
-              </Button>
+              {mode === "signup" ? (
+                <>
+                  <Button
+                    className="flex-1 bg-[#0D7377] hover:bg-[#0a5f63] text-white"
+                    onClick={handleSignUp}
+                    disabled={loading || !email || !password}
+                  >
+                    {loading ? "Creating account…" : "Sign Up"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-[#D0DCDC] text-[#1E2A2A] hover:bg-[#E8F7F7] hover:border-[#14A0A5]"
+                    onClick={handleSignIn}
+                    disabled={loading || !email || !password}
+                  >
+                    Sign In
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    className="flex-1 bg-[#0D7377] hover:bg-[#0a5f63] text-white"
+                    onClick={handleSignIn}
+                    disabled={loading || !email || !password}
+                  >
+                    {loading ? "Signing in…" : "Sign In"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-[#D0DCDC] text-[#1E2A2A] hover:bg-[#E8F7F7] hover:border-[#14A0A5]"
+                    onClick={handleSignUp}
+                    disabled={loading || !email || !password}
+                  >
+                    Sign Up
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
