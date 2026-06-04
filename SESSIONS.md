@@ -1451,6 +1451,42 @@ Already-normalised values (e.g. "Team A" from the add-staff form) pass through u
 
 ---
 
+### Step I — Demo walkthrough: unlock Start Session and Submit flow
+
+**Problem:** `handleStartSession()` in `ClientOverviewPage.tsx` had an `isDemo` early return that fired before any DB calls, blocking the full session flow entirely. `handleSubmitSession()` in `SessionViewPage.tsx` had the same pattern — toast and return, leaving Jenny on a dead-end screen.
+
+The demo user is fully wired: `demo@pulseaba.app` → Sarah Chen (`staff` row) → Coastal ABA (`practice_members` row). All three lookups inside `handleStartSession()` (`getUser`, `getUserPractice`, `getStaffByUserId`) resolve correctly once the gate is lifted.
+
+**Fix 1 — `ClientOverviewPage.tsx`:** Removed the `isDemo` early return from `handleStartSession()`. One line deleted:
+```ts
+// REMOVED:
+if (isDemo) { toast.info("Create a free account to save data."); return }
+```
+Session now creates in the DB and navigates into `SessionViewPage` for the demo user.
+
+**Fix 2 — `SessionViewPage.tsx`:** Replaced the dead-end toast in `handleSubmitSession()` with a real exit:
+```ts
+// BEFORE:
+if (isDemo) { toast.info("Create a free account to save data."); return }
+
+// AFTER:
+if (isDemo) {
+  if (timerKey) sessionStorage.removeItem(timerKey)
+  navigate("/?refresh=notes")
+  return
+}
+```
+Demo submit clears the session timer and navigates back to the dashboard — same behavior as a real submission.
+
+The trial-save gate (`if (!isDemo) { saveTrialResult(...) }`) was intentionally left in place. Trials register in the UI during the demo but do not write to the shared DB, keeping the demo account clean.
+
+**Fix 3 — Build fix (`SessionViewPage.tsx`):** Removing the `toast.info(...)` call left the `import { toast } from "sonner"` import orphaned. TypeScript strict mode (`TS6133`) caught it at Vercel build time. Removed the import.
+
+Demo walkthrough flow is now fully live:
+> Landing page → "Try the demo" → Dashboard → client name → Start Session → SOAP notes + trial data → Submit → Dashboard
+
+---
+
 ### Files changed
 
 | File | Change |
@@ -1461,6 +1497,8 @@ Already-normalised values (e.g. "Team A" from the add-staff form) pass through u
 | `src/pages/AuthPage.tsx` | `mode` prop, back-to-home link, import shared DashboardMockup |
 | `src/pages/DashboardPage.tsx` | Sign-out button always visible (removed `!isDemo` guard) |
 | `src/lib/supabase.ts` | `teamLabel()` helper; applied to 9 mapper sites |
+| `src/pages/ClientOverviewPage.tsx` | Removed `isDemo` gate from `handleStartSession()` |
+| `src/pages/SessionViewPage.tsx` | Demo submit navigates to dashboard; removed orphaned `toast` import |
 | `seed_coastal_aba.sql` | Today's sessions updated to Jun 4 + 6 new staff rows |
 | `patch_sessions_jun4.sql` | **new** — one-time SQL to fix live DB dates + add missing sessions |
 
@@ -1468,12 +1506,15 @@ Already-normalised values (e.g. "Team A" from the add-staff form) pass through u
 - `3482cae` — *Add public landing page with full unauthenticated routing*
 - `42a8f47` — *Fix build: replace asChild Button with buttonVariants on Link elements*
 - `2ae84c4` — *Fix team filter mismatch and seed today sessions for all 11 staff*
+- `cc315c0` — *docs: Session 27 — landing page, routing, teamLabel fix, session seed patch*
+- `3a314e7` — *Demo: allow Start Session and complete submit flow for demo user*
+- `0b0f8a5` — *Fix build: remove unused toast import from SessionViewPage*
 
 ### Deployment
-All three commits pushed to `main` → auto-deployed to Vercel at https://aba-management-software.vercel.app
+All commits pushed to `main` → auto-deployed to Vercel at https://aba-management-software.vercel.app
 
 **Pending manual step:** Run `patch_sessions_jun4.sql` in the Supabase SQL Editor to fix the live demo DB (date shift + 6 missing-staff sessions).
 
 ---
 
-*Last updated: Jun 4, 2026 (end of Session 27).*
+*Last updated: Jun 4, 2026 (end of Session 27, post-log additions).*
