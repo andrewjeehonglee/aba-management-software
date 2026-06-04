@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
-import { AdoptionHealthTile } from "@/components/AdoptionHealthTile"
+import { AdoptionHealthBanner } from "@/components/AdoptionHealthBanner"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
+import { PracticeHeroTile } from "@/components/PracticeHeroTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import { TodaySessionsTile } from "@/components/TodaySessionsTile"
-import { ClientsListTile } from "@/components/ClientsListTile"
 import {
   ROLE_DEFAULT_TEAM,
   TEAM_FILTERS,
@@ -70,19 +69,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
   const visible = canSee(viewRole)
 
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
-  const [clientsRefreshKey, setClientsRefreshKey] = useState(0)
   const [staffRefreshKey, setStaffRefreshKey] = useState(0)
-  const [copied, setCopied] = useState(false)
-
-  const joinCode = practiceId ? practiceId.slice(0, 8).toUpperCase() : null
-
-  function handleCopyCode() {
-    if (!joinCode) return
-    navigator.clipboard.writeText(joinCode.toLowerCase()).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -99,7 +86,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
     <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
 
       {/* ── Header ── */}
-      <header className={`-mx-4 -mt-4 mb-0 flex w-[calc(100%+2rem)] items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 ${isDemo ? "bg-amber-50/60" : "bg-white"}`}>
+      <header className={`-mx-4 -mt-4 mb-0 flex w-[calc(100%+2rem)] items-center justify-between gap-4 border-b border-slate-200 px-6 py-4 shadow-sm ${isDemo ? "bg-amber-50/60" : "bg-white"}`}>
         {/* Left: Pulse wordmark + subtitle */}
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-xl font-bold tracking-tight text-[#0D7377] shrink-0">Pulse</span>
@@ -167,7 +154,21 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
         )}
       </div>
 
-      {/* ── Top row: Today's Sessions + Hours by Staff ── */}
+      {/* ── Row 1: Practice Hero (full width) ── */}
+      <div className="w-full max-w-7xl">
+        <PracticeHeroTile />
+      </div>
+
+      {/* ── Row 2: 3 KPI tiles ── */}
+      <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
+        <div id="notes-overdue">
+          <NotesOverdueTile teamFilter={teamFilter} refreshKey={notesRefreshKey} />
+        </div>
+        <SupervisionComplianceTile teamFilter={teamFilter} />
+        {visible.authUtilization && <AuthorizationUtilizationTile teamFilter={teamFilter} />}
+      </div>
+
+      {/* ── Row 3: Today's Sessions + Hours by Staff ── */}
       <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-2">
         <div className={visible.hoursByStaff ? "" : "lg:col-span-2"}>
           <TodaySessionsTile
@@ -186,61 +187,10 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
         )}
       </div>
 
-      {/* ── Lower KPI tiles ── */}
-      <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
-        <div id="notes-overdue">
-          <NotesOverdueTile teamFilter={teamFilter} refreshKey={notesRefreshKey} />
-        </div>
-        <SupervisionComplianceTile teamFilter={teamFilter} />
-        {visible.authUtilization && <AuthorizationUtilizationTile teamFilter={teamFilter} />}
-      </div>
-
-      {/* ── Adoption Health — Owner only ── */}
+      {/* ── Row 4: Adoption Health banner — Owner only ── */}
       {viewRole === "Owner" && (
         <div className="w-full max-w-7xl">
-          <AdoptionHealthTile />
-        </div>
-      )}
-
-      {/* ── Clients (live Supabase data) ── */}
-      <div className="w-full max-w-7xl">
-        <ClientsListTile
-          refreshKey={clientsRefreshKey}
-          canAddClient={visible.addClient}
-          practiceId={practiceId}
-          isDemo={isDemo}
-          onClientCreated={() => setClientsRefreshKey(k => k + 1)}
-        />
-      </div>
-
-      {/* ── Team invite — Owner only ── */}
-      {role === "Owner" && joinCode && (
-        <div className="w-full max-w-7xl">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Invite Your Team</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">
-                  Share this code with new staff. They enter it on the sign-up screen to join your practice as a technician.
-                </p>
-                <div className="flex items-center gap-3 pt-1">
-                  <span className="font-mono text-2xl font-bold tracking-[0.2em] text-foreground select-all">
-                    {joinCode}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyCode}
-                    className="h-7 px-2.5 text-xs shrink-0"
-                  >
-                    {copied ? "Copied!" : "Copy"}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <AdoptionHealthBanner />
         </div>
       )}
 

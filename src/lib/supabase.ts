@@ -929,3 +929,61 @@ export async function getAdoptionHealthStats(): Promise<AdoptionHealthStats> {
     totalSessionsThisWeek: sessions.length,
   }
 }
+
+// ─── Practice Hero Stats (last 14 days + this-week summary) ──────────────────
+
+export interface DailySessionCount {
+  date: string  // 'YYYY-MM-DD'
+  count: number
+}
+
+export interface PracticeHeroStats {
+  sessionsThisWeek: number
+  completionRate: number
+  staffOnTrack: number
+  activeClients: number
+  dailySessions: DailySessionCount[]
+}
+
+export async function getSessionsLast14Days(): Promise<DailySessionCount[]> {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13)
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('scheduled_at')
+    .gte('scheduled_at', start.toISOString())
+    .order('scheduled_at', { ascending: true })
+
+  if (error) throw error
+
+  // Pre-fill all 14 days with 0 so the chart has a continuous x-axis
+  const counts: Record<string, number> = {}
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13 + i)
+    counts[d.toISOString().split('T')[0]] = 0
+  }
+  for (const row of (data ?? []) as { scheduled_at: string }[]) {
+    const key = row.scheduled_at.split('T')[0]
+    if (key in counts) counts[key] = (counts[key] ?? 0) + 1
+  }
+  return Object.entries(counts).map(([date, count]) => ({ date, count }))
+}
+
+export async function getPracticeHeroStats(): Promise<PracticeHeroStats> {
+  const [adoptionStats, dailySessions, clientResp] = await Promise.all([
+    getAdoptionHealthStats(),
+    getSessionsLast14Days(),
+    supabase.from('clients').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+  ])
+
+  if (clientResp.error) throw clientResp.error
+
+  return {
+    sessionsThisWeek: adoptionStats.totalSessionsThisWeek,
+    completionRate:   adoptionStats.completionRate,
+    staffOnTrack:     adoptionStats.activeStaffThisWeek,
+    activeClients:    clientResp.count ?? 0,
+    dailySessions,
+  }
+}

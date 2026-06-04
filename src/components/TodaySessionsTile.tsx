@@ -157,38 +157,40 @@ export function TodaySessionsTile({ className, teamFilter, staffId }: { classNam
           </div>
         )}
         {!loading && !error && sortedSessions.length > 0 && (
-          <div className="flex flex-col text-xs">
-            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] gap-x-3 border-b pb-2 text-muted-foreground">
-              <div>Time</div>
-              <div>Client</div>
-              <div>Staff</div>
-              <div>Type</div>
-              <div className="text-right">Status</div>
-            </div>
+          <div className="flex flex-col gap-1.5">
+            {sortedSessions.map((s) => {
+              const leftBorder =
+                s.status === "completed"   ? "border-l-emerald-500" :
+                s.status === "in-progress" ? "border-l-blue-500"    :
+                s.status === "scheduled"   ? "border-l-amber-400"   :
+                "border-l-red-400"
 
-            {sortedSessions.map((s) => (
-              <Link
-                key={s.id}
-                to={"/clients/" + s.clientId}
-                className="grid grid-cols-[3.5rem_minmax(0,1fr)_minmax(0,1fr)_8rem_6rem] gap-x-3 -mx-2 px-2 rounded items-center transition-colors hover:bg-muted/60 cursor-pointer"
-              >
-                <div className="font-mono text-muted-foreground tabular-nums py-1.5">
-                  {formatTime(s.time)}
+              return (
+                <div
+                  key={s.id}
+                  className={`flex items-center gap-3 rounded-lg border border-border/60 border-l-4 ${leftBorder} bg-card px-3 py-2.5 shadow-sm transition-shadow hover:shadow-md`}
+                >
+                  <div className="w-10 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                    {formatTime(s.time)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      to={"/clients/" + s.clientId}
+                      className="block truncate text-sm font-medium text-[#1E2A2A] hover:text-[#0D7377] hover:underline underline-offset-2"
+                    >
+                      {s.clientName}
+                    </Link>
+                    <div className="truncate text-xs text-muted-foreground">{s.staffName}</div>
+                  </div>
+                  <div className="hidden max-w-[6rem] shrink-0 truncate text-right text-xs text-muted-foreground sm:block">
+                    {s.sessionType}
+                  </div>
+                  <div className="shrink-0">
+                    <SessionStatusBadge status={s.status as SessionStatus} />
+                  </div>
                 </div>
-                <div className="truncate min-w-0 py-1.5 text-sm font-medium">
-                  {s.clientName}
-                </div>
-                <div className="truncate min-w-0 py-1.5 text-sm text-muted-foreground">
-                  {s.staffName}
-                </div>
-                <div className="truncate min-w-0 py-1.5 text-muted-foreground">
-                  {s.sessionType}
-                </div>
-                <div className="flex items-center justify-end py-1.5">
-                  <SessionStatusBadge status={s.status as SessionStatus} />
-                </div>
-              </Link>
-            ))}
+              )
+            })}
           </div>
         )}
       </CardContent>

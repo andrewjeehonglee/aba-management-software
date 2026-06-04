@@ -17,10 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { getSupervision, type SupervisionRecord } from "@/lib/supabase"
-import {
-  SUPERVISION_THRESHOLD,
-  complianceClasses,
-} from "@/lib/supervision"
+import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
@@ -43,19 +40,6 @@ function headlineColorClass(flagged: number): string {
   return "text-emerald-600"
 }
 
-function MiniBar({ pct }: { pct: number }) {
-  const { bar } = complianceClasses(pct)
-  return (
-    <div className="relative h-2 w-44 overflow-hidden rounded-full bg-slate-200">
-      <div className={`h-full ${bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-      <div
-        className="absolute inset-y-0 w-px bg-slate-500/70"
-        style={{ left: `${SUPERVISION_THRESHOLD}%` }}
-        aria-hidden="true"
-      />
-    </div>
-  )
-}
 
 const SORT_OPTIONS = {
   pctAsc: {
@@ -163,24 +147,31 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
               </span>
             </div>
 
-            <ul className="mt-3 space-y-2 border-t pt-3">
+            <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
               {sortedRBTs.map((rbt) => {
-                const { text } = complianceClasses(rbt.supervisionPct)
+                const flagged = rbt.supervisionPct < SUPERVISION_THRESHOLD
+                const firstName = rbt.staffName.split(' ')[0]
                 return (
-                  <li key={rbt.id} className="flex items-center gap-3 text-sm">
-                    <span className="flex-1 truncate min-w-0">
-                      <Link to={"/staff/" + toSlug(rbt.staffName)} className="hover:underline underline-offset-2">
-                        {rbt.staffName}
-                      </Link>
+                  <Link
+                    key={rbt.id}
+                    to={"/staff/" + toSlug(rbt.staffName)}
+                    title={rbt.staffName}
+                    className={`inline-flex h-14 w-[4.75rem] flex-col items-center justify-center rounded-xl border-2 px-1 py-1 text-center transition-opacity hover:opacity-75 ${
+                      flagged
+                        ? "border-red-400 bg-red-50"
+                        : "border-[#14A0A5] bg-[#E8F7F7]"
+                    }`}
+                  >
+                    <span className="max-w-full truncate text-[11px] font-medium leading-tight text-foreground">
+                      {firstName}
                     </span>
-                    <MiniBar pct={rbt.supervisionPct} />
-                    <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
-                      {rbt.supervisionPct.toFixed(1)}%
+                    <span className={`text-sm font-bold tabular-nums leading-tight ${flagged ? "text-red-600" : "text-[#0D7377]"}`}>
+                      {rbt.supervisionPct.toFixed(0)}%
                     </span>
-                  </li>
+                  </Link>
                 )
               })}
-            </ul>
+            </div>
           </>
         )}
       </CardContent>
