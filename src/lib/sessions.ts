@@ -30,13 +30,25 @@ export const STATUS_ORDER: Record<SessionStatus, number> = {
   completed:     4,
 }
 
-// Formats an ISO timestamp as local 24-hour HH:mm (e.g. 13:30, 09:00).
-// Explicit padding — avoids locale/browser variance where hour12:false still shows AM/PM.
+/** Coastal ABA / Jenny demo — always show clinic wall clock in Pacific. */
+export const PRACTICE_TIMEZONE = "America/Los_Angeles"
+
+// 24-hour HH:mm in practice timezone (e.g. 13:30, 09:00). Never 12-hour AM/PM.
 export function formatTime(isoTime: string): string {
   const d = new Date(isoTime)
-  const h = d.getHours().toString().padStart(2, "0")
-  const m = d.getMinutes().toString().padStart(2, "0")
-  return `${h}:${m}`
+  if (Number.isNaN(d.getTime())) return "—"
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: PRACTICE_TIMEZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d)
+
+  let hour = parts.find((p) => p.type === "hour")?.value ?? "00"
+  if (hour === "24") hour = "00"
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "00"
+  return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`
 }
 
 /** Date + 24h time for note/incident headers. Falls back to session scheduled_at when created_at is missing. */
