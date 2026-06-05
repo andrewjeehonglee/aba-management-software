@@ -251,26 +251,61 @@ export async function getSessionsToday(staffId?: string, demoFallback = false): 
     return today
   }
 
-  // Demo: calendar today empty or sparse (e.g. one ad-hoc session) — use the anchor day instead.
-  let latestQuery = supabase
+  // Demo: calendar today empty or sparse — use the local day with the MOST sessions (the seed slate), not the latest row's day (which may be today's lone ad-hoc session).
+  const anchor = await getDemoBusiestDayRange(staffId)
+  if (!anchor) return today
+
+  console.log('[getSessionsToday] demo fallback range:', anchor.start, '→', anchor.end)
+  const fallback = await querySessionsInRange(anchor.start, anchor.end, staffId)
+  console.log('[getSessionsToday] demo fallback rows:', fallback.length)
+  return fallback.length > 0 ? fallback : today
+}
+
+/** For demo: find the calendar day with the highest session count in recent data. */
+async function getDemoBusiestDayRange(staffId?: string): Promise<{ start: string; end: string } | null> {
+  let query = supabase
     .from('sessions')
     .select('scheduled_at')
     .order('scheduled_at', { ascending: false })
-    .limit(1)
-  if (staffId) latestQuery = latestQuery.eq('staff_id', staffId)
+    .limit(500)
+  if (staffId) query = query.eq('staff_id', staffId)
 
-  const { data: latestRow, error: latestErr } = await latestQuery.maybeSingle()
-  if (latestErr) throw latestErr
-  if (!latestRow) return []
+  const { data, error } = await query
+  if (error) throw error
+  if (!data?.length) return null
 
-  const anchor = new Date((latestRow as { scheduled_at: string }).scheduled_at)
-  const fallbackStart = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()).toISOString()
-  const fallbackEnd   = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + 1).toISOString()
-  console.log('[getSessionsToday] demo fallback range:', fallbackStart, '→', fallbackEnd)
+  const dayCounts = new Map<string, { y: number; m: number; d: number; count: number }>()
+  for (const row of data as { scheduled_at: string }[]) {
+    const t = new Date(row.scheduled_at)
+    const key = `${t.getFullYear()}-${t.getMonth()}-${t.getDate()}`
+    const existing = dayCounts.get(key)
+    if (existing) existing.count += 1
+    else dayCounts.set(key, { y: t.getFullYear(), m: t.getMonth(), d: t.getDate(), count: 1 })
+  }
 
-  const fallback = await querySessionsInRange(fallbackStart, fallbackEnd, staffId)
-  console.log('[getSessionsToday] demo fallback rows:', fallback.length)
-  return fallback
+  let best: { y: number; m: number; d: number; count: number } | null = null
+  for (const entry of dayCounts.values()) {
+    if (!best || entry.count > best.count) best = entry
+  }
+  if (!best) return null
+
+  const start = new Date(best.y, best.m, best.d).toISOString()
+  const end   = new Date(best.y, best.m, best.d + 1).toISOString()
+  return { start, end }
+}
+
+async function fetchSessionScheduledAtMap(sessionIds: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  if (sessionIds.length === 0) return map
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, scheduled_at')
+    .in('id', sessionIds)
+  if (error) throw error
+  for (const row of (data ?? []) as { id: string; scheduled_at: string }[]) {
+    map.set(row.id, row.scheduled_at)
+  }
+  return map
 }
 
 export async function getSessionsByClientId(clientId: string): Promise<SessionRecord[]> {
@@ -694,18 +729,6 @@ export interface BehaviorIncidentRecord {
   behaviors:        { name: string } | null
 }
 
-type NoteRow = {
-  id: string
-  session_id: string
-  staff_id: string
-  subjective: string
-  objective: string
-  assessment: string
-  plan: string
-  created_at: string | null
-  sessions: { scheduled_at: string } | null
-}
-
 type IncidentRow = {
   id: string
   session_id: string
@@ -716,17 +739,29 @@ type IncidentRow = {
   duration_seconds: number | null
   created_at: string | null
   behaviors: { name: string } | null
-  sessions: { scheduled_at: string } | null
+}
+
+type NoteRow = {
+  id: string
+  session_id: string
+  staff_id: string
+  subjective: string
+  objective: string
+  assessment: string
+  plan: string
+  created_at: string | null
 }
 
 export async function getBehaviorIncidentsByClientId(clientId: string): Promise<BehaviorIncidentRecord[]> {
   const { data, error } = await supabase
     .from('behavior_incidents')
-    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, created_at, behaviors(name), sessions(scheduled_at)')
+    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, created_at, behaviors(name)')
     .eq('client_id', clientId)
     .order('id', { ascending: false })
   if (error) throw error
-  return ((data ?? []) as unknown as IncidentRow[]).map((row) => ({
+  const rows = (data ?? []) as unknown as IncidentRow[]
+  const sessionAtById = await fetchSessionScheduledAtMap([...new Set(rows.map((r) => r.session_id))])
+  return rows.map((row) => ({
     id:               row.id,
     session_id:       row.session_id,
     behavior_id:      row.behavior_id,
@@ -735,7 +770,7 @@ export async function getBehaviorIncidentsByClientId(clientId: string): Promise<
     intensity:        row.intensity,
     duration_seconds: row.duration_seconds,
     created_at:       row.created_at,
-    session_at:       row.sessions?.scheduled_at ?? null,
+    session_at:       sessionAtById.get(row.session_id) ?? null,
     behaviors:        row.behaviors,
   }))
 }
@@ -743,11 +778,13 @@ export async function getBehaviorIncidentsByClientId(clientId: string): Promise<
 export async function getSessionNotesByClientId(clientId: string): Promise<SessionNoteRecord[]> {
   const { data, error } = await supabase
     .from('session_notes')
-    .select('id, session_id, staff_id, subjective, objective, assessment, plan, created_at, sessions(scheduled_at)')
+    .select('id, session_id, staff_id, subjective, objective, assessment, plan, created_at')
     .eq('client_id', clientId)
     .order('id', { ascending: false })
   if (error) throw error
-  return ((data ?? []) as unknown as NoteRow[]).map((row) => ({
+  const rows = (data ?? []) as unknown as NoteRow[]
+  const sessionAtById = await fetchSessionScheduledAtMap([...new Set(rows.map((r) => r.session_id))])
+  return rows.map((row) => ({
     id:         row.id,
     session_id: row.session_id,
     staff_id:   row.staff_id,
@@ -756,7 +793,7 @@ export async function getSessionNotesByClientId(clientId: string): Promise<Sessi
     assessment: row.assessment,
     plan:       row.plan,
     created_at: row.created_at,
-    session_at: row.sessions?.scheduled_at ?? null,
+    session_at: sessionAtById.get(row.session_id) ?? null,
   }))
 }
 
