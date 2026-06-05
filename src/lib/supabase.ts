@@ -204,14 +204,20 @@ export async function getStaffByUserId(userId: string): Promise<string | null> {
   return data ? (data as { id: string }).id : null
 }
 
-export async function getSessionsToday(staffId?: string): Promise<SessionRecord[]> {
-  // Build UTC boundaries for the user's local "today"
-  const now   = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
+function mapSessionRows(data: SessionRow[]): SessionRecord[] {
+  return data.map((row) => ({
+    id:          row.id,
+    time:        row.scheduled_at,
+    clientId:    row.client_id,
+    clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
+    staffName:   row.staff.full_name,
+    staffTeam:   teamLabel(row.staff.team),
+    sessionType: row.session_type,
+    status:      row.status,
+  }))
+}
 
-  console.log('[getSessionsToday] UTC boundaries:', start, '→', end, '| staffId filter:', staffId ?? 'none')
-
+async function querySessionsInRange(start: string, end: string, staffId?: string): Promise<SessionRecord[]> {
   let query = supabase
     .from('sessions')
     .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
@@ -223,19 +229,42 @@ export async function getSessionsToday(staffId?: string): Promise<SessionRecord[
 
   const { data, error } = await query
   if (error) throw error
+  return mapSessionRows(data as unknown as SessionRow[])
+}
 
-  console.log('[getSessionsToday] rows returned from Supabase:', data?.length ?? 0)
+export async function getSessionsToday(staffId?: string, demoFallback = false): Promise<SessionRecord[]> {
+  const now   = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+  const end   = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString()
 
-  return (data as unknown as SessionRow[]).map((row) => ({
-    id:          row.id,
-    time:        row.scheduled_at,
-    clientId:    row.client_id,
-    clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
-    staffName:   row.staff.full_name,
-    staffTeam:   teamLabel(row.staff.team),
-    sessionType: row.session_type,
-    status:      row.status,
-  }))
+  console.log('[getSessionsToday] UTC boundaries:', start, '→', end, '| staffId filter:', staffId ?? 'none')
+
+  const today = await querySessionsInRange(start, end, staffId)
+  if (today.length > 0 || !demoFallback) {
+    console.log('[getSessionsToday] rows returned:', today.length)
+    return today
+  }
+
+  // Demo seed dates drift after the one-time SQL patch; show the most recent day that has sessions.
+  let latestQuery = supabase
+    .from('sessions')
+    .select('scheduled_at')
+    .order('scheduled_at', { ascending: false })
+    .limit(1)
+  if (staffId) latestQuery = latestQuery.eq('staff_id', staffId)
+
+  const { data: latestRow, error: latestErr } = await latestQuery.maybeSingle()
+  if (latestErr) throw latestErr
+  if (!latestRow) return []
+
+  const anchor = new Date((latestRow as { scheduled_at: string }).scheduled_at)
+  const fallbackStart = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate()).toISOString()
+  const fallbackEnd   = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + 1).toISOString()
+  console.log('[getSessionsToday] demo fallback range:', fallbackStart, '→', fallbackEnd)
+
+  const fallback = await querySessionsInRange(fallbackStart, fallbackEnd, staffId)
+  console.log('[getSessionsToday] demo fallback rows:', fallback.length)
+  return fallback
 }
 
 export async function getSessionsByClientId(clientId: string): Promise<SessionRecord[]> {
@@ -304,6 +333,7 @@ export async function getSessionById(sessionId: string): Promise<SessionDetail |
 
 interface AuthRow {
   id: string
+  client_id: string
   used_units: number
   authorized_units: number
   cpt_code: string
@@ -314,6 +344,7 @@ interface AuthRow {
 
 export interface AuthRecord {
   id: string
+  clientId: string
   clientName: string
   clientTeam: string
   utilizationPct: number
@@ -363,12 +394,13 @@ export async function updateAuthorization(id: string, auth: Partial<NewAuthoriza
 export async function getAuthorizations(): Promise<AuthRecord[]> {
   const { data, error } = await supabase
     .from('authorizations')
-    .select('id, used_units, authorized_units, cpt_code, start_date, end_date, clients(first_name, last_name, team)')
+    .select('id, client_id, used_units, authorized_units, cpt_code, start_date, end_date, clients(first_name, last_name, team)')
     .order('used_units', { ascending: false })
   if (error) throw error
 
   return (data as unknown as AuthRow[]).map((row) => ({
     id:                  row.id,
+    clientId:            row.client_id,
     clientName:          `${row.clients.first_name} ${row.clients.last_name}`,
     clientTeam:          teamLabel(row.clients.team),
     utilizationPct:      Math.round((row.used_units / row.authorized_units) * 100),
@@ -391,6 +423,7 @@ export async function getAuthorizationsByClientId(clientId: string): Promise<Aut
   const row = data as unknown as AuthRow
   return {
     id:                   row.id,
+    clientId:             clientId,
     clientName:           `${row.clients.first_name} ${row.clients.last_name}`,
     clientTeam:           teamLabel(row.clients.team),
     utilizationPct:       Math.round((row.used_units / row.authorized_units) * 100),

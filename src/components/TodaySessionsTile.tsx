@@ -61,7 +61,7 @@ const FILTER_CHIPS: { value: StatusFilter; label: string }[] = [
   { value: "no-show",     label: "No-show" },
 ]
 
-export function TodaySessionsTile({ className, teamFilter, staffId }: { className?: string; teamFilter?: TeamFilter; staffId?: string }) {
+export function TodaySessionsTile({ className, teamFilter, staffId, isDemo }: { className?: string; teamFilter?: TeamFilter; staffId?: string; isDemo?: boolean }) {
   const [sortKey, setSortKey] = useState<SortKey>("time")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [allSessions, setAllSessions] = useState<SessionRecord[]>([])
@@ -71,11 +71,11 @@ export function TodaySessionsTile({ className, teamFilter, staffId }: { classNam
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getSessionsToday(staffId)
+    getSessionsToday(staffId, isDemo)
       .then(setAllSessions)
       .catch((err) => setError(err.message ?? "Failed to load sessions"))
       .finally(() => setLoading(false))
-  }, [staffId])
+  }, [staffId, isDemo])
 
   const teamSessions = teamFilter && teamFilter !== "All"
     ? allSessions.filter(s => s.staffTeam === teamFilter)

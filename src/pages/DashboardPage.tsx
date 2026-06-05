@@ -2,7 +2,6 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
-import { AdoptionHealthBanner } from "@/components/AdoptionHealthBanner"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
@@ -172,6 +171,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
           <TodaySessionsTile
             teamFilter={teamFilter}
             staffId={viewRole === "Technician" ? (currentStaffId ?? undefined) : undefined}
+            isDemo={isDemo}
           />
         </div>
         {visible.hoursByStaff && (
@@ -184,13 +184,6 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
           />
         )}
       </div>
-
-      {/* ── Row 4: Adoption Health banner — Owner only ── */}
-      {viewRole === "Owner" && (
-        <div className="w-full max-w-7xl">
-          <AdoptionHealthBanner />
-        </div>
-      )}
 
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>

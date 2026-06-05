@@ -26,6 +26,7 @@ export function AuthPage({ mode = "login" }: AuthPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingAction, setLoadingAction] = useState<"signin" | "signup" | null>(null)
   const [demoLoading, setDemoLoading] = useState(false)
 
   // Show a hint if the user has signed in before
@@ -34,6 +35,7 @@ export function AuthPage({ mode = "login" }: AuthPageProps) {
 
   async function handleSignIn() {
     setLoading(true)
+    setLoadingAction("signin")
     setError(null)
     setNotice(null)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
@@ -44,10 +46,12 @@ export function AuthPage({ mode = "login" }: AuthPageProps) {
       console.log("Signed in as:", data.user?.email)
     }
     setLoading(false)
+    setLoadingAction(null)
   }
 
   async function handleSignUp() {
     setLoading(true)
+    setLoadingAction("signup")
     setError(null)
     setNotice(null)
     const { error } = await supabase.auth.signUp({ email, password })
@@ -57,6 +61,7 @@ export function AuthPage({ mode = "login" }: AuthPageProps) {
       setNotice("Account created — check your email to confirm, then sign in.")
     }
     setLoading(false)
+    setLoadingAction(null)
   }
 
   async function handleTryDemo() {
@@ -189,43 +194,22 @@ export function AuthPage({ mode = "login" }: AuthPageProps) {
             )}
 
             <div className="flex gap-2 pt-1">
-              {mode === "signup" ? (
-                <>
-                  <Button
-                    className="flex-1 bg-[#0D7377] hover:bg-[#0a5f63] text-white"
-                    onClick={handleSignUp}
-                    disabled={loading || !email || !password}
-                  >
-                    {loading ? "Creating account…" : "Sign Up"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-[#D0DCDC] text-[#1E2A2A] hover:bg-[#E8F7F7] hover:border-[#14A0A5]"
-                    onClick={handleSignIn}
-                    disabled={loading || !email || !password}
-                  >
-                    Sign In
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    className="flex-1 bg-[#0D7377] hover:bg-[#0a5f63] text-white"
-                    onClick={handleSignIn}
-                    disabled={loading || !email || !password}
-                  >
-                    {loading ? "Signing in…" : "Sign In"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1 border-[#D0DCDC] text-[#1E2A2A] hover:bg-[#E8F7F7] hover:border-[#14A0A5]"
-                    onClick={handleSignUp}
-                    disabled={loading || !email || !password}
-                  >
-                    Sign Up
-                  </Button>
-                </>
-              )}
+              {/* Sign In = primary (left). Sign Up = secondary (right). Same on both routes. */}
+              <Button
+                className="flex-1 bg-[#0D7377] hover:bg-[#0a5f63] text-white"
+                onClick={handleSignIn}
+                disabled={loading || !email || !password}
+              >
+                {loadingAction === "signin" ? "Signing in…" : "Sign In"}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 border-[#D0DCDC] text-[#4A5C5C] hover:bg-slate-50 hover:border-[#D0DCDC]"
+                onClick={handleSignUp}
+                disabled={loading || !email || !password}
+              >
+                {loadingAction === "signup" ? "Creating account…" : "Sign Up"}
+              </Button>
             </div>
           </div>
 

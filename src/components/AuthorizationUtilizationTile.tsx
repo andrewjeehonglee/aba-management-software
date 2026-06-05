@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/select"
 import { getAuthorizations, type AuthRecord } from "@/lib/supabase"
 import { FLAGGED_THRESHOLD, utilizationClass } from "@/lib/authorization"
-import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 
@@ -121,7 +120,7 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
           </span>
         </CardTitle>
         <CardDescription className="text-xs">
-          Clients above {FLAGGED_THRESHOLD}% utilization flagged
+          Per-client (not staff). Clients above {FLAGGED_THRESHOLD}% utilization flagged
         </CardDescription>
         <CardAction>
           <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
@@ -166,7 +165,7 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
                 return (
                   <li key={client.id} className="flex items-center gap-3 text-sm">
                     <span className="flex-1 truncate min-w-0">
-                      <Link to={"/clients/" + toSlug(client.clientName)} className="hover:underline underline-offset-2">
+                      <Link to={"/clients/" + client.clientId} className="hover:underline underline-offset-2">
                         {client.clientName}
                       </Link>
                     </span>
