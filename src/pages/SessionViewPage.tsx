@@ -3,6 +3,7 @@ import { ArrowLeft, Check, Minus, Plus, X } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useDemo } from "@/context/DemoContext"
+import { SignaturePad } from "@/components/SignaturePad"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -256,9 +257,9 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function SessionViewPage() {
+  const isDemo = useDemo()
   const { sessionId } = useParams<{ sessionId: string }>()
   const navigate = useNavigate()
-  const isDemo = useDemo()
 
   // ── Data resolution ────────────────────────────────────────────────────────
   const [sessionDetail, setSessionDetail] = useState<SessionDetail | null>(null)
@@ -322,13 +323,12 @@ export function SessionViewPage() {
   })
 
   useEffect(() => {
-    if (mode !== "active") return
     if (timerKey && !sessionStorage.getItem(timerKey)) {
       sessionStorage.setItem(timerKey, String(Date.now()))
     }
     const id = setInterval(() => setSeconds(s => s + 1), 1000)
     return () => clearInterval(id)
-  }, [mode])
+  }, [timerKey])
 
   // ── Session metadata ───────────────────────────────────────────────────────
   const [location, setLocation] = useState("")
@@ -423,14 +423,6 @@ export function SessionViewPage() {
   const [soap, setSoap] = useState({ subjective: "", objective: "", action: "", plan: "" })
   const [signatureCaptured, setSignatureCaptured] = useState(false)
   const [staffSignatureCaptured, setStaffSignatureCaptured] = useState(false)
-  const [showFloatingTimer, setShowFloatingTimer] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setShowFloatingTimer(window.scrollY > 72)
-    onScroll()
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
 
   const soapFilled = SOAP_FIELDS.every(f => soap[f.key].trim().length > 0)
   const isCancelled = outcome === "cancelled" || outcome === "no-show"
@@ -487,20 +479,21 @@ export function SessionViewPage() {
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col">
 
-      {/* Floating timer — stays visible when page scrolls past the header */}
-      {mode === "active" && showFloatingTimer && (
-        <div
-          className="fixed top-3 right-4 z-30 rounded-full border border-border bg-background/95 px-4 py-2 shadow-md backdrop-blur"
-          aria-live="polite"
-        >
-          <span className="font-mono text-xl font-bold tabular-nums text-primary">
-            {formatTimer(seconds)}
-          </span>
-        </div>
-      )}
+      {/* Session timer — fixed so it stays visible below the demo banner when scrolling */}
+      <div
+        className={`fixed right-4 z-[60] flex items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 shadow-lg backdrop-blur ${isDemo ? "top-12" : "top-3"}`}
+        aria-live="polite"
+      >
+        <span className="font-mono text-xl font-bold tabular-nums text-primary">
+          {formatTimer(seconds)}
+        </span>
+        <span className="hidden sm:inline text-xs font-medium text-muted-foreground border-l border-border pl-2">
+          {billingCode}
+        </span>
+      </div>
 
       {/* ══ STICKY HEADER ══════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
+      <header className={`sticky z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 ${isDemo ? "top-10" : "top-0"}`}>
         <div className="mx-auto max-w-6xl px-4 pt-3 pb-2 flex items-center gap-3">
           <Link
             to={sessionDetail.clientId ? `/clients/${sessionDetail.clientId}` : "/"}
@@ -513,20 +506,10 @@ export function SessionViewPage() {
           {/* Client name — tappable */}
           <Link
             to={sessionDetail.clientId ? `/clients/${sessionDetail.clientId}` : "/"}
-            className="font-semibold text-lg leading-tight hover:underline underline-offset-2 flex-1 truncate"
+            className="font-semibold text-lg leading-tight hover:underline underline-offset-2 flex-1 truncate pr-28 sm:pr-36"
           >
             {displayName}
           </Link>
-
-          {/* Timer */}
-          <span className="font-mono text-2xl font-bold tabular-nums text-primary shrink-0">
-            {formatTimer(seconds)}
-          </span>
-
-          {/* Billing code chip */}
-          <span className="hidden sm:inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground shrink-0">
-            {billingCode}
-          </span>
         </div>
 
         {/* Location + attendees strip */}
@@ -904,59 +887,21 @@ export function SessionViewPage() {
                   <CardTitle>Signatures</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-5">
-                  {/* Caregiver */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Caregiver signature</p>
-                    {!soapFilled && (
-                      <p className="text-xs text-muted-foreground">Complete all four SOAP fields to unlock.</p>
-                    )}
-                    <button
-                      disabled={!soapFilled}
-                      onClick={() => setSignatureCaptured(true)}
-                      className={`w-full h-24 rounded-xl border-2 border-dashed flex items-center justify-center transition-colors ${
-                        !soapFilled
-                          ? "border-muted opacity-40 cursor-not-allowed"
-                          : signatureCaptured
-                          ? "border-emerald-400 bg-emerald-50"
-                          : "border-muted-foreground/40 hover:border-primary cursor-pointer"
-                      }`}
-                    >
-                      {signatureCaptured ? (
-                        <span className="text-emerald-700 text-sm font-medium flex items-center gap-2">
-                          <Check className="size-4" /> Signature captured
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Tap to sign</span>
-                      )}
-                    </button>
-                  </div>
+                  <SignaturePad
+                    label="Caregiver signature"
+                    disabled={!soapFilled}
+                    captured={signatureCaptured}
+                    onCapture={() => setSignatureCaptured(true)}
+                    onClear={() => setSignatureCaptured(false)}
+                  />
 
-                  {/* Staff */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Staff signature</p>
-                    {!soapFilled && (
-                      <p className="text-xs text-muted-foreground">Complete all four SOAP fields to unlock.</p>
-                    )}
-                    <button
-                      disabled={!soapFilled}
-                      onClick={() => setStaffSignatureCaptured(true)}
-                      className={`w-full h-24 rounded-xl border-2 border-dashed flex items-center justify-center transition-colors ${
-                        !soapFilled
-                          ? "border-muted opacity-40 cursor-not-allowed"
-                          : staffSignatureCaptured
-                          ? "border-emerald-400 bg-emerald-50"
-                          : "border-muted-foreground/40 hover:border-primary cursor-pointer"
-                      }`}
-                    >
-                      {staffSignatureCaptured ? (
-                        <span className="text-emerald-700 text-sm font-medium flex items-center gap-2">
-                          <Check className="size-4" /> Signature captured
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Tap to sign</span>
-                      )}
-                    </button>
-                  </div>
+                  <SignaturePad
+                    label="Staff signature"
+                    disabled={!soapFilled}
+                    captured={staffSignatureCaptured}
+                    onCapture={() => setStaffSignatureCaptured(true)}
+                    onClear={() => setStaffSignatureCaptured(false)}
+                  />
 
                   <Button
                     size="lg"
