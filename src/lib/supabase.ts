@@ -57,6 +57,27 @@ export interface ClientDetail {
   assigned_staff: { full_name: string } | null
 }
 
+/** Primary RBT from the most recent direct session when clients.assigned_staff_id is unset. */
+export async function getPrimaryStaffForClient(clientId: string): Promise<{ full_name: string } | null> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('scheduled_at, session_type, staff(full_name)')
+    .eq('client_id', clientId)
+    .order('scheduled_at', { ascending: false })
+    .limit(30)
+  if (error) {
+    console.error('[getPrimaryStaffForClient]', error.message)
+    return null
+  }
+
+  type Row = { scheduled_at: string; session_type: string; staff: { full_name: string } | null }
+  const rows = (data ?? []) as unknown as Row[]
+  const direct = rows.filter((r) => r.session_type === 'direct')
+  const pool = direct.length > 0 ? direct : rows
+  const name = pool[0]?.staff?.full_name
+  return name ? { full_name: name } : null
+}
+
 export async function getClientById(id: string): Promise<ClientDetail | null> {
   const { data, error } = await supabase
     .from('clients')
@@ -66,7 +87,11 @@ export async function getClientById(id: string): Promise<ClientDetail | null> {
   if (error) throw error
   if (!data) return null
   const row = data as unknown as Omit<ClientDetail, 'assigned_staff'> & { staff: { full_name: string } | null }
-  return { ...row, assigned_staff: row.staff }
+  let assigned_staff = row.staff
+  if (!assigned_staff) {
+    assigned_staff = await getPrimaryStaffForClient(id)
+  }
+  return { ...row, assigned_staff }
 }
 
 export interface NewClient {
@@ -210,8 +235,8 @@ function mapSessionRows(data: SessionRow[]): SessionRecord[] {
     time:        row.scheduled_at,
     clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
-    staffName:   row.staff.full_name,
-    staffTeam:   teamLabel(row.staff.team),
+    staffName:   row.staff?.full_name ?? 'Unknown',
+    staffTeam:   teamLabel(row.staff?.team),
     sessionType: row.session_type,
     status:      row.status,
   }))
@@ -297,13 +322,20 @@ async function getDemoBusiestDayRange(staffId?: string): Promise<{ start: string
 async function fetchSessionScheduledAtMap(sessionIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>()
   if (sessionIds.length === 0) return map
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('id, scheduled_at')
-    .in('id', sessionIds)
-  if (error) throw error
-  for (const row of (data ?? []) as { id: string; scheduled_at: string }[]) {
-    map.set(row.id, row.scheduled_at)
+  try {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('id, scheduled_at')
+      .in('id', sessionIds)
+    if (error) {
+      console.error('[fetchSessionScheduledAtMap]', error.message)
+      return map
+    }
+    for (const row of (data ?? []) as { id: string; scheduled_at: string }[]) {
+      map.set(row.id, row.scheduled_at)
+    }
+  } catch (err) {
+    console.error('[fetchSessionScheduledAtMap]', err)
   }
   return map
 }
@@ -316,16 +348,7 @@ export async function getSessionsByClientId(clientId: string): Promise<SessionRe
     .order('scheduled_at', { ascending: true })
   if (error) throw error
 
-  return (data as unknown as SessionRow[]).map((row) => ({
-    id:          row.id,
-    time:        row.scheduled_at,
-    clientId:    row.client_id,
-    clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
-    staffName:   row.staff.full_name,
-    staffTeam:   teamLabel(row.staff.team),
-    sessionType: row.session_type,
-    status:      row.status,
-  }))
+  return mapSessionRows(data as unknown as SessionRow[])
 }
 
 interface SessionByIdRow {
@@ -537,16 +560,7 @@ export async function getSessionsByStaffId(staffId: string): Promise<SessionReco
     .order('scheduled_at', { ascending: true })
   if (error) throw error
 
-  return (data as unknown as SessionRow[]).map((row) => ({
-    id:          row.id,
-    time:        row.scheduled_at,
-    clientId:    row.client_id,
-    clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
-    staffName:   row.staff.full_name,
-    staffTeam:   teamLabel(row.staff.team),
-    sessionType: row.session_type,
-    status:      row.status,
-  }))
+  return mapSessionRows(data as unknown as SessionRow[])
 }
 
 interface OverdueNoteRow {

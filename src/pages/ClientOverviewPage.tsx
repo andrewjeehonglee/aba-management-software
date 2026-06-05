@@ -649,7 +649,9 @@ export function ClientOverviewPage() {
   const [behaviorIncidents, setBehaviorIncidents] = useState<BehaviorIncidentRecord[]>([])
   const [incidentsLoading, setIncidentsLoading] = useState(false)
 
+  // Demo account is always owner; don't gate notes on a slow practice_members fetch.
   const canViewNotes =
+    isDemo ||
     practiceMembership?.role === "bcba" ||
     practiceMembership?.role === "owner" ||
     practiceMembership?.role === "supervisor"
