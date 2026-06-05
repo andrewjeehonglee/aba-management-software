@@ -34,6 +34,7 @@ import {
 import { formatEventStamp, formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
+import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { Goal } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
@@ -629,12 +630,10 @@ export function ClientOverviewPage() {
   const [behaviorIncidents, setBehaviorIncidents] = useState<BehaviorIncidentRecord[]>([])
   const [incidentsLoading, setIncidentsLoading] = useState(false)
 
-  // Demo account is always owner; don't gate notes on a slow practice_members fetch.
-  const canViewNotes =
-    isDemo ||
-    practiceMembership?.role === "bcba" ||
-    practiceMembership?.role === "owner" ||
-    practiceMembership?.role === "supervisor"
+  const effectiveUserRole = effectiveRole(
+    practiceMembership?.role ?? (isDemo ? "owner" : undefined),
+  )
+  const canViewNotes = canViewClinicalNotes(effectiveUserRole)
 
   useEffect(() => {
     if (!isUUID || !clientId || !canViewNotes) return
@@ -668,7 +667,7 @@ export function ClientOverviewPage() {
       .finally(() => setBehaviorsLoading(false))
   }, [clientId, isUUID, behaviorsRefreshKey])
 
-  const canAddGoal = practiceMembership?.role === "bcba" || practiceMembership?.role === "owner"
+  const canAddGoal = canManageClinicalConfig(effectiveUserRole)
 
   const [startSessionLoading, setStartSessionLoading] = useState(false)
   const [startSessionError, setStartSessionError] = useState<string | null>(null)

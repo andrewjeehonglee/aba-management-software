@@ -8,6 +8,7 @@ import { NotesOverdueTile } from "@/components/NotesOverdueTile"
 import { PracticeHeroTile } from "@/components/PracticeHeroTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import { TodaySessionsTile } from "@/components/TodaySessionsTile"
+import { setRolePreview } from "@/lib/rolePreview"
 import {
   ROLE_DEFAULT_TEAM,
   TEAM_FILTERS,
@@ -57,6 +58,10 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
     console.log('[DashboardPage] userRole prop:', userRole, '→ role:', role)
     setViewRole(role)
   }, [userRole]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (role === "Owner") setRolePreview(viewRole)
+  }, [viewRole, role])
 
   const [searchParams, setSearchParams] = useSearchParams()
 
