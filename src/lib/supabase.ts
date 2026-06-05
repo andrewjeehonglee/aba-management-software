@@ -60,7 +60,7 @@ export interface ClientDetail {
 export async function getClientById(id: string): Promise<ClientDetail | null> {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, first_name, last_name, date_of_birth, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff(full_name)')
+    .select('id, first_name, last_name, date_of_birth, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff!assigned_staff_id(full_name)')
     .eq('id', id)
     .maybeSingle()
   if (error) throw error
@@ -755,7 +755,7 @@ type NoteRow = {
 export async function getBehaviorIncidentsByClientId(clientId: string): Promise<BehaviorIncidentRecord[]> {
   const { data, error } = await supabase
     .from('behavior_incidents')
-    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, created_at, behaviors(name)')
+    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, behaviors(name)')
     .eq('client_id', clientId)
     .order('id', { ascending: false })
   if (error) throw error
@@ -778,7 +778,7 @@ export async function getBehaviorIncidentsByClientId(clientId: string): Promise<
 export async function getSessionNotesByClientId(clientId: string): Promise<SessionNoteRecord[]> {
   const { data, error } = await supabase
     .from('session_notes')
-    .select('id, session_id, staff_id, subjective, objective, assessment, plan, created_at')
+    .select('id, session_id, staff_id, subjective, objective, assessment, plan')
     .eq('client_id', clientId)
     .order('id', { ascending: false })
   if (error) throw error

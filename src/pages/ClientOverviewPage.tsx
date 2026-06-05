@@ -729,7 +729,15 @@ export function ClientOverviewPage() {
   }) ?? []
 
   const clientSessions = liveSessionsToday
-  const uniqueStaff = Array.from(new Set(clientSessions.map((s) => s.staffName)))
+  // "Working with" + assigned-staff fallback: use recent sessions, not calendar-today only (demo seed dates drift).
+  const uniqueStaff = Array.from(new Set(liveSessionsLastWeek.map((s) => s.staffName)))
+  const primaryStaffFromSessions = (() => {
+    const pool = liveSessions ?? []
+    if (!pool.length) return undefined
+    const direct = pool.filter((s) => s.sessionType === 'direct')
+    const sorted = [...(direct.length ? direct : pool)].sort((a, b) => b.time.localeCompare(a.time))
+    return sorted[0]?.staffName
+  })()
   const sortedClientSessions = [...liveSessionsLastWeek].sort((a, b) => a.time.localeCompare(b.time))
   const calendarSessions = liveSessions ?? []
 
@@ -832,7 +840,7 @@ export function ClientOverviewPage() {
             <LiveClientDetailGrid
               client={liveClient}
               auth={liveAuth}
-              primaryStaffName={uniqueStaff[0]}
+              primaryStaffName={liveClient.assigned_staff?.full_name ?? primaryStaffFromSessions ?? uniqueStaff[0]}
             />
           )}
         </CardContent>
