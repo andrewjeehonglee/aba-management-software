@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Check, Minus, Plus, X } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
+import { toast } from "sonner"
 import { useDemo } from "@/context/DemoContext"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -421,18 +422,37 @@ export function SessionViewPage() {
   const [cancelNote, setCancelNote] = useState("")
   const [soap, setSoap] = useState({ subjective: "", objective: "", action: "", plan: "" })
   const [signatureCaptured, setSignatureCaptured] = useState(false)
+  const [staffSignatureCaptured, setStaffSignatureCaptured] = useState(false)
+  const [showFloatingTimer, setShowFloatingTimer] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setShowFloatingTimer(window.scrollY > 72)
+    onScroll()
+    window.addEventListener("scroll", onScroll, { passive: true })
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [])
 
   const soapFilled = SOAP_FIELDS.every(f => soap[f.key].trim().length > 0)
   const isCancelled = outcome === "cancelled" || outcome === "no-show"
-  const canSubmit = isCancelled ? cancelReason.trim().length > 0 : soapFilled && signatureCaptured
+  const canSubmit = isCancelled
+    ? cancelReason.trim().length > 0
+    : soapFilled && signatureCaptured && staffSignatureCaptured
+
+  function finishSession(message: string) {
+    if (timerKey) sessionStorage.removeItem(timerKey)
+    toast.success(message)
+    navigate("/?refresh=notes")
+  }
 
   function handleSubmitSession() {
-    if (isDemo) {
-      if (timerKey) sessionStorage.removeItem(timerKey)
-      navigate("/?refresh=notes")
+    if (isCancelled) {
+      finishSession("Session recorded.")
       return
     }
-    if (timerKey) sessionStorage.removeItem(timerKey)
+    if (isDemo) {
+      finishSession("Session note submitted.")
+      return
+    }
     submitSessionNote({
       practiceId: practiceIdRef.current,
       sessionId:  sessionId!,
@@ -444,7 +464,7 @@ export function SessionViewPage() {
       plan:       soap.plan,
     }).catch(() => {})
     completeSession(sessionId!).catch(() => {})
-    navigate("/?refresh=notes")
+    finishSession("Session note submitted.")
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -466,6 +486,18 @@ export function SessionViewPage() {
 
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col">
+
+      {/* Floating timer — stays visible when page scrolls past the header */}
+      {mode === "active" && showFloatingTimer && (
+        <div
+          className="fixed top-3 right-4 z-30 rounded-full border border-border bg-background/95 px-4 py-2 shadow-md backdrop-blur"
+          aria-live="polite"
+        >
+          <span className="font-mono text-xl font-bold tabular-nums text-primary">
+            {formatTimer(seconds)}
+          </span>
+        </div>
+      )}
 
       {/* ══ STICKY HEADER ══════════════════════════════════════════════════ */}
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
@@ -791,7 +823,11 @@ export function SessionViewPage() {
                 {SESSION_OUTCOMES.map(o => (
                   <button
                     key={o.key}
-                    onClick={() => { setOutcome(o.key); setSignatureCaptured(false) }}
+                    onClick={() => {
+                      setOutcome(o.key)
+                      setSignatureCaptured(false)
+                      setStaffSignatureCaptured(false)
+                    }}
                     className={`rounded-xl border-2 px-4 py-4 text-left transition-colors min-h-[80px] ${
                       outcome === o.key ? o.ring : "border-border hover:border-muted-foreground/40"
                     }`}
@@ -833,7 +869,7 @@ export function SessionViewPage() {
                   size="lg"
                   className="w-full"
                   disabled={!canSubmit}
-                  onClick={() => navigate("/")}
+                  onClick={handleSubmitSession}
                 >
                   Submit
                 </Button>
@@ -895,12 +931,31 @@ export function SessionViewPage() {
                     </button>
                   </div>
 
-                  {/* Staff — deferred */}
-                  <div className="space-y-2 opacity-40">
-                    <p className="text-sm font-medium">Staff signature — complete later</p>
-                    <div className="h-16 rounded-xl border-2 border-dashed border-muted flex items-center justify-center">
-                      <span className="text-xs text-muted-foreground">Deferred — not required now</span>
-                    </div>
+                  {/* Staff */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Staff signature</p>
+                    {!soapFilled && (
+                      <p className="text-xs text-muted-foreground">Complete all four SOAP fields to unlock.</p>
+                    )}
+                    <button
+                      disabled={!soapFilled}
+                      onClick={() => setStaffSignatureCaptured(true)}
+                      className={`w-full h-24 rounded-xl border-2 border-dashed flex items-center justify-center transition-colors ${
+                        !soapFilled
+                          ? "border-muted opacity-40 cursor-not-allowed"
+                          : staffSignatureCaptured
+                          ? "border-emerald-400 bg-emerald-50"
+                          : "border-muted-foreground/40 hover:border-primary cursor-pointer"
+                      }`}
+                    >
+                      {staffSignatureCaptured ? (
+                        <span className="text-emerald-700 text-sm font-medium flex items-center gap-2">
+                          <Check className="size-4" /> Signature captured
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">Tap to sign</span>
+                      )}
+                    </button>
                   </div>
 
                   <Button
