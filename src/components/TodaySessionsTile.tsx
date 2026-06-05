@@ -170,7 +170,7 @@ export function TodaySessionsTile({ className, teamFilter, staffId, isDemo }: { 
                   key={s.id}
                   className={`flex items-center gap-3 rounded-lg border border-border/60 border-l-4 ${leftBorder} bg-card px-3 py-2.5 shadow-sm transition-shadow hover:shadow-md`}
                 >
-                  <div className="w-10 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
+                  <div className="w-12 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                     {formatTime(s.time)}
                   </div>
                   <div className="min-w-0 flex-1">
