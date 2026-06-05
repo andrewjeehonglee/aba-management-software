@@ -30,13 +30,22 @@ export const STATUS_ORDER: Record<SessionStatus, number> = {
   completed:     4,
 }
 
-// Formats an ISO timestamp as local HH:mm. Handles both timezone-aware
-// strings from Supabase ("2026-05-29T15:00:00+00:00") and the timezone-naive
-// mock format ("2026-05-12T08:00", treated as local time by the Date parser).
+// Formats an ISO timestamp as local 24-hour HH:mm (e.g. 13:30, 09:00).
+// Explicit padding — avoids locale/browser variance where hour12:false still shows AM/PM.
 export function formatTime(isoTime: string): string {
-  return new Date(isoTime).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  })
+  const d = new Date(isoTime)
+  const h = d.getHours().toString().padStart(2, "0")
+  const m = d.getMinutes().toString().padStart(2, "0")
+  return `${h}:${m}`
+}
+
+/** Date + 24h time for note/incident headers. Falls back to session scheduled_at when created_at is missing. */
+export function formatEventStamp(createdAt?: string | null, sessionAt?: string | null): { date: string; time: string } {
+  const iso = createdAt ?? sessionAt
+  if (!iso) return { date: "—", time: "" }
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return { date: "—", time: "" }
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  const time = formatTime(iso)
+  return { date, time }
 }

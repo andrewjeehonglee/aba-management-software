@@ -240,12 +240,18 @@ export async function getSessionsToday(staffId?: string, demoFallback = false): 
   console.log('[getSessionsToday] UTC boundaries:', start, '→', end, '| staffId filter:', staffId ?? 'none')
 
   const today = await querySessionsInRange(start, end, staffId)
-  if (today.length > 0 || !demoFallback) {
+  const DEMO_MIN_SESSIONS = 8 // seeded "today" slate has 14 rows across 11 staff
+
+  if (!demoFallback) {
     console.log('[getSessionsToday] rows returned:', today.length)
     return today
   }
+  if (today.length >= DEMO_MIN_SESSIONS) {
+    console.log('[getSessionsToday] demo rows (calendar today):', today.length)
+    return today
+  }
 
-  // Demo seed dates drift after the one-time SQL patch; show the most recent day that has sessions.
+  // Demo: calendar today empty or sparse (e.g. one ad-hoc session) — use the anchor day instead.
   let latestQuery = supabase
     .from('sessions')
     .select('scheduled_at')
@@ -671,7 +677,8 @@ export interface SessionNoteRecord {
   objective:  string
   assessment: string
   plan:       string
-  created_at: string
+  created_at: string | null
+  session_at: string | null
 }
 
 export interface BehaviorIncidentRecord {
@@ -682,28 +689,75 @@ export interface BehaviorIncidentRecord {
   consequences:     string[] | null
   intensity:        string | null
   duration_seconds: number | null
-  created_at:       string
+  created_at:       string | null
+  session_at:       string | null
   behaviors:        { name: string } | null
+}
+
+type NoteRow = {
+  id: string
+  session_id: string
+  staff_id: string
+  subjective: string
+  objective: string
+  assessment: string
+  plan: string
+  created_at: string | null
+  sessions: { scheduled_at: string } | null
+}
+
+type IncidentRow = {
+  id: string
+  session_id: string
+  behavior_id: string
+  antecedents: string[] | null
+  consequences: string[] | null
+  intensity: string | null
+  duration_seconds: number | null
+  created_at: string | null
+  behaviors: { name: string } | null
+  sessions: { scheduled_at: string } | null
 }
 
 export async function getBehaviorIncidentsByClientId(clientId: string): Promise<BehaviorIncidentRecord[]> {
   const { data, error } = await supabase
     .from('behavior_incidents')
-    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, behaviors(name)')
+    .select('id, session_id, behavior_id, antecedents, consequences, intensity, duration_seconds, created_at, behaviors(name), sessions(scheduled_at)')
     .eq('client_id', clientId)
     .order('id', { ascending: false })
   if (error) throw error
-  return (data ?? []) as unknown as BehaviorIncidentRecord[]
+  return ((data ?? []) as unknown as IncidentRow[]).map((row) => ({
+    id:               row.id,
+    session_id:       row.session_id,
+    behavior_id:      row.behavior_id,
+    antecedents:      row.antecedents,
+    consequences:     row.consequences,
+    intensity:        row.intensity,
+    duration_seconds: row.duration_seconds,
+    created_at:       row.created_at,
+    session_at:       row.sessions?.scheduled_at ?? null,
+    behaviors:        row.behaviors,
+  }))
 }
 
 export async function getSessionNotesByClientId(clientId: string): Promise<SessionNoteRecord[]> {
   const { data, error } = await supabase
     .from('session_notes')
-    .select('id, session_id, staff_id, subjective, objective, assessment, plan')
+    .select('id, session_id, staff_id, subjective, objective, assessment, plan, created_at, sessions(scheduled_at)')
     .eq('client_id', clientId)
     .order('id', { ascending: false })
   if (error) throw error
-  return (data ?? []) as SessionNoteRecord[]
+  return ((data ?? []) as unknown as NoteRow[]).map((row) => ({
+    id:         row.id,
+    session_id: row.session_id,
+    staff_id:   row.staff_id,
+    subjective: row.subjective,
+    objective:  row.objective,
+    assessment: row.assessment,
+    plan:       row.plan,
+    created_at: row.created_at,
+    session_at: row.sessions?.scheduled_at ?? null,
+  }))
 }
 
 export interface NewSession {

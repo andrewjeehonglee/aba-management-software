@@ -32,7 +32,7 @@ import {
   usedHours,
   utilizationClass,
 } from "@/lib/authorization"
-import { formatTime } from "@/lib/sessions"
+import { formatEventStamp, formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import type { ClientAuthorization } from "@/types/authorization"
@@ -829,7 +829,11 @@ export function ClientOverviewPage() {
 
           {/* Client detail — shown once the live record loads */}
           {!clientLoading && liveClient && (
-            <LiveClientDetailGrid client={liveClient} auth={liveAuth} />
+            <LiveClientDetailGrid
+              client={liveClient}
+              auth={liveAuth}
+              primaryStaffName={uniqueStaff[0]}
+            />
           )}
         </CardContent>
       </Card>
@@ -1139,7 +1143,15 @@ function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
 // Detail grid shown when the page loads via a UUID-based URL. All fields come
 // from the clients row; auth-period and CPT code fall back to the separate
 // authorizations row when the client record doesn't carry those values directly.
-function LiveClientDetailGrid({ client, auth }: { client: ClientDetail; auth?: AuthRecord | null }) {
+function LiveClientDetailGrid({
+  client,
+  auth,
+  primaryStaffName,
+}: {
+  client: ClientDetail
+  auth?: AuthRecord | null
+  primaryStaffName?: string
+}) {
   const STATUS_STYLES: Record<string, string> = {
     active:     "bg-green-100 text-green-800",
     inactive:   "bg-amber-100 text-amber-800",
@@ -1195,7 +1207,16 @@ function LiveClientDetailGrid({ client, auth }: { client: ClientDetail; auth?: A
               {client.assigned_staff.full_name}
             </Link>
           )
-          : "—"}
+          : primaryStaffName
+            ? (
+              <Link
+                to={"/staff/" + toSlug(primaryStaffName)}
+                className="hover:underline underline-offset-2"
+              >
+                {primaryStaffName}
+              </Link>
+            )
+            : "—"}
       </dd>
 
       <dt className="text-muted-foreground">Team</dt>
@@ -1210,15 +1231,7 @@ function LiveClientDetailGrid({ client, auth }: { client: ClientDetail; auth?: A
 // whether to open. Clicking anywhere on the header row toggles the body.
 function SessionNoteRow({ note }: { note: SessionNoteRecord }) {
   const [open, setOpen] = useState(false)
-  const date = new Date(note.created_at).toLocaleDateString("en-US", {
-    month: "short",
-    day:   "numeric",
-    year:  "numeric",
-  })
-  const time = new Date(note.created_at).toLocaleTimeString("en-US", {
-    hour:   "numeric",
-    minute: "2-digit",
-  })
+  const { date, time } = formatEventStamp(note.created_at, note.session_at)
 
   return (
     <li className="py-3 first:pt-0 last:pb-0">
@@ -1289,15 +1302,7 @@ const INTENSITY_CHIP: Record<string, string> = {
 
 function BehaviorIncidentRow({ incident }: { incident: BehaviorIncidentRecord }) {
   const [open, setOpen] = useState(false)
-  const date = new Date(incident.created_at).toLocaleDateString("en-US", {
-    month: "short",
-    day:   "numeric",
-    year:  "numeric",
-  })
-  const time = new Date(incident.created_at).toLocaleTimeString("en-US", {
-    hour:   "numeric",
-    minute: "2-digit",
-  })
+  const { date, time } = formatEventStamp(incident.created_at, incident.session_at)
   const behaviorName = incident.behaviors?.name ?? "Unknown behavior"
   const intensityCls = incident.intensity ? (INTENSITY_CHIP[incident.intensity] ?? "bg-slate-100 text-slate-700") : null
 
