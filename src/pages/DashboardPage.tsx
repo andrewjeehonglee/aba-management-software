@@ -65,12 +65,27 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
 
   const [searchParams, setSearchParams] = useSearchParams()
 
-  // Apply smart team default when no explicit ?team= param is present.
-  const rawTeam = searchParams.get("team") ?? ROLE_DEFAULT_TEAM[viewRole] ?? "All"
+  const visible = canSee(viewRole)
+
+  // Non-owners (and owner role-preview) are scoped to one clinical team — not practice-wide.
+  const scopedTeam: TeamFilter =
+    viewRole === "Owner" ? "All" : (ROLE_DEFAULT_TEAM[viewRole] ?? "All")
+
+  useEffect(() => {
+    if (viewRole === "Owner") return
+    const team = ROLE_DEFAULT_TEAM[viewRole] ?? "All"
+    if (searchParams.get("team") !== team) {
+      setSearchParams({ team }, { replace: true })
+    }
+  }, [viewRole]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rawTeam = searchParams.get("team") ?? scopedTeam
   const teamFilter: TeamFilter = (TEAM_FILTERS as string[]).includes(rawTeam)
     ? (rawTeam as TeamFilter)
-    : "All"
-  const visible = canSee(viewRole)
+    : scopedTeam
+
+  const teamChipOptions: TeamFilter[] =
+    viewRole === "Owner" ? TEAM_FILTERS : [scopedTeam]
 
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
   const [staffRefreshKey, setStaffRefreshKey] = useState(0)
@@ -131,27 +146,33 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
         </div>
       </header>
 
-      {/* ── Team filter chips ── */}
+      {/* ── Team filter chips (Owner only; other roles locked to their team) ── */}
       <div className="flex w-full max-w-7xl items-center gap-2 py-1">
         <span className="text-xs text-muted-foreground shrink-0">Team:</span>
-        <div className="flex flex-wrap gap-1.5">
-          {TEAM_FILTERS.map(t => (
-            <button
-              key={t}
-              onClick={() => setSearchParams({ team: t })}
-              className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                teamFilter === t
-                  ? "bg-[#0D7377] text-white border-[#0D7377]"
-                  : "border-[#D0DCDC] text-[#4A5C5C] hover:border-[#14A0A5] hover:text-[#0D7377]"
-              }`}
-            >
-              {t === "All" ? "All Teams" : t}
-            </button>
-          ))}
-        </div>
+        {viewRole === "Owner" ? (
+          <div className="flex flex-wrap gap-1.5">
+            {teamChipOptions.map(t => (
+              <button
+                key={t}
+                onClick={() => setSearchParams({ team: t })}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  teamFilter === t
+                    ? "bg-[#0D7377] text-white border-[#0D7377]"
+                    : "border-[#D0DCDC] text-[#4A5C5C] hover:border-[#14A0A5] hover:text-[#0D7377]"
+                }`}
+              >
+                {t === "All" ? "All Teams" : t}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <span className="rounded-full border border-[#0D7377] bg-[#0D7377] px-3 py-1 text-xs font-medium text-white">
+            {scopedTeam}
+          </span>
+        )}
         {teamFilter !== "All" && (
           <span className="text-[11px] text-muted-foreground italic ml-1">
-            Showing {teamFilter} only
+            {viewRole === "Owner" ? `Showing ${teamFilter} only` : "Your team only"}
           </span>
         )}
       </div>
