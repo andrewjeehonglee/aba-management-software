@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Plus } from "lucide-react"
-import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -278,7 +277,6 @@ export function ClientsListTile({ refreshKey, canAddClient, practiceId, isDemo, 
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1"
               onClick={() => {
-                if (isDemo) { toast.info("Create a free account to save data."); return }
                 setModalOpen(true)
               }}
             >
@@ -309,7 +307,6 @@ export function ClientsListTile({ refreshKey, canAddClient, practiceId, isDemo, 
                 <button
                   className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
                   onClick={() => {
-                    if (isDemo) { toast.info("Create a free account to save data."); return }
                     setModalOpen(true)
                   }}
                 >

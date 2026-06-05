@@ -89,7 +89,7 @@ function monthGrid(anchorDate: Date): (Date | null)[][] {
 // Fixed "today" reference. Same pattern as CertificationsExpiringTile — keeps
 // the demo stable regardless of when the page renders.
 // ─────────────────────────────────────────────────────────────────────────
-const TODAY = new Date(2026, 4, 18) // May 18, 2026
+const TODAY = new Date()
 const TODAY_ISO = localISO(TODAY)
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -388,12 +388,12 @@ function MonthView({
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className="space-y-1">
+      {/* Calendar grid — fixed row height; aspect-square on empty cells caused huge gaps */}
+      <div className="space-y-0.5">
         {grid.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 gap-1">
+          <div key={wi} className="grid grid-cols-7 gap-0.5">
             {week.map((day, di) => {
-              if (!day) return <div key={di} className="aspect-square" />
+              if (!day) return <div key={di} className="h-9" aria-hidden="true" />
 
               const iso = localISO(day)
               const count = sessionsOnDay(sessions, iso).length
@@ -408,7 +408,7 @@ function MonthView({
                   disabled={!hasData}
                   aria-label={`${day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${count} session${count !== 1 ? "s" : ""}`}
                   className={`
-                    relative flex flex-col items-center justify-start gap-1 rounded-lg p-1.5 text-xs
+                    relative flex h-9 flex-col items-center justify-center gap-0.5 rounded-md p-1 text-xs
                     transition-colors
                     ${isExpanded ? "bg-muted ring-1 ring-border" : ""}
                     ${isToday ? "ring-1 ring-primary" : ""}

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Play, Plus } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
-import { toast } from "sonner"
 import { useDemo } from "@/context/DemoContext"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
 import { SessionCalendar } from "@/components/SessionCalendar"
@@ -501,17 +500,6 @@ function NewBehaviorModal({ open, practiceId, clientId, onClose, onSuccess }: Ne
   )
 }
 
-// Display labels for the inline status summary line ("Today: 1 completed,
-// 1 in progress…"). Hyphens and tech-style enum values don't read well in
-// running prose, so this is a deliberate prose-friendly translation layer.
-const STATUS_LABEL: Record<SessionStatus, string> = {
-  completed:     "completed",
-  "in-progress": "in progress",
-  scheduled:     "scheduled",
-  cancelled:     "cancelled",
-  "no-show":     "no-show",
-}
-
 // Goal status config — four real ABA lifecycle states confirmed by the client.
 // Sort order: in-progress first (active work), then hold (needs review),
 // then mastered (completed successfully), then discontinued (inactive, muted).
@@ -532,14 +520,6 @@ const GOAL_STATUS_ORDER: Record<string, number> = {
   hold:          1,
   mastered:      2,
   discontinued:  3,
-}
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-      {children}
-    </span>
-  )
 }
 
 function GoalStatusBadge({ status }: { status: string }) {
@@ -720,18 +700,12 @@ export function ClientOverviewPage() {
     }
   }
 
-  const todayISO = new Date().toISOString().slice(0, 10)
-  const liveSessionsToday = liveSessions?.filter(
-    (s) => s.time.slice(0, 10) === todayISO
-  ) ?? []
   const liveSessionsLastWeek = liveSessions?.filter((s) => {
     const d = new Date(s.time)
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7)
     return d >= cutoff
   }) ?? []
 
-  const clientSessions = liveSessionsToday
-  // "Working with" + assigned-staff fallback: use recent sessions, not calendar-today only (demo seed dates drift).
   const uniqueStaff = Array.from(new Set(liveSessionsLastWeek.map((s) => s.staffName)))
   const primaryStaffFromSessions = (() => {
     const pool = liveSessions ?? []
@@ -755,15 +729,6 @@ export function ClientOverviewPage() {
   )
 
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
-
-  const statusCounts: Partial<Record<SessionStatus, number>> = {}
-  for (const s of clientSessions) {
-    const key = s.status as SessionStatus
-    statusCounts[key] = (statusCounts[key] ?? 0) + 1
-  }
-  const statusSummary = (Object.entries(statusCounts) as [SessionStatus, number][])
-    .map(([status, count]) => `${count} ${STATUS_LABEL[status]}`)
-    .join(" · ")
 
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
@@ -807,36 +772,6 @@ export function ClientOverviewPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Chip>
-              {clientSessions.length} session{clientSessions.length === 1 ? "" : "s"} today
-            </Chip>
-            <Chip>
-              {uniqueStaff.length} staff assigned
-            </Chip>
-          </div>
-          {statusSummary && (
-            <p className="text-xs text-muted-foreground">
-              Today: {statusSummary}
-            </p>
-          )}
-          {uniqueStaff.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Working with:{" "}
-              {uniqueStaff.map((name, i) => (
-                <span key={name}>
-                  {i > 0 && ", "}
-                  <Link
-                    to={"/staff/" + toSlug(name)}
-                    className="hover:underline underline-offset-2"
-                  >
-                    {name}
-                  </Link>
-                </span>
-              ))}
-            </p>
-          )}
-
           {/* Client detail — shown once the live record loads */}
           {!clientLoading && liveClient && (
             <LiveClientDetailGrid
@@ -857,10 +792,7 @@ export function ClientOverviewPage() {
               size="sm"
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1"
-              onClick={() => {
-                if (isDemo) { toast.info("Create a free account to save data."); return }
-                setAuthModalOpen(true)
-              }}
+              onClick={() => setAuthModalOpen(true)}
             >
               {liveAuth ? "Edit" : <><Plus className="size-3.5" />Add Authorization</>}
             </Button>
@@ -952,10 +884,7 @@ export function ClientOverviewPage() {
               size="sm"
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1"
-              onClick={() => {
-                if (isDemo) { toast.info("Create a free account to save data."); return }
-                setGoalModalOpen(true)
-              }}
+              onClick={() => setGoalModalOpen(true)}
             >
               <Plus className="size-3.5" />
               New Goal
@@ -977,10 +906,7 @@ export function ClientOverviewPage() {
               {canAddGoal && isUUID && (
                 <button
                   className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
-                  onClick={() => {
-                    if (isDemo) { toast.info("Create a free account to save data."); return }
-                    setGoalModalOpen(true)
-                  }}
+                  onClick={() => setGoalModalOpen(true)}
                 >
                   Add a goal →
                 </button>
@@ -1018,10 +944,7 @@ export function ClientOverviewPage() {
                 size="sm"
                 variant="outline"
                 className="h-7 px-2.5 text-xs gap-1"
-                onClick={() => {
-                  if (isDemo) { toast.info("Create a free account to save data."); return }
-                  setBehaviorModalOpen(true)
-                }}
+                onClick={() => setBehaviorModalOpen(true)}
               >
                 <Plus className="size-3.5" />
                 New Behavior
@@ -1229,8 +1152,6 @@ function LiveClientDetailGrid({
             : "—"}
       </dd>
 
-      <dt className="text-muted-foreground">Team</dt>
-      <dd>{client.team ?? "—"}</dd>
     </dl>
   )
 }
@@ -1376,21 +1297,17 @@ function AuthorizationDetail({ auth }: { auth: ClientAuthorization | AuthRecord 
   const remaining = auth.totalAuthorizedHours - used
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className={`text-3xl font-semibold tabular-nums ${text}`}>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <span className={`text-xl font-semibold tabular-nums ${text}`}>
           {auth.utilizationPct.toFixed(0)}%
         </span>
-        <span className="text-sm text-muted-foreground">
-          of {auth.totalAuthorizedHours} authorized hours
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {used} / {auth.totalAuthorizedHours} hrs · {remaining} remaining
         </span>
       </div>
 
-      {/* Expanded mini-bar — full content width, slightly chunkier than the
-          dashboard tile version (h-3 vs h-2), with the same threshold marker
-          at FLAGGED_THRESHOLD% so the visual language stays consistent across
-          glance and detail views. */}
-      <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-200">
+      <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200">
         <div
           className={`h-full ${bar}`}
           style={{ width: `${Math.min(auth.utilizationPct, 100)}%` }}
@@ -1401,15 +1318,6 @@ function AuthorizationDetail({ auth }: { auth: ClientAuthorization | AuthRecord 
           aria-hidden="true"
         />
       </div>
-
-      <p className="text-sm">
-        <span className="font-medium tabular-nums">{used}</span>
-        <span className="text-muted-foreground"> of </span>
-        <span className="font-medium tabular-nums">{auth.totalAuthorizedHours}</span>
-        <span className="text-muted-foreground"> hrs used — </span>
-        <span className="font-medium tabular-nums">{remaining}</span>
-        <span className="text-muted-foreground"> remaining</span>
-      </p>
     </div>
   )
 }

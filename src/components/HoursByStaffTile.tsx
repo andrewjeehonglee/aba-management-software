@@ -36,7 +36,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { toast } from "sonner"
 import { createStaff, getStaff, type StaffRecord } from "@/lib/supabase"
 import type { Staff } from "@/types/staff"
 import { isStaffFlagged } from "@/lib/staff"
@@ -298,7 +297,6 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1 mr-2"
               onClick={() => {
-                if (isDemo) { toast.info("Create a free account to save data."); return }
                 setModalOpen(true)
               }}
             >
@@ -341,7 +339,6 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
               <button
                 className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
                 onClick={() => {
-                  if (isDemo) { toast.info("Create a free account to save data."); return }
                   setModalOpen(true)
                 }}
               >
