@@ -242,11 +242,10 @@ interface ClientsListTileProps {
   refreshKey?:      number
   canAddClient?:    boolean
   practiceId?:      string
-  isDemo?:          boolean
   onClientCreated?: () => void
 }
 
-export function ClientsListTile({ refreshKey, canAddClient, practiceId, isDemo, onClientCreated }: ClientsListTileProps) {
+export function ClientsListTile({ refreshKey, canAddClient, practiceId, onClientCreated }: ClientsListTileProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

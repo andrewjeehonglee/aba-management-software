@@ -259,11 +259,10 @@ interface HoursByStaffTileProps {
   teamFilter?:     TeamFilter
   refreshKey?:     number
   practiceId?:     string
-  isDemo?:         boolean
   onStaffCreated?: () => void
 }
 
-export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId, isDemo, onStaffCreated }: HoursByStaffTileProps) {
+export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId, onStaffCreated }: HoursByStaffTileProps) {
   const [sortKey, setSortKey]     = useState<SortKey>("total")
   const [allStaff, setAllStaff]   = useState<StaffRecord[]>([])
   const [loading, setLoading]     = useState(true)

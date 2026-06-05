@@ -179,7 +179,6 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
             teamFilter={teamFilter}
             refreshKey={staffRefreshKey}
             practiceId={practiceId}
-            isDemo={isDemo}
             onStaffCreated={() => setStaffRefreshKey(k => k + 1)}
           />
         )}
