@@ -1,5 +1,5 @@
-import { getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
-import { supabase } from "@/lib/supabase"
+import { getCurrentCalendarMonth, getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
+import { supabase, type SupervisionRecord } from "@/lib/supabase"
 
 export type DashboardScope =
   | { mode: "practice" }
@@ -173,4 +173,59 @@ export function supervisionOverlapsCurrentMonth(
   const start = periodStart.slice(0, 10)
   const end = periodEnd.slice(0, 10)
   return start <= monthEnd && end >= monthStart
+}
+
+function formatPeriodMonthLabel(periodStart: string): string {
+  const [year, month] = periodStart.slice(0, 10).split("-").map(Number)
+  const anchor = new Date(year, month - 1, 1)
+  return anchor.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+}
+
+/** Latest row per staff when multiple periods exist (fallback path). */
+function pickLatestSupervisionPerStaff(records: SupervisionRecord[]): SupervisionRecord[] {
+  const byStaff = new Map<string, SupervisionRecord>()
+  for (const row of records) {
+    const prev = byStaff.get(row.staffName)
+    if (!prev || row.periodEnd.slice(0, 10) > prev.periodEnd.slice(0, 10)) {
+      byStaff.set(row.staffName, row)
+    }
+  }
+  return [...byStaff.values()]
+}
+
+/**
+ * Prefer current calendar month. If no rows overlap (e.g. seed still on May),
+ * show the latest period per staff so the tile is not falsely empty.
+ */
+export function filterSupervisionRecordsForTile(records: SupervisionRecord[]): {
+  records: SupervisionRecord[]
+  displayMonthLabel: string
+  isFallbackPeriod: boolean
+} {
+  const currentMonth = getCurrentCalendarMonth()
+  const current = records.filter((r) =>
+    supervisionOverlapsCurrentMonth(r.periodStart, r.periodEnd),
+  )
+  if (current.length > 0) {
+    return {
+      records: current,
+      displayMonthLabel: currentMonth.label,
+      isFallbackPeriod: false,
+    }
+  }
+
+  const latest = pickLatestSupervisionPerStaff(records)
+  if (latest.length === 0) {
+    return {
+      records: [],
+      displayMonthLabel: currentMonth.label,
+      isFallbackPeriod: false,
+    }
+  }
+
+  return {
+    records: latest,
+    displayMonthLabel: formatPeriodMonthLabel(latest[0].periodStart),
+    isFallbackPeriod: true,
+  }
 }

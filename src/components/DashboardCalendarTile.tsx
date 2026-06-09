@@ -69,7 +69,7 @@ export function DashboardCalendarTile({
         <div className="space-y-0.5">
           <CardTitle>{staffDisplayName || "My Schedule"}</CardTitle>
           {monthLabel && (
-            <CardDescription className="text-xs">
+            <CardDescription className="text-sm">
               This month: {monthLabel}
             </CardDescription>
           )}

@@ -165,7 +165,9 @@ export function SessionCalendar({
       <div className={`flex items-center justify-between gap-2 ${embedded ? "" : "mt-0"}`}>
         {!embedded && <CardTitle>Session Calendar</CardTitle>}
         {embedded && !monthOnly && (
-          <span className="text-sm font-medium">{formatMonthYear(anchorDate)}</span>
+          <span className={`font-medium ${inlineDayContent ? "text-base font-semibold" : "text-sm"}`}>
+            {formatMonthYear(anchorDate)}
+          </span>
         )}
         {!monthOnly && (
           <div className="flex items-center gap-0.5 rounded-lg border border-border p-1 ml-auto">
@@ -193,7 +195,7 @@ export function SessionCalendar({
         >
           <ChevronLeft className="size-4" aria-hidden="true" />
         </button>
-        <span className="text-sm font-medium text-center">
+        <span className={`font-medium text-center ${inlineDayContent ? "text-base font-semibold" : "text-sm"}`}>
           {view === "week" ? formatWeekRange(anchorDate) : formatMonthYear(anchorDate)}
         </span>
         <button
@@ -485,7 +487,7 @@ function InlineDaySessionCard({
 
   return (
     <div
-      className={`rounded border border-border border-l-2 px-1 py-0.5 text-[9px] leading-tight ${CARD_BORDER[s.status]} ${
+      className={`rounded border border-border border-l-2 px-1 py-0.5 text-xs leading-tight ${CARD_BORDER[s.status]} ${
         dim ? "opacity-55" : ""
       }`}
     >
@@ -505,7 +507,7 @@ function InlineDaySessionCard({
         )}
       </div>
       {showStaffLabel && displayMode === "client" && (
-        <div className="truncate text-[8px] text-muted-foreground">{s.staffName}</div>
+        <div className="truncate text-[11px] text-muted-foreground">{s.staffName}</div>
       )}
     </div>
   )
@@ -552,7 +554,9 @@ function MonthView({
         {DOW_LABELS.map((d) => (
           <div
             key={d}
-            className="py-1 text-center text-[10px] font-medium text-muted-foreground"
+            className={`py-1 text-center font-medium text-muted-foreground ${
+              inlineDayContent ? "text-xs sm:text-sm" : "text-[10px]"
+            }`}
           >
             {d}
           </div>
@@ -568,7 +572,7 @@ function MonthView({
                 return (
                   <div
                     key={di}
-                    className={inlineDayContent ? "min-h-[5.5rem]" : "h-9"}
+                    className={inlineDayContent ? "h-32" : "h-9"}
                     aria-hidden="true"
                   />
                 )
@@ -586,19 +590,19 @@ function MonthView({
                   <div
                     key={iso}
                     className={`
-                      flex min-h-[5.5rem] flex-col rounded-md border p-1 text-xs
+                      flex h-32 flex-col rounded-md border p-1 text-xs
                       ${isToday ? "border-primary ring-1 ring-primary" : "border-border/60"}
                     `}
                   >
                     <span
-                      className={`text-[10px] font-medium leading-none ${
+                      className={`text-sm font-semibold leading-none ${
                         isToday ? "text-primary" : "text-muted-foreground"
                       }`}
                     >
                       {day.getDate()}
                     </span>
                     {hasData ? (
-                      <div className="mt-0.5 flex max-h-48 flex-1 flex-col gap-0.5 overflow-y-auto">
+                      <div className="mt-0.5 flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
                         {daySessions.map((s) => (
                           <InlineDaySessionCard
                             key={s.id}

@@ -13,8 +13,7 @@ import {
   getSupervisionForStaffIds,
   type SupervisionRecord,
 } from "@/lib/supabase"
-import { supervisionOverlapsCurrentMonth } from "@/lib/dashboardScope"
-import { getCurrentCalendarMonth } from "@/lib/payPeriod"
+import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
@@ -41,12 +40,6 @@ function sortByComplianceAsc(a: SupervisionRecord, b: SupervisionRecord): number
   return a.supervisionPct - b.supervisionPct || a.staffName.localeCompare(b.staffName)
 }
 
-function filterCurrentMonth(records: SupervisionRecord[]): SupervisionRecord[] {
-  return records.filter((r) =>
-    supervisionOverlapsCurrentMonth(r.periodStart, r.periodEnd),
-  )
-}
-
 export function SupervisionComplianceTile({
   className,
   teamFilter,
@@ -61,7 +54,8 @@ export function SupervisionComplianceTile({
   const [allSupervision, setAllSupervision] = useState<SupervisionRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const monthLabel = getCurrentCalendarMonth().label
+  const [monthLabel, setMonthLabel] = useState("")
+  const [isFallbackPeriod, setIsFallbackPeriod] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -76,10 +70,19 @@ export function SupervisionComplianceTile({
 
     load()
       .then((records) => {
-        const filtered = filterCurrentMonth(records)
-        if (staffIds?.length && filtered.length === 0) {
-          console.warn("[Supervision] scoped IDs had no June rows", staffIds)
+        const { records: filtered, displayMonthLabel, isFallbackPeriod: fallback } =
+          filterSupervisionRecordsForTile(records)
+        if (staffIds?.length && filtered.length === 0 && records.length > 0) {
+          console.warn("[Supervision] scoped IDs had no rows for display period", staffIds)
         }
+        if (fallback) {
+          console.warn(
+            "[Supervision] no rows for current month — showing latest period:",
+            displayMonthLabel,
+          )
+        }
+        setMonthLabel(displayMonthLabel)
+        setIsFallbackPeriod(fallback)
         setAllSupervision(filtered)
       })
       .catch((err) => setError(err.message ?? "Failed to load supervision data"))
@@ -126,8 +129,8 @@ export function SupervisionComplianceTile({
         </CardTitle>
         <CardDescription className="text-xs">
           {selfMode
-            ? `This month: ${monthLabel}`
-            : `This month: ${monthLabel} · RBTs below ${SUPERVISION_THRESHOLD}% flagged`}
+            ? `${isFallbackPeriod ? "Latest period" : "This month"}: ${monthLabel}`
+            : `${isFallbackPeriod ? "Latest period" : "This month"}: ${monthLabel} · RBTs below ${SUPERVISION_THRESHOLD}% flagged`}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex-1">
