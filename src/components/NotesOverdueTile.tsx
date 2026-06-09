@@ -3,20 +3,12 @@ import { Link } from "react-router-dom"
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { getNotesStatus, type StaffNotesStatus } from "@/lib/notesStatus"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
@@ -33,22 +25,13 @@ function urgencyLevel(totalOverdue: number, totalMissing: number): Urgency {
   return total > 0 ? "warning" : "healthy"
 }
 
-const SORT_OPTIONS = {
-  overdue: {
-    label: "Overdue count (high → low)",
-    compare: (a: StaffNotesStatus, b: StaffNotesStatus) =>
-      b.overdueCount - a.overdueCount ||
-      b.missingCount - a.missingCount ||
-      a.staffName.localeCompare(b.staffName),
-  },
-  name: {
-    label: "Staff name (A → Z)",
-    compare: (a: StaffNotesStatus, b: StaffNotesStatus) =>
-      a.staffName.localeCompare(b.staffName),
-  },
-} as const
-
-type SortKey = keyof typeof SORT_OPTIONS
+function sortByOverdueDesc(a: StaffNotesStatus, b: StaffNotesStatus): number {
+  return (
+    b.overdueCount - a.overdueCount ||
+    b.missingCount - a.missingCount ||
+    a.staffName.localeCompare(b.staffName)
+  )
+}
 
 function MissingPill({ count }: { count: number }) {
   if (count === 0) return null
@@ -78,7 +61,6 @@ export function NotesOverdueTile({
   refreshKey?: number
   staffIds?: string[]
 }) {
-  const [sortKey, setSortKey] = useState<SortKey>("overdue")
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -93,7 +75,7 @@ export function NotesOverdueTile({
   }, [refreshKey, staffIds])
 
   const sortedStaff = summary
-    ? [...summary.byStaff].sort(SORT_OPTIONS[sortKey].compare)
+    ? [...summary.byStaff].sort(sortByOverdueDesc)
     : []
 
   const totalMissing = summary?.totalMissing ?? 0
@@ -133,18 +115,6 @@ export function NotesOverdueTile({
             </CardDescription>
           )}
         </div>
-        <CardAction>
-          <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-8 w-[180px] text-xs">
-              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
-                <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardAction>
       </CardHeader>
       <CardContent>
         {loading && (

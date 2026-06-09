@@ -98,8 +98,6 @@ const TODAY_ISO = localISO(TODAY)
 
 export type SessionCalendarDisplayMode = "staff" | "client"
 
-const MAX_INLINE_SESSIONS = 3
-
 interface SessionCalendarProps {
   sessions: Session[]
   defaultView?: "week" | "month"
@@ -584,9 +582,6 @@ function MonthView({
               const hasData = count > 0
 
               if (inlineDayContent) {
-                const visible = daySessions.slice(0, MAX_INLINE_SESSIONS)
-                const overflow = count - visible.length
-
                 return (
                   <div
                     key={iso}
@@ -603,8 +598,8 @@ function MonthView({
                       {day.getDate()}
                     </span>
                     {hasData ? (
-                      <div className="mt-0.5 flex max-h-24 flex-1 flex-col gap-0.5 overflow-y-auto">
-                        {visible.map((s) => (
+                      <div className="mt-0.5 flex max-h-48 flex-1 flex-col gap-0.5 overflow-y-auto">
+                        {daySessions.map((s) => (
                           <InlineDaySessionCard
                             key={s.id}
                             session={s}
@@ -612,11 +607,6 @@ function MonthView({
                             showStaffLabel={showStaffLabel}
                           />
                         ))}
-                        {overflow > 0 && (
-                          <span className="text-[9px] text-muted-foreground">
-                            +{overflow} more
-                          </span>
-                        )}
                       </div>
                     ) : (
                       <div className="flex-1" aria-hidden="true" />

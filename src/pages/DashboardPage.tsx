@@ -163,7 +163,7 @@ export function DashboardPage({
       </header>
 
       {isOwnerView ? (
-        <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
+        <div className="grid w-full max-w-[min(100%,1680px)] gap-4 px-4 sm:px-6 lg:grid-cols-3">
           <div id="notes-overdue">
             <NotesOverdueTile refreshKey={notesRefreshKey} />
           </div>
@@ -175,7 +175,7 @@ export function DashboardPage({
           <AuthorizationUtilizationTile />
         </div>
       ) : (
-        <div className="w-full max-w-7xl space-y-4">
+        <div className="w-full max-w-[min(100%,1680px)] space-y-4 px-4 sm:px-6">
           <DashboardCalendarTile
             viewRole={viewRole as CalendarRole}
             isOwnerPreview={isOwnerPreview}
@@ -184,7 +184,7 @@ export function DashboardPage({
           />
 
           {!scopeLoading && effectiveStaffId && isBcbaOrSupervisor && (
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 lg:grid-cols-2">
               <NotesOverdueTile
                 refreshKey={notesRefreshKey}
                 staffIds={scopeStaffIds}

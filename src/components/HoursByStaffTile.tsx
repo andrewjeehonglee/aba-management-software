@@ -272,23 +272,9 @@ function HoursLegendFooter() {
   )
 }
 
-const SORT_OPTIONS = {
-  total: {
-    label: "Total hours (high → low)",
-    compare: (a: StaffHoursRow, b: StaffHoursRow) => b.totalHours - a.totalHours,
-  },
-  directPct: {
-    label: "Direct % (low → high)",
-    compare: (a: StaffHoursRow, b: StaffHoursRow) =>
-      a.directPct - b.directPct || a.staffName.localeCompare(b.staffName),
-  },
-  name: {
-    label: "Name (A–Z)",
-    compare: (a: StaffHoursRow, b: StaffHoursRow) => a.staffName.localeCompare(b.staffName),
-  },
-} as const
-
-type SortKey = keyof typeof SORT_OPTIONS
+function sortByTotalHoursDesc(a: StaffHoursRow, b: StaffHoursRow): number {
+  return b.totalHours - a.totalHours
+}
 
 interface HoursByStaffTileProps {
   className?:      string
@@ -307,7 +293,6 @@ export function HoursByStaffTile({
   onStaffCreated,
   staffIds,
 }: HoursByStaffTileProps) {
-  const [sortKey, setSortKey]     = useState<SortKey>("total")
   const [summary, setSummary]     = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
@@ -323,7 +308,7 @@ export function HoursByStaffTile({
   }, [refreshKey, staffIds])
 
   const sortedStaff = summary
-    ? [...summary.byStaff].sort(SORT_OPTIONS[sortKey].compare)
+    ? [...summary.byStaff].sort(sortByTotalHoursDesc)
     : []
 
   return (
@@ -338,34 +323,19 @@ export function HoursByStaffTile({
             </CardDescription>
           )}
         </div>
-        <CardAction>
-          {practiceId && (
+        {practiceId && (
+          <CardAction>
             <Button
               size="sm"
               variant="outline"
-              className="h-7 px-2.5 text-xs gap-1 mr-2"
+              className="h-7 px-2.5 text-xs gap-1"
               onClick={() => setModalOpen(true)}
             >
               <Plus className="size-3.5" />
               New Staff
             </Button>
-          )}
-          <Select
-            value={sortKey}
-            onValueChange={(v) => setSortKey(v as SortKey)}
-          >
-            <SelectTrigger className="h-8 w-[180px] text-xs">
-              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
-                <SelectItem key={key} value={key} className="text-xs">
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardAction>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="flex-1">
         {loading && (

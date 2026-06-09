@@ -3,20 +3,12 @@ import { Link } from "react-router-dom"
 import { AlertTriangle, BadgeCheck } from "lucide-react"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { getAuthUtilizationByMonth, type ClientAuthUtilRow } from "@/lib/authUtilization"
 import { FLAGGED_THRESHOLD, utilizationClass } from "@/lib/authorization"
 import { cn } from "@/lib/utils"
@@ -81,25 +73,9 @@ function AuthLegendFooter() {
   )
 }
 
-const SORT_OPTIONS = {
-  pctDesc: {
-    label: "Utilization % (high → low)",
-    compare: (a: ClientAuthUtilRow, b: ClientAuthUtilRow) =>
-      b.utilizationPct - a.utilizationPct || a.clientName.localeCompare(b.clientName),
-  },
-  name: {
-    label: "Client name (A → Z)",
-    compare: (a: ClientAuthUtilRow, b: ClientAuthUtilRow) =>
-      a.clientName.localeCompare(b.clientName),
-  },
-  pctAsc: {
-    label: "Utilization % (low → high)",
-    compare: (a: ClientAuthUtilRow, b: ClientAuthUtilRow) =>
-      a.utilizationPct - b.utilizationPct || a.clientName.localeCompare(b.clientName),
-  },
-} as const
-
-type SortKey = keyof typeof SORT_OPTIONS
+function sortByUtilizationDesc(a: ClientAuthUtilRow, b: ClientAuthUtilRow): number {
+  return b.utilizationPct - a.utilizationPct || a.clientName.localeCompare(b.clientName)
+}
 
 export function AuthorizationUtilizationTile({
   className,
@@ -110,7 +86,6 @@ export function AuthorizationUtilizationTile({
   teamFilter?: TeamFilter
   clientIds?: string[]
 }) {
-  const [sortKey, setSortKey] = useState<SortKey>("pctDesc")
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -130,7 +105,7 @@ export function AuthorizationUtilizationTile({
           : summary.byClient)
     : []
 
-  const sortedClients = [...teamClients].sort(SORT_OPTIONS[sortKey].compare)
+  const sortedClients = [...teamClients].sort(sortByUtilizationDesc)
 
   return (
     <Card size="sm" className={cn("w-full flex flex-col", className)}>
@@ -143,18 +118,6 @@ export function AuthorizationUtilizationTile({
             </CardDescription>
           )}
         </div>
-        <CardAction>
-          <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-8 w-[180px] text-xs">
-              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
-                <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardAction>
       </CardHeader>
       <CardContent className="flex-1">
         {loading && (

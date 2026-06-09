@@ -3,22 +3,13 @@ import { Link } from "react-router-dom"
 import { AlertCircle, AlertTriangle, Info, ShieldCheck } from "lucide-react"
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
   getSupervision,
-  getSupervisionByStaffId,
   getSupervisionForStaffIds,
   type SupervisionRecord,
 } from "@/lib/supabase"
@@ -46,25 +37,9 @@ function headlineColorClass(flagged: number): string {
   return "text-emerald-600"
 }
 
-const SORT_OPTIONS = {
-  pctAsc: {
-    label: "Compliance % (low → high)",
-    compare: (a: SupervisionRecord, b: SupervisionRecord) =>
-      a.supervisionPct - b.supervisionPct || a.staffName.localeCompare(b.staffName),
-  },
-  name: {
-    label: "RBT name (A → Z)",
-    compare: (a: SupervisionRecord, b: SupervisionRecord) =>
-      a.staffName.localeCompare(b.staffName),
-  },
-  pctDesc: {
-    label: "Compliance % (high → low)",
-    compare: (a: SupervisionRecord, b: SupervisionRecord) =>
-      b.supervisionPct - a.supervisionPct || a.staffName.localeCompare(b.staffName),
-  },
-} as const
-
-type SortKey = keyof typeof SORT_OPTIONS
+function sortByComplianceAsc(a: SupervisionRecord, b: SupervisionRecord): number {
+  return a.supervisionPct - b.supervisionPct || a.staffName.localeCompare(b.staffName)
+}
 
 function filterCurrentMonth(records: SupervisionRecord[]): SupervisionRecord[] {
   return records.filter((r) =>
@@ -83,7 +58,6 @@ export function SupervisionComplianceTile({
   staffIds?: string[]
   selfMode?: boolean
 }) {
-  const [sortKey, setSortKey] = useState<SortKey>("pctAsc")
   const [allSupervision, setAllSupervision] = useState<SupervisionRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -94,10 +68,6 @@ export function SupervisionComplianceTile({
     setError(null)
 
     const load = async () => {
-      if (selfMode && staffIds?.length === 1) {
-        const record = await getSupervisionByStaffId(staffIds[0])
-        return record ? [record] : []
-      }
       if (staffIds?.length) {
         return getSupervisionForStaffIds(staffIds)
       }
@@ -114,7 +84,7 @@ export function SupervisionComplianceTile({
     ? allSupervision.filter((r) => r.staffTeam === teamFilter)
     : allSupervision
 
-  const sortedRBTs = [...teamSupervision].sort(SORT_OPTIONS[sortKey].compare)
+  const sortedRBTs = [...teamSupervision].sort(sortByComplianceAsc)
   const flaggedCount = sortedRBTs.filter((r) => r.supervisionPct < SUPERVISION_THRESHOLD).length
   const totalRBTs = sortedRBTs.length
   const urgency = selfMode
@@ -153,20 +123,6 @@ export function SupervisionComplianceTile({
             ? `This month: ${monthLabel}`
             : `This month: ${monthLabel} · RBTs below ${SUPERVISION_THRESHOLD}% flagged`}
         </CardDescription>
-        {!selfMode && sortedRBTs.length > 1 && (
-          <CardAction>
-            <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-              <SelectTrigger className="h-8 w-[180px] text-xs">
-                <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
-                  <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardAction>
-        )}
       </CardHeader>
       <CardContent className="flex-1">
         {loading && (

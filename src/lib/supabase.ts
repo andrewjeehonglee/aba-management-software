@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { getCurrentCalendarMonth } from '@/lib/payPeriod'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -554,23 +555,19 @@ export async function getSupervisionForStaffIds(staffIds: string[]): Promise<Sup
 }
 
 export async function getSupervisionByStaffId(staffId: string): Promise<SupervisionRecord | null> {
-  const { data, error } = await supabase
-    .from('supervision')
-    .select('id, supervision_pct, period_start, period_end, staff(full_name, team)')
-    .eq('staff_id', staffId)
-    .maybeSingle()
-  if (error) throw error
-  if (!data) return null
+  const records = await getSupervisionForStaffIds([staffId])
+  if (records.length === 0) return null
+  if (records.length === 1) return records[0]
 
-  const row = data as unknown as SupervisionRow
-  return {
-    id:             row.id,
-    staffName:      row.staff.full_name,
-    staffTeam:      teamLabel(row.staff.team),
-    supervisionPct: row.supervision_pct,
-    periodStart:    row.period_start,
-    periodEnd:      row.period_end,
-  }
+  const month = getCurrentCalendarMonth()
+  const current = records.filter((r) => {
+    const start = new Date(r.periodStart)
+    const end = new Date(r.periodEnd)
+    return start <= month.end && end >= month.start
+  })
+  return current[0] ?? records.sort(
+    (a, b) => new Date(b.periodEnd).getTime() - new Date(a.periodEnd).getTime(),
+  )[0]
 }
 
 export async function getSessionsByStaffId(staffId: string): Promise<SessionRecord[]> {
