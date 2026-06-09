@@ -1618,8 +1618,7 @@ All commits pushed to `main` → auto-deployed to Vercel at https://aba-manageme
 | Owner → Supervisor (David Kim) | Same Team A techs in Supervision |
 | Owner → Technician (Mike Torres) | Calendar + 3 tiles; self **4%** supervision; My Hours % headline |
 | Calendar | Uniform `h-32` cells; readable inline session text |
-| Supervision subtitle (before SQL) | **"Latest period: May 2026"** |
-| Supervision subtitle (after SQL) | **"This month: June 2026"** |
+| Supervision subtitle | **"This month: June 2026"** (Andrew ran `patch_supervision_jun2026.sql` Jun 9) |
 
 ---
 
@@ -1660,9 +1659,9 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-### Pending manual steps (Andrew)
+### Manual steps
 
-1. **Run `patch_supervision_jun2026.sql`** in Supabase SQL Editor — shifts May→June, ensures tech rows, dedupes. Until then, supervision tile shows **Latest period: May 2026** (fallback — not empty).
+1. ~~**Run `patch_supervision_jun2026.sql`**~~ **Done (Jun 9)** — live supervision periods are June 2026; tile should read **"This month: June 2026"** (no May fallback).
 2. **Optional:** Normalize aa000001 staff rows (`Team A` → `A`, `Technician` → `technician`) if not already done — code handles both formats via `normalizeTeam` / `isTechnicianRole`.
 
 ---
@@ -1680,4 +1679,4 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 9, 2026 (end of Session 28 — Phase 7 morning dashboard + supervision work).*
+*Last updated: Jun 9, 2026 (Session 28 — supervision SQL patch applied on live Supabase).*
