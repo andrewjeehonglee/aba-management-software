@@ -3,9 +3,9 @@ import { useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
+import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
-import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import { setRolePreview } from "@/lib/rolePreview"
 import {
   ROLE_DEFAULT_TEAM,
@@ -15,8 +15,6 @@ import {
 
 // ─── Role definitions ─────────────────────────────────────────────────────────
 
-// Normalise the lowercase DB role string ("owner", "bcba", …) to the display
-// casing used throughout canSee so the rest of the component is unchanged.
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
 
 const ROLES: Role[] = ["Owner", "BCBA", "Supervisor", "Technician"]
@@ -31,27 +29,23 @@ function normaliseRole(raw: string): Role {
   return map[raw.toLowerCase()] ?? "Technician"
 }
 
-function canSee(role: Role): { hoursByStaff: boolean; authUtilization: boolean; addClient: boolean } {
-  return {
-    hoursByStaff:    role === "Owner",
-    authUtilization: role !== "Technician",
-    addClient:       role === "Owner" || role === "BCBA",
-  }
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export function DashboardPage({ practiceId, userRole, isDemo }: { practiceId?: string; userRole?: string; currentStaffId?: string | null; isDemo?: boolean }) {
+export function DashboardPage({
+  practiceId,
+  userRole,
+  currentStaffId,
+  isDemo,
+}: {
+  practiceId?: string
+  userRole?: string
+  currentStaffId?: string | null
+  isDemo?: boolean
+}) {
   const role = normaliseRole(userRole ?? "technician")
 
-  // Owners can preview the dashboard as any role. Non-owners are locked to their real role.
   const [viewRole, setViewRole] = useState<Role>(role)
 
-  // Sync viewRole whenever the real role arrives from the DB (async in App.tsx).
-  // The initial render uses the "technician" default; this effect fires again once
-  // getUserRole() resolves and the prop updates to the real value (e.g. "owner").
-  // Safe to run unconditionally because userRole only changes on auth events —
-  // an Owner's manual view-toggle won't be overwritten here.
   useEffect(() => {
     console.log('[DashboardPage] userRole prop:', userRole, '→ role:', role)
     setViewRole(role)
@@ -63,10 +57,8 @@ export function DashboardPage({ practiceId, userRole, isDemo }: { practiceId?: s
 
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const visible = canSee(viewRole)
   const isOwnerView = viewRole === "Owner"
 
-  // Non-owners (and owner role-preview) are scoped to one clinical team — not practice-wide.
   const scopedTeam: TeamFilter =
     isOwnerView ? "All" : (ROLE_DEFAULT_TEAM[viewRole] ?? "All")
 
@@ -102,15 +94,12 @@ export function DashboardPage({ practiceId, userRole, isDemo }: { practiceId?: s
   return (
     <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
 
-      {/* ── Header ── */}
       <header className={`-mx-4 -mt-4 mb-0 flex w-[calc(100%+2rem)] items-center justify-between gap-4 border-b border-slate-200 px-6 py-4 shadow-sm ${isDemo ? "bg-amber-50/60" : "bg-white"}`}>
-        {/* Left: Pulse wordmark + subtitle */}
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-xl font-bold tracking-tight text-[#0D7377] shrink-0">Pulse</span>
           <span className="hidden sm:block text-sm text-slate-400 truncate">ABA Management</span>
         </div>
 
-        {/* Right: role controls + sign out */}
         <div className="flex items-center gap-3 shrink-0">
           {role === "Owner" ? (
             <div className="hidden sm:flex items-center rounded-full border border-[#D0DCDC] bg-[#E8F7F7] p-0.5 gap-px">
@@ -144,7 +133,6 @@ export function DashboardPage({ practiceId, userRole, isDemo }: { practiceId?: s
         </div>
       </header>
 
-      {/* ── Team badge (non-owner roles only) ── */}
       {!isOwnerView && (
         <div className="flex w-full max-w-7xl items-center gap-2 py-1">
           <span className="text-xs text-muted-foreground shrink-0">Team:</span>
@@ -159,7 +147,6 @@ export function DashboardPage({ practiceId, userRole, isDemo }: { practiceId?: s
         </div>
       )}
 
-      {/* ── Dashboard tiles ── */}
       {isOwnerView ? (
         <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
           <div id="notes-overdue">
@@ -174,14 +161,12 @@ export function DashboardPage({ practiceId, userRole, isDemo }: { practiceId?: s
           <AuthorizationUtilizationTile teamFilter={effectiveTeamFilter} />
         </div>
       ) : (
-        <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
-          <div id="notes-overdue">
-            <NotesOverdueTile teamFilter={effectiveTeamFilter} refreshKey={notesRefreshKey} />
-          </div>
-          <SupervisionComplianceTile teamFilter={effectiveTeamFilter} />
-          {visible.authUtilization && (
-            <AuthorizationUtilizationTile teamFilter={effectiveTeamFilter} />
-          )}
+        <div className="w-full max-w-7xl">
+          <DashboardCalendarTile
+            viewRole={viewRole}
+            isOwnerPreview={role === "Owner"}
+            currentStaffId={currentStaffId ?? null}
+          />
         </div>
       )}
 

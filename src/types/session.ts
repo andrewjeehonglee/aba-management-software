@@ -8,6 +8,7 @@ export type SessionStatus =
 export interface Session {
   id: string
   time: string              // ISO datetime, e.g. "2026-05-18T09:00" (local time)
+  clientId?: string
   clientName: string
   staffName: string
   sessionType: string       // e.g. "Direct therapy", "Supervision", "Assessment"

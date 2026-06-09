@@ -96,20 +96,44 @@ const TODAY_ISO = localISO(TODAY)
 // Main component
 // ─────────────────────────────────────────────────────────────────────────
 
+export type SessionCalendarDisplayMode = "staff" | "client"
+
 interface SessionCalendarProps {
-  sessions: Session[]  // pre-filtered to this client
+  sessions: Session[]
+  defaultView?: "week" | "month"
+  displayMode?: SessionCalendarDisplayMode
+  showStaffLabel?: boolean
+  embedded?: boolean
+  className?: string
+  onMonthChange?: (anchorDate: Date) => void
 }
 
-export function SessionCalendar({ sessions }: SessionCalendarProps) {
-  const [view, setView] = useState<"week" | "month">("week")
-  // anchorDate semantics: in week view = Monday of displayed week;
-  // in month view = any date in displayed month (we use year+month only).
-  const [anchorDate, setAnchorDate] = useState<Date>(() => mondayOf(TODAY))
+export function SessionCalendar({
+  sessions,
+  defaultView = "week",
+  displayMode = "staff",
+  showStaffLabel = false,
+  embedded = false,
+  className,
+  onMonthChange,
+}: SessionCalendarProps) {
+  const [view, setView] = useState<"week" | "month">(defaultView)
+  const [anchorDate, setAnchorDate] = useState<Date>(() =>
+    defaultView === "month"
+      ? new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)
+      : mondayOf(TODAY),
+  )
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
+
+  function notifyMonthChange(date: Date) {
+    if (onMonthChange) onMonthChange(date)
+  }
 
   function switchView(next: "week" | "month") {
     if (next === "month") {
-      setAnchorDate(new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1))
+      const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1)
+      setAnchorDate(monthStart)
+      notifyMonthChange(monthStart)
     } else {
       setAnchorDate(mondayOf(anchorDate))
     }
@@ -121,71 +145,102 @@ export function SessionCalendar({ sessions }: SessionCalendarProps) {
     if (view === "week") {
       setAnchorDate((d) => addDays(d, delta * 7))
     } else {
-      setAnchorDate((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1))
+      setAnchorDate((d) => {
+        const next = new Date(d.getFullYear(), d.getMonth() + delta, 1)
+        notifyMonthChange(next)
+        return next
+      })
     }
     setExpandedDay(null)
   }
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(anchorDate, i))
 
-  return (
-    <Card className="w-full max-w-3xl">
-      <CardHeader className="pb-3">
-        {/* Title row with Week/Month toggle */}
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle>Session Calendar</CardTitle>
-          <div className="flex items-center gap-0.5 rounded-lg border border-border p-1">
-            {(["week", "month"] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => switchView(v)}
-                className={`rounded px-3 py-1 text-xs font-medium capitalize transition-colors ${
-                  view === v
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
+  const controls = (
+    <>
+      <div className={`flex items-center justify-between gap-2 ${embedded ? "" : "mt-0"}`}>
+        {!embedded && <CardTitle>Session Calendar</CardTitle>}
+        {embedded && <span className="text-sm font-medium">{formatMonthYear(anchorDate)}</span>}
+        <div className="flex items-center gap-0.5 rounded-lg border border-border p-1 ml-auto">
+          {(["week", "month"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => switchView(v)}
+              className={`rounded px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                view === v
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
         </div>
-        {/* Navigation row */}
-        <div className="flex items-center justify-between gap-2 mt-1">
-          <button
-            onClick={() => navigate(-1)}
-            aria-label={view === "week" ? "Previous week" : "Previous month"}
-            className="inline-flex items-center justify-center rounded p-1 hover:bg-muted transition-colors"
-          >
-            <ChevronLeft className="size-4" aria-hidden="true" />
-          </button>
-          <span className="text-sm font-medium text-center">
-            {view === "week" ? formatWeekRange(anchorDate) : formatMonthYear(anchorDate)}
-          </span>
-          <button
-            onClick={() => navigate(1)}
-            aria-label={view === "week" ? "Next week" : "Next month"}
-            className="inline-flex items-center justify-center rounded p-1 hover:bg-muted transition-colors"
-          >
-            <ChevronRight className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-      </CardHeader>
+      </div>
+      <div className="flex items-center justify-between gap-2 mt-1">
+        <button
+          onClick={() => navigate(-1)}
+          aria-label={view === "week" ? "Previous week" : "Previous month"}
+          className="inline-flex items-center justify-center rounded p-1 hover:bg-muted transition-colors"
+        >
+          <ChevronLeft className="size-4" aria-hidden="true" />
+        </button>
+        <span className="text-sm font-medium text-center">
+          {view === "week" ? formatWeekRange(anchorDate) : formatMonthYear(anchorDate)}
+        </span>
+        <button
+          onClick={() => navigate(1)}
+          aria-label={view === "week" ? "Next week" : "Next month"}
+          className="inline-flex items-center justify-center rounded p-1 hover:bg-muted transition-colors"
+        >
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </button>
+      </div>
+    </>
+  )
 
+  const body = (
+    <>
+      {view === "week" ? (
+        <WeekView
+          sessions={sessions}
+          days={weekDays}
+          todayISO={TODAY_ISO}
+          displayMode={displayMode}
+          showStaffLabel={showStaffLabel}
+        />
+      ) : (
+        <MonthView
+          sessions={sessions}
+          grid={monthGrid(anchorDate)}
+          todayISO={TODAY_ISO}
+          expandedDay={expandedDay}
+          displayMode={displayMode}
+          showStaffLabel={showStaffLabel}
+          onDayClick={(iso) =>
+            setExpandedDay((prev) => (prev === iso ? null : iso))
+          }
+        />
+      )}
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className={className}>
+        {controls}
+        <div className="mt-3">{body}</div>
+      </div>
+    )
+  }
+
+  return (
+    <Card className={className ?? "w-full max-w-3xl"}>
+      <CardHeader className="pb-3">
+        {controls}
+      </CardHeader>
       <CardContent className="pt-0">
-        {view === "week" ? (
-          <WeekView sessions={sessions} days={weekDays} todayISO={TODAY_ISO} />
-        ) : (
-          <MonthView
-            sessions={sessions}
-            grid={monthGrid(anchorDate)}
-            todayISO={TODAY_ISO}
-            expandedDay={expandedDay}
-            onDayClick={(iso) =>
-              setExpandedDay((prev) => (prev === iso ? null : iso))
-            }
-          />
-        )}
+        {body}
       </CardContent>
     </Card>
   )
@@ -235,8 +290,67 @@ function WeekSummary({ sessions, days }: { sessions: Session[]; days: Date[] }) 
   )
 }
 
+function SessionPersonLine({
+  session: s,
+  displayMode,
+  showStaffLabel,
+  dim,
+}: {
+  session: Session
+  displayMode: SessionCalendarDisplayMode
+  showStaffLabel: boolean
+  dim: boolean
+}) {
+  if (displayMode === "client") {
+    return (
+      <>
+        <div className={`mt-0.5 truncate font-medium ${dim ? "line-through text-muted-foreground" : ""}`}>
+          {dim || !s.clientId ? (
+            s.clientName
+          ) : (
+            <Link
+              to={"/clients/" + s.clientId}
+              className="hover:underline underline-offset-1"
+            >
+              {s.clientName}
+            </Link>
+          )}
+        </div>
+        {showStaffLabel && (
+          <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+            {s.staffName}
+          </div>
+        )}
+      </>
+    )
+  }
+
+  return (
+    <div className="mt-0.5 truncate text-muted-foreground">
+      {dim ? (
+        s.staffName
+      ) : (
+        <Link
+          to={"/staff/" + toSlug(s.staffName)}
+          className="hover:underline underline-offset-1"
+        >
+          {s.staffName}
+        </Link>
+      )}
+    </div>
+  )
+}
+
 // Compact session card for narrow week-grid columns
-function HorizontalSessionCard({ session: s }: { session: Session }) {
+function HorizontalSessionCard({
+  session: s,
+  displayMode,
+  showStaffLabel,
+}: {
+  session: Session
+  displayMode: SessionCalendarDisplayMode
+  showStaffLabel: boolean
+}) {
   const dim = isMuted(s)
   return (
     <div
@@ -244,28 +358,18 @@ function HorizontalSessionCard({ session: s }: { session: Session }) {
         dim ? "opacity-55" : ""
       }`}
     >
-      {/* Time */}
       <div className="font-mono tabular-nums text-muted-foreground">
         {formatTime(s.time)}
       </div>
-      {/* Session type — strikethrough if cancelled/no-show */}
       <div className={`mt-0.5 font-semibold leading-tight truncate ${dim ? "line-through" : ""}`}>
         {s.sessionType}
       </div>
-      {/* Staff name — linked unless muted */}
-      <div className="mt-0.5 truncate text-muted-foreground">
-        {dim ? (
-          s.staffName
-        ) : (
-          <Link
-            to={"/staff/" + toSlug(s.staffName)}
-            className="hover:underline underline-offset-1"
-          >
-            {s.staffName}
-          </Link>
-        )}
-      </div>
-      {/* Status badge */}
+      <SessionPersonLine
+        session={s}
+        displayMode={displayMode}
+        showStaffLabel={showStaffLabel}
+        dim={dim}
+      />
       <div className="mt-1">
         <SessionStatusBadge status={s.status} />
       </div>
@@ -277,10 +381,14 @@ function WeekView({
   sessions,
   days,
   todayISO,
+  displayMode,
+  showStaffLabel,
 }: {
   sessions: Session[]
   days: Date[]
   todayISO: string
+  displayMode: SessionCalendarDisplayMode
+  showStaffLabel: boolean
 }) {
   return (
     <div>
@@ -327,7 +435,12 @@ function WeekView({
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {daySessions.map((s) => (
-                    <HorizontalSessionCard key={s.id} session={s} />
+                    <HorizontalSessionCard
+                      key={s.id}
+                      session={s}
+                      displayMode={displayMode}
+                      showStaffLabel={showStaffLabel}
+                    />
                   ))}
                 </div>
               )}
@@ -351,12 +464,16 @@ function MonthView({
   grid,
   todayISO,
   expandedDay,
+  displayMode,
+  showStaffLabel,
   onDayClick,
 }: {
   sessions: Session[]
   grid: (Date | null)[][]
   todayISO: string
   expandedDay: string | null
+  displayMode: SessionCalendarDisplayMode
+  showStaffLabel: boolean
   onDayClick: (iso: string) => void
 }) {
   // Sessions for the currently expanded day (if any).
@@ -462,7 +579,12 @@ function MonthView({
           ) : (
             <div className="space-y-2">
               {expandedSessions.map((s) => (
-                <SessionCard key={s.id} session={s} />
+                <SessionCard
+                  key={s.id}
+                  session={s}
+                  displayMode={displayMode}
+                  showStaffLabel={showStaffLabel}
+                />
               ))}
             </div>
           )}
@@ -484,7 +606,15 @@ function MonthView({
 //     cancelled session's staff page is rarely the intent
 // ─────────────────────────────────────────────────────────────────────────
 
-function SessionCard({ session: s }: { session: Session }) {
+function SessionCard({
+  session: s,
+  displayMode,
+  showStaffLabel,
+}: {
+  session: Session
+  displayMode: SessionCalendarDisplayMode
+  showStaffLabel: boolean
+}) {
   const dim = isMuted(s)
   const dur = formatDuration(s.durationMinutes)
 
@@ -494,39 +624,58 @@ function SessionCard({ session: s }: { session: Session }) {
         dim ? "bg-muted/40" : "bg-background"
       }`}
     >
-      {/* Left: time, session type, staff */}
-      <div className={`min-w-0 ${dim ? "opacity-60" : ""}`}>
-        {/* Time + duration row */}
+      <div className={`min-w-0 flex-1 ${dim ? "opacity-60" : ""}`}>
         <div className="flex items-baseline gap-1.5 font-mono tabular-nums text-[11px] text-muted-foreground">
           <span>{formatTime(s.time)}</span>
           {dur && (
             <span className="font-sans not-italic">· {dur}</span>
           )}
         </div>
-        {/* Session type — strikes through if cancelled/no-show */}
-        <div
-          className={`mt-0.5 text-sm font-medium truncate ${
-            dim ? "line-through text-muted-foreground" : ""
-          }`}
-        >
-          {s.sessionType}
-        </div>
-        {/* Staff name — linked unless the session is cancelled/no-show */}
-        <div className="mt-0.5 truncate text-muted-foreground">
-          {dim ? (
-            s.staffName
-          ) : (
-            <Link
-              to={"/staff/" + toSlug(s.staffName)}
-              className="hover:underline underline-offset-2"
+        {displayMode === "client" ? (
+          <>
+            <div className={`mt-0.5 text-sm font-medium truncate ${dim ? "line-through text-muted-foreground" : ""}`}>
+              {dim || !s.clientId ? (
+                s.clientName
+              ) : (
+                <Link
+                  to={"/clients/" + s.clientId}
+                  className="hover:underline underline-offset-2"
+                >
+                  {s.clientName}
+                </Link>
+              )}
+            </div>
+            {showStaffLabel && (
+              <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                {s.staffName}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div
+              className={`mt-0.5 text-sm font-medium truncate ${
+                dim ? "line-through text-muted-foreground" : ""
+              }`}
             >
-              {s.staffName}
-            </Link>
-          )}
-        </div>
+              {s.sessionType}
+            </div>
+            <div className="mt-0.5 truncate text-muted-foreground">
+              {dim ? (
+                s.staffName
+              ) : (
+                <Link
+                  to={"/staff/" + toSlug(s.staffName)}
+                  className="hover:underline underline-offset-2"
+                >
+                  {s.staffName}
+                </Link>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Right: status badge — always fully opaque */}
       <div className="shrink-0">
         <SessionStatusBadge status={s.status} />
       </div>
