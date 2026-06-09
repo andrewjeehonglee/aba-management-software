@@ -5,9 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
-import { PracticeHeroTile } from "@/components/PracticeHeroTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
-import { TodaySessionsTile } from "@/components/TodaySessionsTile"
 import { setRolePreview } from "@/lib/rolePreview"
 import {
   ROLE_DEFAULT_TEAM,
@@ -43,7 +41,7 @@ function canSee(role: Role): { hoursByStaff: boolean; authUtilization: boolean; 
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: { practiceId?: string; userRole?: string; currentStaffId?: string | null; isDemo?: boolean }) {
+export function DashboardPage({ practiceId, userRole, isDemo }: { practiceId?: string; userRole?: string; currentStaffId?: string | null; isDemo?: boolean }) {
   const role = normaliseRole(userRole ?? "technician")
 
   // Owners can preview the dashboard as any role. Non-owners are locked to their real role.
@@ -66,13 +64,14 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
   const [searchParams, setSearchParams] = useSearchParams()
 
   const visible = canSee(viewRole)
+  const isOwnerView = viewRole === "Owner"
 
   // Non-owners (and owner role-preview) are scoped to one clinical team — not practice-wide.
   const scopedTeam: TeamFilter =
-    viewRole === "Owner" ? "All" : (ROLE_DEFAULT_TEAM[viewRole] ?? "All")
+    isOwnerView ? "All" : (ROLE_DEFAULT_TEAM[viewRole] ?? "All")
 
   useEffect(() => {
-    if (viewRole === "Owner") return
+    if (isOwnerView) return
     const team = ROLE_DEFAULT_TEAM[viewRole] ?? "All"
     if (searchParams.get("team") !== team) {
       setSearchParams({ team }, { replace: true })
@@ -84,8 +83,7 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
     ? (rawTeam as TeamFilter)
     : scopedTeam
 
-  const teamChipOptions: TeamFilter[] =
-    viewRole === "Owner" ? TEAM_FILTERS : [scopedTeam]
+  const effectiveTeamFilter: TeamFilter = isOwnerView ? "All" : teamFilter
 
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
   const [staffRefreshKey, setStaffRefreshKey] = useState(0)
@@ -146,69 +144,46 @@ export function DashboardPage({ practiceId, userRole, currentStaffId, isDemo }: 
         </div>
       </header>
 
-      {/* ── Team filter chips (Owner only; other roles locked to their team) ── */}
-      <div className="flex w-full max-w-7xl items-center gap-2 py-1">
-        <span className="text-xs text-muted-foreground shrink-0">Team:</span>
-        {viewRole === "Owner" ? (
-          <div className="flex flex-wrap gap-1.5">
-            {teamChipOptions.map(t => (
-              <button
-                key={t}
-                onClick={() => setSearchParams({ team: t })}
-                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                  teamFilter === t
-                    ? "bg-[#0D7377] text-white border-[#0D7377]"
-                    : "border-[#D0DCDC] text-[#4A5C5C] hover:border-[#14A0A5] hover:text-[#0D7377]"
-                }`}
-              >
-                {t === "All" ? "All Teams" : t}
-              </button>
-            ))}
-          </div>
-        ) : (
+      {/* ── Team badge (non-owner roles only) ── */}
+      {!isOwnerView && (
+        <div className="flex w-full max-w-7xl items-center gap-2 py-1">
+          <span className="text-xs text-muted-foreground shrink-0">Team:</span>
           <span className="rounded-full border border-[#0D7377] bg-[#0D7377] px-3 py-1 text-xs font-medium text-white">
             {scopedTeam}
           </span>
-        )}
-        {teamFilter !== "All" && (
-          <span className="text-[11px] text-muted-foreground italic ml-1">
-            {viewRole === "Owner" ? `Showing ${teamFilter} only` : "Your team only"}
-          </span>
-        )}
-      </div>
-
-      {/* ── Row 1: Practice Hero (full width) ── */}
-      <div className="w-full max-w-7xl">
-        <PracticeHeroTile />
-      </div>
-
-      {/* ── Row 2: 3 KPI tiles ── */}
-      <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
-        <div id="notes-overdue">
-          <NotesOverdueTile teamFilter={teamFilter} refreshKey={notesRefreshKey} />
+          {teamFilter !== "All" && (
+            <span className="text-[11px] text-muted-foreground italic ml-1">
+              Your team only
+            </span>
+          )}
         </div>
-        <SupervisionComplianceTile teamFilter={teamFilter} />
-        {visible.authUtilization && <AuthorizationUtilizationTile teamFilter={teamFilter} />}
-      </div>
+      )}
 
-      {/* ── Row 3: Today's Sessions + Hours by Staff ── */}
-      <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-2">
-        <div className={visible.hoursByStaff ? "" : "lg:col-span-2"}>
-          <TodaySessionsTile
-            teamFilter={teamFilter}
-            staffId={viewRole === "Technician" ? (currentStaffId ?? undefined) : undefined}
-            isDemo={isDemo}
-          />
-        </div>
-        {visible.hoursByStaff && (
+      {/* ── Dashboard tiles ── */}
+      {isOwnerView ? (
+        <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
+          <div id="notes-overdue">
+            <NotesOverdueTile refreshKey={notesRefreshKey} />
+          </div>
           <HoursByStaffTile
-            teamFilter={teamFilter}
+            teamFilter={effectiveTeamFilter}
             refreshKey={staffRefreshKey}
             practiceId={practiceId}
             onStaffCreated={() => setStaffRefreshKey(k => k + 1)}
           />
-        )}
-      </div>
+          <AuthorizationUtilizationTile teamFilter={effectiveTeamFilter} />
+        </div>
+      ) : (
+        <div className="grid w-full max-w-7xl gap-4 lg:grid-cols-3">
+          <div id="notes-overdue">
+            <NotesOverdueTile teamFilter={effectiveTeamFilter} refreshKey={notesRefreshKey} />
+          </div>
+          <SupervisionComplianceTile teamFilter={effectiveTeamFilter} />
+          {visible.authUtilization && (
+            <AuthorizationUtilizationTile teamFilter={effectiveTeamFilter} />
+          )}
+        </div>
+      )}
 
       <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
     </div>
