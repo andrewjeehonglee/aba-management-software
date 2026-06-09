@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { AlertCircle, AlertTriangle, BadgeCheck, Info } from "lucide-react"
+import { AlertTriangle, BadgeCheck } from "lucide-react"
 import {
   Card,
   CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -16,33 +17,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getAuthorizations, type AuthRecord } from "@/lib/supabase"
+import { getAuthUtilizationByMonth, type ClientAuthUtilRow } from "@/lib/authUtilization"
 import { FLAGGED_THRESHOLD, utilizationClass } from "@/lib/authorization"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 
-// Urgency thresholds
-const CRITICAL_THRESHOLD = 3
-const WARNING_THRESHOLD  = 1
-
-type Urgency = "critical" | "warning" | "healthy"
-
-function urgencyLevel(flagged: number): Urgency {
-  if (flagged >= CRITICAL_THRESHOLD) return "critical"
-  if (flagged >= WARNING_THRESHOLD)  return "warning"
-  return "healthy"
-}
-
-function headlineColorClass(flagged: number): string {
-  if (flagged >= 5) return "text-red-600"
-  if (flagged >= 1) return "text-amber-600"
-  return "text-emerald-600"
-}
-
 function MiniBar({ pct }: { pct: number }) {
   const { bar } = utilizationClass(pct)
   return (
-    <div className="relative h-2 w-44 overflow-hidden rounded-full bg-slate-200">
+    <div className="relative h-2 w-full min-w-[5rem] max-w-[11rem] flex-1 overflow-hidden rounded-full bg-slate-200">
       <div className={`h-full ${bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       <div
         className="absolute inset-y-0 w-px bg-slate-500/70"
@@ -53,20 +36,65 @@ function MiniBar({ pct }: { pct: number }) {
   )
 }
 
+function AuthClientRow({ row }: { row: ClientAuthUtilRow }) {
+  const { text } = utilizationClass(row.utilizationPct)
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-border/50 bg-card px-3 py-2.5 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {row.flagged && (
+            <AlertTriangle
+              className="h-3.5 w-3.5 shrink-0 text-amber-500"
+              aria-label={`At or above ${FLAGGED_THRESHOLD}% utilization`}
+            />
+          )}
+          <Link
+            to={"/clients/" + row.clientId}
+            className={cn(
+              "truncate text-sm hover:underline underline-offset-2",
+              row.flagged ? "font-medium text-amber-800" : "font-medium text-[#1E2A2A]",
+            )}
+          >
+            {row.clientName}
+          </Link>
+        </div>
+        <p className={cn("shrink-0 text-xs tabular-nums", text)}>
+          {row.usedHours} / {row.authorizedHours} hrs · {row.utilizationPct}%
+        </p>
+      </div>
+      <MiniBar pct={row.utilizationPct} />
+    </div>
+  )
+}
+
+function AuthLegendFooter() {
+  return (
+    <CardFooter className="flex flex-wrap gap-x-4 gap-y-1 border-t bg-slate-50/80 px-4 py-2.5 text-[11px] text-muted-foreground">
+      <span>
+        <span className="font-medium text-foreground/80">Used</span> = completed sessions with complete notes this month
+      </span>
+      <span>
+        <span className="font-medium text-amber-700">Flag</span> = ≥ {FLAGGED_THRESHOLD}% of authorized hours
+      </span>
+    </CardFooter>
+  )
+}
+
 const SORT_OPTIONS = {
   pctDesc: {
     label: "Utilization % (high → low)",
-    compare: (a: AuthRecord, b: AuthRecord) =>
+    compare: (a: ClientAuthUtilRow, b: ClientAuthUtilRow) =>
       b.utilizationPct - a.utilizationPct || a.clientName.localeCompare(b.clientName),
   },
   name: {
     label: "Client name (A → Z)",
-    compare: (a: AuthRecord, b: AuthRecord) =>
+    compare: (a: ClientAuthUtilRow, b: ClientAuthUtilRow) =>
       a.clientName.localeCompare(b.clientName),
   },
   pctAsc: {
     label: "Utilization % (low → high)",
-    compare: (a: AuthRecord, b: AuthRecord) =>
+    compare: (a: ClientAuthUtilRow, b: ClientAuthUtilRow) =>
       a.utilizationPct - b.utilizationPct || a.clientName.localeCompare(b.clientName),
   },
 } as const
@@ -75,53 +103,36 @@ type SortKey = keyof typeof SORT_OPTIONS
 
 export function AuthorizationUtilizationTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
   const [sortKey, setSortKey] = useState<SortKey>("pctDesc")
-  const [allAuthorizations, setAllAuthorizations] = useState<AuthRecord[]>([])
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getAuthorizations()
-      .then(setAllAuthorizations)
+    getAuthUtilizationByMonth()
+      .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load authorizations"))
       .finally(() => setLoading(false))
   }, [])
 
-  const teamAuthorizations = teamFilter && teamFilter !== "All"
-    ? allAuthorizations.filter(a => a.clientTeam === teamFilter)
-    : allAuthorizations
+  const teamClients = summary
+    ? (teamFilter && teamFilter !== "All"
+        ? summary.byClient.filter((c) => c.clientTeam === teamFilter)
+        : summary.byClient)
+    : []
 
-  const sortedClients = [...teamAuthorizations].sort(SORT_OPTIONS[sortKey].compare)
-  const flaggedCount = sortedClients.filter(c => c.utilizationPct > FLAGGED_THRESHOLD).length
-  const totalClients = sortedClients.length
-  const urgency = urgencyLevel(flaggedCount)
-
-  const borderClass = urgency === "critical" ? "border-l-4 border-l-red-500"
-                    : urgency === "warning"  ? "border-l-4 border-l-amber-500"
-                    : ""
-  const shadowClass = urgency !== "healthy" ? "shadow-md" : ""
-
-  const UrgencyIcon = urgency === "critical" ? (
-    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" aria-hidden />
-  ) : urgency === "warning" ? (
-    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" aria-hidden />
-  ) : null
+  const sortedClients = [...teamClients].sort(SORT_OPTIONS[sortKey].compare)
 
   return (
-    <Card size="sm" className={cn("w-full", borderClass, shadowClass, className)}>
+    <Card size="sm" className={cn("w-full flex flex-col", className)}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-1.5">
-          {UrgencyIcon}
-          Authorization Utilization
-          <span
-            title={`Tracks how much of each client's authorized therapy hours have been used. Clients above ${FLAGGED_THRESHOLD}% are approaching their auth cap and need re-authorization soon.`}
-            className="inline-flex cursor-help ml-0.5"
-          >
-            <Info className="w-3.5 h-3.5 text-slate-400" />
-          </span>
-        </CardTitle>
-        <CardDescription className="text-xs">
-          Per-client (not staff). Clients above {FLAGGED_THRESHOLD}% utilization flagged
-        </CardDescription>
+        <div className="space-y-0.5">
+          <CardTitle>Authorization Utilization</CardTitle>
+          {summary && (
+            <CardDescription className="text-xs">
+              This month: {summary.monthLabel}
+            </CardDescription>
+          )}
+        </div>
         <CardAction>
           <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
             <SelectTrigger className="h-8 w-[180px] text-xs">
@@ -135,7 +146,7 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
           </Select>
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {loading && (
           <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
         )}
@@ -143,43 +154,20 @@ export function AuthorizationUtilizationTile({ className, teamFilter }: { classN
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
         {!loading && !error && sortedClients.length === 0 && (
-          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-8 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
             <BadgeCheck className="w-8 h-8 text-[#14A0A5]" />
-            <p className="text-sm text-muted-foreground">No authorizations found.</p>
+            <p className="text-sm text-muted-foreground">No billable sessions this month.</p>
           </div>
         )}
         {!loading && !error && sortedClients.length > 0 && (
-          <>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-4xl font-bold tracking-tight tabular-nums leading-none ${headlineColorClass(flaggedCount)}`}>
-                {flaggedCount}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                of {totalClients} clients above threshold
-              </span>
-            </div>
-
-            <ul className="mt-3 space-y-2 border-t pt-3">
-              {sortedClients.map((client) => {
-                const { text } = utilizationClass(client.utilizationPct)
-                return (
-                  <li key={client.id} className="flex items-center gap-3 text-sm">
-                    <span className="flex-1 truncate min-w-0">
-                      <Link to={"/clients/" + client.clientId} className="hover:underline underline-offset-2">
-                        {client.clientName}
-                      </Link>
-                    </span>
-                    <MiniBar pct={client.utilizationPct} />
-                    <span className={`w-12 text-right tabular-nums font-medium ${text}`}>
-                      {client.utilizationPct.toFixed(0)}%
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </>
+          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-0.5">
+            {sortedClients.map((row) => (
+              <AuthClientRow key={row.authId} row={row} />
+            ))}
+          </div>
         )}
       </CardContent>
+      {!loading && !error && <AuthLegendFooter />}
     </Card>
   )
 }

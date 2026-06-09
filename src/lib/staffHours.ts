@@ -84,18 +84,18 @@ export interface StaffHoursSummary {
 type MutableStaffHoursRow = Omit<StaffHoursRow, "totalHours" | "directPct" | "flagged">
 
 function finalizeRow(row: MutableStaffHoursRow): StaffHoursRow {
-  const totalHours = row.directHours + row.indirectHours + row.cancellationHours
-  const directPct = totalHours > 0 ? row.directHours / totalHours : 0
+  const billableHours = row.directHours + row.indirectHours
+  const directPct = billableHours > 0 ? row.directHours / billableHours : 0
   return {
     ...row,
-    totalHours,
+    totalHours: billableHours,
     directPct,
     flagged: isStaffFlagged({
       name: row.staffName,
-      totalHours,
+      totalHours: billableHours,
       directHours: row.directHours,
       indirectHours: row.indirectHours,
-      cancellationHours: row.cancellationHours,
+      cancellationHours: 0,
       role: "Technician",
       hireDate: "",
       certification: "",
@@ -176,10 +176,10 @@ export async function getStaffHoursByMonth(now: Date = new Date()): Promise<Staf
     row.indirectHours += DEFAULT_SESSION_HOURS
   }
 
-  // Omit staff with zero billable/cancellation hours this month to reduce list noise.
+  // Omit staff with zero billable hours (direct + indirect) to reduce list noise.
   const byStaff = [...byStaffId.values()]
     .map(finalizeRow)
-    .filter((row) => row.totalHours > 0)
+    .filter((row) => row.directHours + row.indirectHours > 0)
     .sort((a, b) => b.totalHours - a.totalHours || a.staffName.localeCompare(b.staffName))
 
   return {

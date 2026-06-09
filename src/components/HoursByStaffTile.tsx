@@ -34,7 +34,6 @@ import type { TeamFilter } from "@/types/team"
 const HOURS_COLORS = {
   direct: "#10b981",
   indirect: "#94a3b8",
-  cancellation: "#ef4444",
 } as const
 
 // ─── New Staff Modal ──────────────────────────────────────────────────────────
@@ -175,13 +174,13 @@ function NewStaffModal({ open, practiceId, onClose, onSuccess }: NewStaffModalPr
   )
 }
 
-// ─── Payroll row (slice 3.5 — replaces vertical bar chart) ───────────────────
+// ─── Payroll row ─────────────────────────────────────────────────────────────
 
 function formatHoursBreakdown(row: StaffHoursRow): string {
   const d = Math.round(row.directHours)
   const i = Math.round(row.indirectHours)
-  const c = Math.round(row.cancellationHours)
-  return `${d} direct · ${i} indirect · ${c} cancel`
+  const t = Math.round(row.totalHours)
+  return `${d} direct · ${i} indirect · ${t} total`
 }
 
 function HoursMixBar({ row }: { row: StaffHoursRow }) {
@@ -191,7 +190,6 @@ function HoursMixBar({ row }: { row: StaffHoursRow }) {
   const segments = [
     { key: "direct", hours: row.directHours, color: HOURS_COLORS.direct },
     { key: "indirect", hours: row.indirectHours, color: HOURS_COLORS.indirect },
-    { key: "cancellation", hours: row.cancellationHours, color: HOURS_COLORS.cancellation },
   ].filter((s) => s.hours > 0)
 
   return (
@@ -252,12 +250,6 @@ function PayrollStaffRow({ row }: { row: StaffHoursRow }) {
         </div>
       </div>
       <HoursMixBar row={row} />
-      {row.cancelledSessionCount > 0 && (
-        <p className="text-[10px] text-muted-foreground">
-          {row.cancelledSessionCount} canceled or no-show session
-          {row.cancelledSessionCount === 1 ? "" : "s"}
-        </p>
-      )}
     </div>
   )
 }
@@ -273,12 +265,8 @@ function HoursLegendFooter() {
         <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
         <span><span className="font-medium text-slate-600">Indirect</span> — completed + note</span>
       </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
-        <span><span className="font-medium text-red-700">Cancel</span> — canceled / no-show</span>
-      </span>
       <span className="w-full sm:w-auto text-muted-foreground/80">
-        ⚠ Flag if direct &lt; 50% of total hours
+        Flag if direct &lt; 50% of direct + indirect hours
       </span>
     </CardFooter>
   )
@@ -293,11 +281,6 @@ const SORT_OPTIONS = {
     label: "Direct % (low → high)",
     compare: (a: StaffHoursRow, b: StaffHoursRow) =>
       a.directPct - b.directPct || a.staffName.localeCompare(b.staffName),
-  },
-  cancellation: {
-    label: "Cancellation hrs (high → low)",
-    compare: (a: StaffHoursRow, b: StaffHoursRow) =>
-      b.cancellationHours - a.cancellationHours,
   },
   name: {
     label: "Name (A–Z)",
