@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { createStaff } from "@/lib/supabase"
-import { getStaffHoursByPayPeriod, type StaffHoursRow } from "@/lib/staffHours"
+import { getStaffHoursByMonth, type StaffHoursRow } from "@/lib/staffHours"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
@@ -317,7 +317,7 @@ interface HoursByStaffTileProps {
 
 export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKey, practiceId, onStaffCreated }: HoursByStaffTileProps) {
   const [sortKey, setSortKey]     = useState<SortKey>("total")
-  const [summary, setSummary]     = useState<Awaited<ReturnType<typeof getStaffHoursByPayPeriod>> | null>(null)
+  const [summary, setSummary]     = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -325,7 +325,7 @@ export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKe
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getStaffHoursByPayPeriod()
+    getStaffHoursByMonth()
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load staff hours"))
       .finally(() => setLoading(false))
@@ -343,7 +343,7 @@ export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKe
           <CardTitle>Hours by Staff</CardTitle>
           {summary && (
             <CardDescription className="text-xs">
-              Pay period: {summary.payPeriodLabel}
+              This month: {summary.monthLabel}
             </CardDescription>
           )}
         </div>
@@ -386,7 +386,7 @@ export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKe
         {!loading && !error && sortedStaff.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
             <Users className="w-8 h-8 text-[#14A0A5]" />
-            <p className="text-sm text-muted-foreground">No billable sessions this pay period.</p>
+            <p className="text-sm text-muted-foreground">No billable sessions this month.</p>
           </div>
         )}
         {!loading && !error && sortedStaff.length > 0 && (

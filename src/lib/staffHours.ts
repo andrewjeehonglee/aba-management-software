@@ -1,4 +1,4 @@
-import { getCurrentPayPeriod } from "@/lib/payPeriod"
+import { getCurrentCalendarMonth } from "@/lib/payPeriod"
 import { isCompleteSessionNote } from "@/lib/notesStatus"
 import { isStaffFlagged } from "@/lib/staff"
 import { supabase } from "@/lib/supabase"
@@ -77,7 +77,7 @@ export interface StaffHoursRow {
 }
 
 export interface StaffHoursSummary {
-  payPeriodLabel: string
+  monthLabel: string
   byStaff: StaffHoursRow[]
 }
 
@@ -104,14 +104,14 @@ function finalizeRow(row: MutableStaffHoursRow): StaffHoursRow {
   }
 }
 
-export async function getStaffHoursByPayPeriod(now: Date = new Date()): Promise<StaffHoursSummary> {
-  const payPeriod = getCurrentPayPeriod(now)
+export async function getStaffHoursByMonth(now: Date = new Date()): Promise<StaffHoursSummary> {
+  const month = getCurrentCalendarMonth(now)
 
   const { data: sessionsData, error: sessionsError } = await supabase
     .from("sessions")
     .select("id, staff_id, session_type, status, staff(full_name, team)")
-    .gte("scheduled_at", payPeriod.start.toISOString())
-    .lte("scheduled_at", payPeriod.end.toISOString())
+    .gte("scheduled_at", month.start.toISOString())
+    .lte("scheduled_at", month.end.toISOString())
 
   if (sessionsError) throw sessionsError
 
@@ -176,14 +176,17 @@ export async function getStaffHoursByPayPeriod(now: Date = new Date()): Promise<
     row.indirectHours += DEFAULT_SESSION_HOURS
   }
 
-  // Omit staff with zero billable/cancellation hours in this period to reduce chart noise.
+  // Omit staff with zero billable/cancellation hours this month to reduce list noise.
   const byStaff = [...byStaffId.values()]
     .map(finalizeRow)
     .filter((row) => row.totalHours > 0)
     .sort((a, b) => b.totalHours - a.totalHours || a.staffName.localeCompare(b.staffName))
 
   return {
-    payPeriodLabel: payPeriod.label,
+    monthLabel: month.label,
     byStaff,
   }
 }
+
+/** @deprecated Use getStaffHoursByMonth — hours tile is monthly, not pay-period. */
+export const getStaffHoursByPayPeriod = getStaffHoursByMonth

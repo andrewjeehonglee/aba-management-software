@@ -73,3 +73,23 @@ export function getCurrentPayPeriod(referenceDate: Date = new Date()): PayPeriod
     label: formatPayPeriodLabel(year, month, startDay, endDay),
   }
 }
+
+function formatCalendarMonthLabel(year: number, month: number): string {
+  const anchor = new Date(year, month - 1, 1)
+  return anchor.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+}
+
+/** Calendar month in practice TZ (resets 1st of each month). Used by Hours by Staff + Auth utilization. */
+export function getCurrentCalendarMonth(referenceDate: Date = new Date()): PayPeriod {
+  const { year, month } = calendarPartsInPracticeTz(referenceDate)
+  const monthEnd = lastDayOfMonth(year, month)
+
+  const start = practiceZonedInstant(year, month, 1, 0, 0, 0, 0)
+  const end = practiceZonedInstant(year, month, monthEnd, 23, 59, 59, 999)
+
+  return {
+    start,
+    end,
+    label: formatCalendarMonthLabel(year, month),
+  }
+}
