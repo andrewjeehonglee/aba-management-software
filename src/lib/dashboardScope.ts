@@ -1,4 +1,4 @@
-import { getCurrentCalendarMonth } from "@/lib/payPeriod"
+import { getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
 import { supabase } from "@/lib/supabase"
 
 export type DashboardScope =
@@ -15,31 +15,62 @@ const PREVIEW_STAFF_NAME: Record<DashboardViewRole, string> = {
   Technician: "Mike Torres",
 }
 
-/**
- * TEMP v1 caseload: same-team technicians + supervisors until assignment schema lands.
- * Includes the BCBA/supervisor themselves for calendar; tiles filter supervisees separately.
- */
-export async function getCaseloadStaffIdsForBcba(bcbaStaffId: string): Promise<string[]> {
-  const { data: self, error: selfError } = await supabase
+export function normalizeTeam(raw: string | null | undefined): string {
+  if (!raw) return ""
+  return raw.replace(/^Team\s+/i, "").trim()
+}
+
+export function isTechnicianRole(role: string | null | undefined): boolean {
+  return (role ?? "").toLowerCase() === "technician"
+}
+
+function isSupervisorRole(role: string | null | undefined): boolean {
+  return (role ?? "").toLowerCase() === "supervisor"
+}
+
+type StaffRow = { id: string; team: string; role: string }
+
+async function getSelfStaffRow(staffId: string): Promise<{ team: string; practice_id: string } | null> {
+  const { data, error } = await supabase
     .from("staff")
-    .select("team")
-    .eq("id", bcbaStaffId)
+    .select("team, practice_id")
+    .eq("id", staffId)
     .maybeSingle()
 
-  if (selfError) throw selfError
+  if (error) throw error
+  return data ? (data as { team: string; practice_id: string }) : null
+}
+
+async function getPracticeStaff(practiceId: string): Promise<StaffRow[]> {
+  const { data, error } = await supabase
+    .from("staff")
+    .select("id, team, role")
+    .eq("practice_id", practiceId)
+
+  if (error) throw error
+  return (data ?? []) as StaffRow[]
+}
+
+/**
+ * TEMP v1 caseload: same-team technicians + supervisors until assignment schema lands.
+ * Normalizes mixed seed formats (`A` vs `Team A`, `technician` vs `Technician`).
+ */
+export async function getCaseloadStaffIdsForBcba(bcbaStaffId: string): Promise<string[]> {
+  const self = await getSelfStaffRow(bcbaStaffId)
   if (!self) return [bcbaStaffId]
 
-  const team = (self as { team: string }).team
+  const selfTeam = normalizeTeam(self.team)
+  const practiceStaff = await getPracticeStaff(self.practice_id)
 
-  const { data: teamStaff, error: teamError } = await supabase
-    .from("staff")
-    .select("id")
-    .eq("team", team)
-    .in("role", ["technician", "supervisor"])
+  const ids = practiceStaff
+    .filter((s) => {
+      if (normalizeTeam(s.team) !== selfTeam) return false
+      if (s.id === bcbaStaffId) return true
+      return isTechnicianRole(s.role) || isSupervisorRole(s.role)
+    })
+    .map((s) => s.id)
 
-  if (teamError) throw teamError
-
-  return [...new Set([bcbaStaffId, ...((teamStaff ?? []) as { id: string }[]).map((r) => r.id)])]
+  return [...new Set(ids)]
 }
 
 /** TEMP v1: clients whose assigned primary RBT is on the caseload staff set. */
@@ -59,24 +90,20 @@ export async function getCaseloadClientIdsForBcba(bcbaStaffId: string): Promise<
 
 /** Technicians only — for supervision tile on BCBA/supervisor dashboards. */
 export async function getSuperviseeStaffIdsForBcba(bcbaStaffId: string): Promise<string[]> {
-  const { data: self, error: selfError } = await supabase
-    .from("staff")
-    .select("team")
-    .eq("id", bcbaStaffId)
-    .maybeSingle()
-
-  if (selfError) throw selfError
+  const self = await getSelfStaffRow(bcbaStaffId)
   if (!self) return []
 
-  const { data: techs, error: techError } = await supabase
-    .from("staff")
-    .select("id")
-    .eq("team", (self as { team: string }).team)
-    .eq("role", "technician")
-    .neq("id", bcbaStaffId)
+  const selfTeam = normalizeTeam(self.team)
+  const practiceStaff = await getPracticeStaff(self.practice_id)
 
-  if (techError) throw techError
-  return ((techs ?? []) as { id: string }[]).map((row) => row.id)
+  return practiceStaff
+    .filter(
+      (s) =>
+        normalizeTeam(s.team) === selfTeam &&
+        isTechnicianRole(s.role) &&
+        s.id !== bcbaStaffId,
+    )
+    .map((s) => s.id)
 }
 
 export async function resolvePreviewStaffId(viewRole: DashboardViewRole): Promise<string | null> {
@@ -137,9 +164,13 @@ export async function resolveCaseloadFilters(scope: DashboardScope): Promise<{
   return { staffIds, clientIds, superviseeStaffIds }
 }
 
-export function supervisionOverlapsCurrentMonth(periodStart: string, periodEnd: string): boolean {
-  const month = getCurrentCalendarMonth()
-  const start = new Date(periodStart)
-  const end = new Date(periodEnd)
-  return start <= month.end && end >= month.start
+export function supervisionOverlapsCurrentMonth(
+  periodStart: string,
+  periodEnd: string,
+  referenceDate?: Date,
+): boolean {
+  const { start: monthStart, end: monthEnd } = getCurrentCalendarMonthDateBounds(referenceDate)
+  const start = periodStart.slice(0, 10)
+  const end = periodEnd.slice(0, 10)
+  return start <= monthEnd && end >= monthStart
 }

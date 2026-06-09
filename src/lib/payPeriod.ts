@@ -79,6 +79,20 @@ function formatCalendarMonthLabel(year: number, month: number): string {
   return anchor.toLocaleDateString("en-US", { month: "long", year: "numeric" })
 }
 
+/** Inclusive YYYY-MM-DD bounds for the current calendar month in practice TZ. */
+export function getCurrentCalendarMonthDateBounds(referenceDate: Date = new Date()): {
+  start: string
+  end: string
+} {
+  const { year, month } = calendarPartsInPracticeTz(referenceDate)
+  const monthEnd = lastDayOfMonth(year, month)
+  const mm = String(month).padStart(2, "0")
+  return {
+    start: `${year}-${mm}-01`,
+    end: `${year}-${mm}-${String(monthEnd).padStart(2, "0")}`,
+  }
+}
+
 /** Calendar month in practice TZ (resets 1st of each month). Used by Hours by Staff + Auth utilization. */
 export function getCurrentCalendarMonth(referenceDate: Date = new Date()): PayPeriod {
   const { year, month } = calendarPartsInPracticeTz(referenceDate)

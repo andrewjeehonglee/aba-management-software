@@ -75,7 +75,13 @@ export function SupervisionComplianceTile({
     }
 
     load()
-      .then((records) => setAllSupervision(filterCurrentMonth(records)))
+      .then((records) => {
+        const filtered = filterCurrentMonth(records)
+        if (staffIds?.length && filtered.length === 0) {
+          console.warn("[Supervision] scoped IDs had no June rows", staffIds)
+        }
+        setAllSupervision(filtered)
+      })
       .catch((err) => setError(err.message ?? "Failed to load supervision data"))
       .finally(() => setLoading(false))
   }, [staffIds, selfMode])

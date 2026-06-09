@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { getCurrentCalendarMonth } from '@/lib/payPeriod'
+import { getCurrentCalendarMonthDateBounds } from '@/lib/payPeriod'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -559,11 +559,11 @@ export async function getSupervisionByStaffId(staffId: string): Promise<Supervis
   if (records.length === 0) return null
   if (records.length === 1) return records[0]
 
-  const month = getCurrentCalendarMonth()
+  const { start: monthStart, end: monthEnd } = getCurrentCalendarMonthDateBounds()
   const current = records.filter((r) => {
-    const start = new Date(r.periodStart)
-    const end = new Date(r.periodEnd)
-    return start <= month.end && end >= month.start
+    const start = r.periodStart.slice(0, 10)
+    const end = r.periodEnd.slice(0, 10)
+    return start <= monthEnd && end >= monthStart
   })
   return current[0] ?? records.sort(
     (a, b) => new Date(b.periodEnd).getTime() - new Date(a.periodEnd).getTime(),
