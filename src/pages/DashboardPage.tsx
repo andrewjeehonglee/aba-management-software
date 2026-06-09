@@ -203,6 +203,7 @@ export function DashboardPage({
               <NotesOverdueTile
                 refreshKey={notesRefreshKey}
                 staffIds={scopeStaffIds}
+                selfMode
               />
               <MyHoursTile
                 staffId={effectiveStaffId}

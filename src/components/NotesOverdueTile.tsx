@@ -55,11 +55,13 @@ export function NotesOverdueTile({
   className,
   refreshKey,
   staffIds,
+  selfMode,
 }: {
   className?: string
   teamFilter?: string
   refreshKey?: number
   staffIds?: string[]
+  selfMode?: boolean
 }) {
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -131,7 +133,27 @@ export function NotesOverdueTile({
             </p>
           </div>
         )}
-        {!loading && !error && hasGaps && (
+        {!loading && !error && hasGaps && selfMode && (
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
+            {totalMissing > 0 && (
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-4xl font-bold tabular-nums leading-none text-amber-600">
+                  {totalMissing}
+                </span>
+                <p className="text-sm text-muted-foreground">missing notes this pay period</p>
+              </div>
+            )}
+            {totalOverdue > 0 && (
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-4xl font-bold tabular-nums leading-none text-red-600">
+                  {totalOverdue}
+                </span>
+                <p className="text-sm text-muted-foreground">overdue notes this pay period</p>
+              </div>
+            )}
+          </div>
+        )}
+        {!loading && !error && hasGaps && !selfMode && (
           <>
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               {totalMissing > 0 && (

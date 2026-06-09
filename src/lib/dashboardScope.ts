@@ -181,16 +181,30 @@ function formatPeriodMonthLabel(periodStart: string): string {
   return anchor.toLocaleDateString("en-US", { month: "long", year: "numeric" })
 }
 
-/** Latest row per staff when multiple periods exist (fallback path). */
-function pickLatestSupervisionPerStaff(records: SupervisionRecord[]): SupervisionRecord[] {
+/** One row per staff — keeps latest period; tie-break prefers seed row (lower id). */
+function dedupeSupervisionPerStaff(records: SupervisionRecord[]): SupervisionRecord[] {
   const byStaff = new Map<string, SupervisionRecord>()
   for (const row of records) {
-    const prev = byStaff.get(row.staffName)
-    if (!prev || row.periodEnd.slice(0, 10) > prev.periodEnd.slice(0, 10)) {
-      byStaff.set(row.staffName, row)
+    const key = row.staffId || row.staffName
+    const prev = byStaff.get(key)
+    if (!prev) {
+      byStaff.set(key, row)
+      continue
+    }
+    const rowEnd = row.periodEnd.slice(0, 10)
+    const prevEnd = prev.periodEnd.slice(0, 10)
+    if (rowEnd > prevEnd) {
+      byStaff.set(key, row)
+    } else if (rowEnd === prevEnd && row.id < prev.id) {
+      byStaff.set(key, row)
     }
   }
   return [...byStaff.values()]
+}
+
+/** Latest row per staff when multiple periods exist (fallback path). */
+function pickLatestSupervisionPerStaff(records: SupervisionRecord[]): SupervisionRecord[] {
+  return dedupeSupervisionPerStaff(records)
 }
 
 /**
@@ -203,8 +217,10 @@ export function filterSupervisionRecordsForTile(records: SupervisionRecord[]): {
   isFallbackPeriod: boolean
 } {
   const currentMonth = getCurrentCalendarMonth()
-  const current = records.filter((r) =>
-    supervisionOverlapsCurrentMonth(r.periodStart, r.periodEnd),
+  const current = dedupeSupervisionPerStaff(
+    records.filter((r) =>
+      supervisionOverlapsCurrentMonth(r.periodStart, r.periodEnd),
+    ),
   )
   if (current.length > 0) {
     return {

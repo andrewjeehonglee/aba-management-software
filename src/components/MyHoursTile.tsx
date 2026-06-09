@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
 import { TriangleAlert } from "lucide-react"
-import { Link } from "react-router-dom"
 import {
   Card,
   CardContent,
@@ -10,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { getStaffHoursByMonth, type StaffHoursRow } from "@/lib/staffHours"
-import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 
 const HOURS_COLORS = {
@@ -101,30 +99,31 @@ export function MyHoursTile({
           </p>
         )}
         {!loading && !error && row && (
-          <div className="space-y-2 rounded-lg border border-border/50 bg-card px-3 py-2.5 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-1.5">
-                {row.flagged && (
-                  <TriangleAlert className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+          <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <div className="flex items-center gap-1.5">
+              {row.flagged && (
+                <TriangleAlert className="h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+              )}
+              <span
+                className={cn(
+                  "text-4xl font-bold tabular-nums leading-none",
+                  row.flagged ? "text-amber-600" : "text-emerald-600",
                 )}
-                <Link
-                  to={"/staff/" + toSlug(row.staffName)}
-                  className={cn(
-                    "truncate text-sm hover:underline underline-offset-2",
-                    row.flagged ? "font-medium text-amber-800" : "font-medium text-[#1E2A2A]",
-                  )}
-                >
-                  {row.staffName}
-                </Link>
-              </div>
-              <p className="shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+              >
+                {Math.round(row.directPct * 100)}%
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {row.flagged
+                ? "Direct hours below 50% threshold"
+                : "Meeting direct hours threshold this month"}
+            </p>
+            <div className="w-full max-w-xs space-y-2 pt-1">
+              <HoursMixBar row={row} />
+              <p className="text-xs tabular-nums text-muted-foreground">
                 {formatHoursBreakdown(row)}
               </p>
             </div>
-            <HoursMixBar row={row} />
-            <p className={cn("text-[11px] tabular-nums", row.flagged ? "text-amber-600 font-medium" : "text-muted-foreground")}>
-              {Math.round(row.directPct * 100)}% direct
-            </p>
           </div>
         )}
       </CardContent>

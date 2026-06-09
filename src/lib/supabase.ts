@@ -501,6 +501,7 @@ export async function getAuthorizationsByClientId(clientId: string): Promise<Aut
 
 interface SupervisionRow {
   id: string
+  staff_id: string
   supervision_pct: number
   period_start: string
   period_end: string
@@ -509,6 +510,7 @@ interface SupervisionRow {
 
 export interface SupervisionRecord {
   id: string
+  staffId: string
   staffName: string
   staffTeam: string
   supervisionPct: number
@@ -519,12 +521,13 @@ export interface SupervisionRecord {
 export async function getSupervision(): Promise<SupervisionRecord[]> {
   const { data, error } = await supabase
     .from('supervision')
-    .select('id, supervision_pct, period_start, period_end, staff(full_name, team)')
+    .select('id, staff_id, supervision_pct, period_start, period_end, staff(full_name, team)')
     .order('supervision_pct', { ascending: true })
   if (error) throw error
 
   return (data as unknown as SupervisionRow[]).map((row) => ({
     id:            row.id,
+    staffId:       row.staff_id,
     staffName:     row.staff.full_name,
     staffTeam:     teamLabel(row.staff.team),
     supervisionPct: row.supervision_pct,
@@ -538,7 +541,7 @@ export async function getSupervisionForStaffIds(staffIds: string[]): Promise<Sup
 
   const { data, error } = await supabase
     .from("supervision")
-    .select("id, supervision_pct, period_start, period_end, staff(full_name, team)")
+    .select("id, staff_id, supervision_pct, period_start, period_end, staff(full_name, team)")
     .in("staff_id", staffIds)
     .order("supervision_pct", { ascending: true })
 
@@ -546,6 +549,7 @@ export async function getSupervisionForStaffIds(staffIds: string[]): Promise<Sup
 
   return (data as unknown as SupervisionRow[]).map((row) => ({
     id: row.id,
+    staffId: row.staff_id,
     staffName: row.staff.full_name,
     staffTeam: teamLabel(row.staff.team),
     supervisionPct: row.supervision_pct,
