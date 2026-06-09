@@ -1518,3 +1518,166 @@ All commits pushed to `main` → auto-deployed to Vercel at https://aba-manageme
 ---
 
 *Last updated: Jun 4, 2026 (end of Session 27, post-log additions).*
+
+---
+
+## Session 28 — Phase 7: Role dashboards (#5.5) + polish + supervision fixes (#5.6–#5.6d)
+
+**Date:** Jun 9, 2026 (morning)  
+**Starting point:** Slice #5 shipped (`82f5a3c`) — non-owner dashboard was calendar-only with Team A/B/C chrome.  
+**Ending point:** Role dashboards live on Vercel; supervision tile works with May fallback until SQL patch; technician tiles show self-focused numbers.  
+**Live HEAD:** `b0714f4` → https://aba-management-software.vercel.app
+
+### Andrew locked (carried through all slices)
+
+| Role | Layout |
+|------|--------|
+| **Owner** | 3 cards only (Notes, Hours, Auth) — practice-wide, no calendar |
+| **BCBA + Supervisor** | Same layout: full-width calendar + **4 tiles** (Notes, Hours, Auth, Supervision) |
+| **Technician** | Calendar + **3 tiles** (Notes, My Hours, Supervision) — no Auth; own data only |
+| **Team A/B/C** | Deprecated — staff name header, caseload/self scoping instead |
+| **Audit pull** | Slice #6 — explicitly out of scope this morning |
+
+---
+
+### Slice #5.5 — Role dashboard rework (`4ee2b23`)
+
+**Problem:** Non-owner UX wrong after #5 — Team badge, calendar-only layout, dots + click-to-expand.
+
+**Shipped:**
+
+- **`DashboardPage.tsx`** — Removed Team badge, `ROLE_DEFAULT_TEAM`, `?team=` URL scoping. Owner unchanged. Non-owner: staff name header + calendar + role-specific tiles. Owner role-preview shows full role layout (not calendar-only).
+- **`src/lib/dashboardScope.ts`** (new) — `DashboardScope` (`practice` | `caseload` | `self`); TEMP caseload helpers `getCaseloadStaffIdsForBcba`, `getCaseloadClientIdsForBcba`, `getSuperviseeStaffIdsForBcba`; preview anchors Sarah Chen / David Kim / Mike Torres.
+- **`SessionCalendar.tsx`** — `monthOnly`, `inlineDayContent` for dashboard embed (no week toggle, no dots, no expand panel).
+- **`DashboardCalendarTile.tsx`** — Staff name in header; supervisee toggle kept for BCBA/Supervisor.
+- **`MyHoursTile.tsx`** (new) — Technician single-row hours.
+- **Tile scoping** — Optional `staffIds` / `clientIds` on Notes, Hours, Auth, Supervision tiles.
+- **`dashboardCalendar.ts`** — Preview staff by name (not team); re-exports scope helpers.
+
+---
+
+### Slice #5.6 — Dashboard polish (`b2f42ad`)
+
+- **Wider shell** — `max-w-[min(100%,1680px)] px-4 sm:px-6` for all roles.
+- **BCBA/Supervisor grid** — `lg:grid-cols-2` (2×2), not 4-across.
+- **Calendar** — Removed `MAX_INLINE_SESSIONS` cap and "+N more"; all sessions in cell with scroll.
+- **Sort dropdowns removed** from all dashboard tiles (fixed default sorts in code). Owner "New Staff" kept on Hours.
+- **`patch_supervision_jun2026.sql`** (new) — June technician supervision rows for Coastal demo.
+
+---
+
+### Slice #5.6b — Supervision scope hotfix (`9f0de67`)
+
+**Root cause:** Mixed staff seed — Coastal uses `team='A'`, `role='technician'`; aa000001 rows use `Team A`, `Technician`. Strict PostgREST `.eq()` missed Maria Gonzalez / Kevin Park etc.
+
+**Shipped:**
+
+- **`normalizeTeam()`** + **`isTechnicianRole()`** in `dashboardScope.ts`.
+- Caseload/supervisee queries: fetch all practice staff, filter in JS by normalized team + role.
+- **`getCurrentCalendarMonthDateBounds()`** in `payPeriod.ts` — `supervisionOverlapsCurrentMonth` compares `YYYY-MM-DD` strings (no UTC edge cases).
+- **`SupervisionRecord.staffId`** added to supabase mappers.
+
+---
+
+### Slices #5.6c + #5.7 — Supervision month fallback + calendar typography (`f101b21`)
+
+**Root cause (supervision still empty):** Live Supabase supervision rows are **May 2026** (`period_start = 2026-05-01`). App filters **June 2026** → all excluded. Scope fix #5.6b was correct; this was a **period mismatch**.
+
+**#5.6c — Supervision:**
+
+- **`filterSupervisionRecordsForTile()`** — Prefer current month; if none, fallback to **latest period per staff** with `isFallbackPeriod` + label.
+- **Subtitle** — `"This month: …"` or `"Latest period: May 2026"` when fallback.
+- **`patch_supervision_jun2026.sql`** refreshed — UPDATE May→June for Coastal rows + idempotent INSERT/UPSERT + verify SELECT.
+
+**#5.7 — Calendar (dashboard inline only):**
+
+- Fixed **`h-32`** day cells (empty + full same height).
+- Session list: `min-h-0 flex-1 overflow-y-auto` inside cell.
+- Typography: DOW `text-xs sm:text-sm`, date `text-sm font-semibold`, cards `text-xs`, staff sub-label `text-[11px]`, month nav `text-base font-semibold`.
+- **`DashboardCalendarTile`** subtitle → `text-sm`.
+- Client Overview calendar **unchanged**.
+
+---
+
+### Slice #5.6d — Supervision dedupe + technician self tiles (`b0714f4`)
+
+- **`dedupeSupervisionPerStaff()`** — One row per staff (latest `periodEnd`; tie-break lower id = seed row). Applied in current-month and fallback paths.
+- **`patch_supervision_jun2026.sql`** — DELETE duplicate June rows per staff; Team B/C INSERT only (Mike/Emily use seed ids `003`/`004` updated by step 1).
+- **`MyHoursTile`** — Technician self-view: big **direct %** headline + mix bar + breakdown (no staff name link row).
+- **`NotesOverdueTile`** — `selfMode`: big missing/overdue counts only (no staff drill list).
+- **`DashboardPage`** — Passes `selfMode` to Notes + Supervision on technician layout.
+
+---
+
+### Verify checklist (demo@pulseaba.app on Vercel)
+
+| View | Expected |
+|------|----------|
+| Owner | 3 cards, no Team badge |
+| Owner → BCBA (Sarah Chen) | Calendar + 2×2 tiles; Supervision: Mike **4%** + Emily **12%** (Mike flagged) |
+| Owner → Supervisor (David Kim) | Same Team A techs in Supervision |
+| Owner → Technician (Mike Torres) | Calendar + 3 tiles; self **4%** supervision; My Hours % headline |
+| Calendar | Uniform `h-32` cells; readable inline session text |
+| Supervision subtitle (before SQL) | **"Latest period: May 2026"** |
+| Supervision subtitle (after SQL) | **"This month: June 2026"** |
+
+---
+
+### Files touched (cumulative this session)
+
+| File | Role |
+|------|------|
+| `src/pages/DashboardPage.tsx` | Role layouts, width, scope state, selfMode props |
+| `src/lib/dashboardScope.ts` | Caseload, normalization, supervision filter/dedupe |
+| `src/lib/dashboardCalendar.ts` | Preview staff, calendar session load |
+| `src/lib/payPeriod.ts` | `getCurrentCalendarMonthDateBounds` |
+| `src/lib/notesStatus.ts` | Optional `staffIds` filter |
+| `src/lib/staffHours.ts` | Optional `staffIds` filter |
+| `src/lib/authUtilization.ts` | Optional `clientIds` filter |
+| `src/lib/supabase.ts` | `getSupervisionForStaffIds`, `staffId` on records, month pick |
+| `src/components/SessionCalendar.tsx` | `monthOnly`, `inlineDayContent`, h-32 polish |
+| `src/components/DashboardCalendarTile.tsx` | Staff header, calendar props |
+| `src/components/MyHoursTile.tsx` | **new** → technician self % view |
+| `src/components/NotesOverdueTile.tsx` | Scoping + `selfMode` |
+| `src/components/HoursByStaffTile.tsx` | Scoping, sort removed |
+| `src/components/AuthorizationUtilizationTile.tsx` | Scoping, sort removed |
+| `src/components/SupervisionComplianceTile.tsx` | Scoping, fallback labels, sort removed |
+| `patch_supervision_jun2026.sql` | **new** — June supervision + dedupe SQL |
+
+---
+
+### Commits (chronological)
+
+| Hash | Message |
+|------|---------|
+| `4ee2b23` | Role dashboards: drop Team UI, inline month calendar, BCBA 4-tile + tech 3-tile layout (#5.5) |
+| `b2f42ad` | Dashboard polish: full-width layout, 2x2 tiles, all inline sessions, June supervision seed (#5.6) |
+| `9f0de67` | Fix supervision scope: normalize team/role for mixed staff seed (#5.6b) |
+| `f101b21` | Fix supervision empty tile + calendar polish (#5.6c, #5.7) |
+| `b0714f4` | Dedupe supervision per staff; technician self-view shows numbers only (#5.6d) |
+
+All pushed to `main` → Vercel auto-deploy.
+
+---
+
+### Pending manual steps (Andrew)
+
+1. **Run `patch_supervision_jun2026.sql`** in Supabase SQL Editor — shifts May→June, ensures tech rows, dedupes. Until then, supervision tile shows **Latest period: May 2026** (fallback — not empty).
+2. **Optional:** Normalize aa000001 staff rows (`Team A` → `A`, `Technician` → `technician`) if not already done — code handles both formats via `normalizeTeam` / `isTechnicianRole`.
+
+---
+
+### What's next (not started)
+
+- **Slice #6 — Audit pull:** client + date range → notes bundle, exportable.
+- **Ideal caseload (future):** `clients.primary_bcba_id` or assignment table — replace TEMP same-team hack in `dashboardScope.ts`.
+
+---
+
+### Local artifacts (untracked)
+
+- `scripts/test-supervision.mjs` — local test script, not committed.
+
+---
+
+*Last updated: Jun 9, 2026 (end of Session 28 — Phase 7 morning dashboard + supervision work).*
