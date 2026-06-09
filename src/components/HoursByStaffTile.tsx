@@ -12,6 +12,7 @@ import {
   Card,
   CardAction,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -36,9 +37,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { createStaff, getStaff, type StaffRecord } from "@/lib/supabase"
-import type { Staff } from "@/types/staff"
+import { createStaff } from "@/lib/supabase"
+import { getStaffHoursByPayPeriod, type StaffHoursRow } from "@/lib/staffHours"
 import { isStaffFlagged } from "@/lib/staff"
+import type { Staff } from "@/types/staff"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
@@ -192,31 +194,47 @@ const chartConfig = {
 const SORT_OPTIONS = {
   total: {
     label: "Total hours (high → low)",
-    compare: (a: StaffRecord, b: StaffRecord) => b.totalHours - a.totalHours,
+    compare: (a: StaffHoursRow, b: StaffHoursRow) => b.totalHours - a.totalHours,
   },
   directPct: {
     label: "Direct % (low → high)",
-    compare: (a: StaffRecord, b: StaffRecord) =>
-      a.directHours / a.totalHours - b.directHours / b.totalHours,
+    compare: (a: StaffHoursRow, b: StaffHoursRow) =>
+      a.directPct - b.directPct || a.staffName.localeCompare(b.staffName),
   },
   cancellation: {
     label: "Cancellation hrs (high → low)",
-    compare: (a: StaffRecord, b: StaffRecord) =>
+    compare: (a: StaffHoursRow, b: StaffHoursRow) =>
       b.cancellationHours - a.cancellationHours,
   },
   name: {
     label: "Name (A–Z)",
-    compare: (a: StaffRecord, b: StaffRecord) => a.name.localeCompare(b.name),
+    compare: (a: StaffHoursRow, b: StaffHoursRow) => a.staffName.localeCompare(b.staffName),
   },
 } as const
 
 type SortKey = keyof typeof SORT_OPTIONS
 
+type ChartStaffRow = StaffHoursRow & { name: string }
+
 type AxisTickProps = {
   x?: number | string
   y?: number | string
   payload?: { value: string }
-  staff?: StaffRecord[]
+  staff?: ChartStaffRow[]
+}
+
+function toStaffMetrics(row: StaffHoursRow): Staff {
+  return {
+    name: row.staffName,
+    totalHours: row.totalHours,
+    directHours: row.directHours,
+    indirectHours: row.indirectHours,
+    cancellationHours: row.cancellationHours,
+    role: "Technician",
+    hireDate: "",
+    certification: "",
+    team: row.staffTeam,
+  }
 }
 
 function YAxisTick({ x = 0, y = 0, payload, staff = [] }: AxisTickProps) {
@@ -224,7 +242,7 @@ function YAxisTick({ x = 0, y = 0, payload, staff = [] }: AxisTickProps) {
   const numX = Number(x)
   const numY = Number(y)
   const member = staff.find((s) => s.name === payload.value)
-  const flagged = member ? isStaffFlagged(member as unknown as Staff) : false
+  const flagged = member ? isStaffFlagged(toStaffMetrics(member)) : false
 
   return (
     <g transform={`translate(${numX},${numY})`}>
@@ -262,9 +280,9 @@ interface HoursByStaffTileProps {
   onStaffCreated?: () => void
 }
 
-export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId, onStaffCreated }: HoursByStaffTileProps) {
+export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKey, practiceId, onStaffCreated }: HoursByStaffTileProps) {
   const [sortKey, setSortKey]     = useState<SortKey>("total")
-  const [allStaff, setAllStaff]   = useState<StaffRecord[]>([])
+  const [summary, setSummary]     = useState<Awaited<ReturnType<typeof getStaffHoursByPayPeriod>> | null>(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -272,23 +290,35 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getStaff()
-      .then(setAllStaff)
-      .catch((err) => setError(err.message ?? "Failed to load staff"))
+    getStaffHoursByPayPeriod()
+      .then(setSummary)
+      .catch((err) => setError(err.message ?? "Failed to load staff hours"))
       .finally(() => setLoading(false))
   }, [refreshKey])
 
-  const teamStaff = teamFilter && teamFilter !== "All"
-    ? allStaff.filter(s => s.team === teamFilter)
-    : allStaff
-
-  const sortedStaff = [...teamStaff].sort(SORT_OPTIONS[sortKey].compare)
+  // Owner v1: practice-wide hours — teamFilter prop accepted but not applied.
+  const sortedStaff = summary
+    ? [...summary.byStaff].sort(SORT_OPTIONS[sortKey].compare)
+    : []
+  const chartStaff: ChartStaffRow[] = sortedStaff.map((row) => ({ ...row, name: row.staffName }))
 
   return (
     <>
     <Card size="sm" className={cn("w-full", className)}>
       <CardHeader>
-        <CardTitle>Hours by Staff (Last 7 Days)</CardTitle>
+        <div className="space-y-0.5">
+          <CardTitle>Hours by Staff</CardTitle>
+          {summary && (
+            <CardDescription className="text-xs space-y-1">
+              <span className="block">Pay period: {summary.payPeriodLabel}</span>
+              <span className="block text-[11px] leading-snug text-muted-foreground/90">
+                <span className="font-medium text-emerald-700">Direct:</span> face-to-face client hours (completed + note done).{" "}
+                <span className="font-medium text-slate-600">Indirect:</span> supervision / indirect (completed + note done).{" "}
+                <span className="font-medium text-red-700">Cancellation:</span> canceled or no-show sessions. Flag if direct &lt; 50% of total.
+              </span>
+            </CardDescription>
+          )}
+        </div>
         <CardAction>
           {practiceId && (
             <Button
@@ -328,22 +358,9 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
         {!loading && !error && sortedStaff.length === 0 && (
-          <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border py-10 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
             <Users className="w-8 h-8 text-[#14A0A5]" />
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-[#1E2A2A]">No staff yet</p>
-              <p className="text-xs text-muted-foreground max-w-xs">Staff are the BCBAs and RBTs who run sessions and supervise your team.</p>
-            </div>
-            {practiceId && (
-              <button
-                className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
-                onClick={() => {
-                  setModalOpen(true)
-                }}
-              >
-                Add your first staff member →
-              </button>
-            )}
+            <p className="text-sm text-muted-foreground">No billable sessions this pay period.</p>
           </div>
         )}
         {!loading && !error && sortedStaff.length > 0 && (
@@ -366,7 +383,7 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
               className="aspect-auto h-[380px] w-full"
             >
               <BarChart
-                data={sortedStaff}
+                data={chartStaff}
                 layout="vertical"
                 margin={{ top: 4, right: 12, left: 12, bottom: 4 }}
               >
@@ -382,12 +399,30 @@ export function HoursByStaffTile({ className, teamFilter, refreshKey, practiceId
                   dataKey="name"
                   width={120}
                   interval={0}
-                  tick={(props) => <YAxisTick {...props} staff={allStaff} />}
+                  tick={(props) => <YAxisTick {...props} staff={chartStaff} />}
                   axisLine={false}
                   tickLine={false}
                 />
                 <ChartTooltip
-                  content={<ChartTooltipContent indicator="dot" />}
+                  content={
+                    <ChartTooltipContent
+                      indicator="dot"
+                      labelFormatter={(label, payload) => {
+                        const row = payload?.[0]?.payload as ChartStaffRow | undefined
+                        return (
+                          <div className="space-y-0.5">
+                            <div>{label}</div>
+                            {row && row.cancelledSessionCount > 0 && (
+                              <div className="font-normal text-muted-foreground">
+                                {row.cancelledSessionCount} cancelled/no-show session
+                                {row.cancelledSessionCount === 1 ? "" : "s"}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }}
+                    />
+                  }
                 />
                 <Bar
                   dataKey="directHours"
