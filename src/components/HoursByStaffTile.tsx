@@ -181,7 +181,7 @@ function formatHoursBreakdown(row: StaffHoursRow): string {
   const d = Math.round(row.directHours)
   const i = Math.round(row.indirectHours)
   const c = Math.round(row.cancellationHours)
-  return `${d}D · ${i}I · ${c}C`
+  return `${d} direct · ${i} indirect · ${c} cancel`
 }
 
 function HoursMixBar({ row }: { row: StaffHoursRow }) {
@@ -238,7 +238,7 @@ function PayrollStaffRow({ row }: { row: StaffHoursRow }) {
           </Link>
         </div>
         <div className="shrink-0 text-right">
-          <p className="font-mono text-xs tabular-nums text-muted-foreground">
+          <p className="max-w-[11rem] text-right text-[11px] leading-snug tabular-nums text-muted-foreground sm:max-w-none sm:text-xs">
             {formatHoursBreakdown(row)}
           </p>
           <p
