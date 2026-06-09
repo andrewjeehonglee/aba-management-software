@@ -118,15 +118,19 @@ export function NotesOverdueTile({
             {UrgencyIcon}
             Session Notes
             <span
-              title="Completed sessions in the current pay period missing SOAP documentation. Amber = still in grace; red = overdue."
+              title="Counts completed sessions in this pay period without a full SOAP note. Missing = still in grace until your next session. Overdue = grace expired (next session started or pay period ended)."
               className="inline-flex cursor-help ml-0.5"
             >
               <Info className="w-3.5 h-3.5 text-slate-400" />
             </span>
           </CardTitle>
           {summary && (
-            <CardDescription className="text-xs">
-              Pay period: {summary.payPeriodLabel}
+            <CardDescription className="text-xs space-y-1">
+              <span className="block">Pay period: {summary.payPeriodLabel}</span>
+              <span className="block text-[11px] leading-snug text-muted-foreground/90">
+                <span className="font-medium text-amber-700">Missing:</span> session completed, note not submitted, due before next session.{" "}
+                <span className="font-medium text-red-700">Overdue:</span> next session started or pay period ended, note still open.
+              </span>
             </CardDescription>
           )}
         </div>
@@ -166,7 +170,7 @@ export function NotesOverdueTile({
                   <span className="text-3xl font-bold tracking-tight tabular-nums leading-none text-amber-600">
                     {totalMissing}
                   </span>
-                  <span className="text-xs text-muted-foreground">missing (in grace)</span>
+                  <span className="text-xs text-muted-foreground">missing</span>
                 </div>
               )}
               {totalOverdue > 0 && (
