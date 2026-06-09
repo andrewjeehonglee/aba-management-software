@@ -2,26 +2,14 @@ import { useState, useEffect } from "react"
 import { Plus, TriangleAlert, Users } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
-} from "recharts"
-import {
   Card,
   CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "@/components/ui/chart"
 import {
   Dialog,
   DialogContent,
@@ -39,11 +27,15 @@ import {
 } from "@/components/ui/select"
 import { createStaff } from "@/lib/supabase"
 import { getStaffHoursByPayPeriod, type StaffHoursRow } from "@/lib/staffHours"
-import { isStaffFlagged } from "@/lib/staff"
-import type { Staff } from "@/types/staff"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
+
+const HOURS_COLORS = {
+  direct: "#10b981",
+  indirect: "#94a3b8",
+  cancellation: "#ef4444",
+} as const
 
 // ─── New Staff Modal ──────────────────────────────────────────────────────────
 
@@ -183,13 +175,114 @@ function NewStaffModal({ open, practiceId, onClose, onSuccess }: NewStaffModalPr
   )
 }
 
-// ─── Chart config ─────────────────────────────────────────────────────────────
+// ─── Payroll row (slice 3.5 — replaces vertical bar chart) ───────────────────
 
-const chartConfig = {
-  directHours: { label: "Direct", color: "#10b981" },
-  indirectHours: { label: "Indirect", color: "#94a3b8" },
-  cancellationHours: { label: "Cancellation", color: "#ef4444" },
-} satisfies ChartConfig
+function formatHoursBreakdown(row: StaffHoursRow): string {
+  const d = Math.round(row.directHours)
+  const i = Math.round(row.indirectHours)
+  const c = Math.round(row.cancellationHours)
+  return `${d}D · ${i}I · ${c}C`
+}
+
+function HoursMixBar({ row }: { row: StaffHoursRow }) {
+  const total = row.totalHours
+  if (total <= 0) return null
+
+  const segments = [
+    { key: "direct", hours: row.directHours, color: HOURS_COLORS.direct },
+    { key: "indirect", hours: row.indirectHours, color: HOURS_COLORS.indirect },
+    { key: "cancellation", hours: row.cancellationHours, color: HOURS_COLORS.cancellation },
+  ].filter((s) => s.hours > 0)
+
+  return (
+    <div
+      className="flex h-2 w-full overflow-hidden rounded-full bg-slate-100"
+      role="img"
+      aria-label={`${row.staffName}: ${formatHoursBreakdown(row)}`}
+    >
+      {segments.map((seg) => (
+        <div
+          key={seg.key}
+          className="h-full min-w-[2px] transition-[width] duration-300"
+          style={{
+            width: `${(seg.hours / total) * 100}%`,
+            backgroundColor: seg.color,
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function PayrollStaffRow({ row }: { row: StaffHoursRow }) {
+  const directPctLabel = `${Math.round(row.directPct * 100)}% direct`
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-border/50 bg-card px-3 py-2.5 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          {row.flagged && (
+            <TriangleAlert
+              className="h-3.5 w-3.5 shrink-0 text-amber-500"
+              aria-label="Less than 50% direct hours"
+            />
+          )}
+          <Link
+            to={"/staff/" + toSlug(row.staffName)}
+            className={cn(
+              "truncate text-sm hover:underline underline-offset-2",
+              row.flagged ? "font-medium text-amber-800" : "font-medium text-[#1E2A2A]",
+            )}
+          >
+            {row.staffName}
+          </Link>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="font-mono text-xs tabular-nums text-muted-foreground">
+            {formatHoursBreakdown(row)}
+          </p>
+          <p
+            className={cn(
+              "text-[11px] tabular-nums",
+              row.flagged ? "font-medium text-amber-600" : "text-muted-foreground",
+            )}
+          >
+            {directPctLabel}
+          </p>
+        </div>
+      </div>
+      <HoursMixBar row={row} />
+      {row.cancelledSessionCount > 0 && (
+        <p className="text-[10px] text-muted-foreground">
+          {row.cancelledSessionCount} canceled or no-show session
+          {row.cancelledSessionCount === 1 ? "" : "s"}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function HoursLegendFooter() {
+  return (
+    <CardFooter className="flex flex-wrap gap-x-4 gap-y-1 border-t bg-slate-50/80 px-4 py-2.5 text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
+        <span><span className="font-medium text-emerald-700">Direct</span> — completed + note</span>
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-full bg-slate-400" aria-hidden />
+        <span><span className="font-medium text-slate-600">Indirect</span> — completed + note</span>
+      </span>
+      <span className="inline-flex items-center gap-1.5">
+        <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
+        <span><span className="font-medium text-red-700">Cancel</span> — canceled / no-show</span>
+      </span>
+      <span className="w-full sm:w-auto text-muted-foreground/80">
+        ⚠ Flag if direct &lt; 50% of total hours
+      </span>
+    </CardFooter>
+  )
+}
 
 const SORT_OPTIONS = {
   total: {
@@ -213,64 +306,6 @@ const SORT_OPTIONS = {
 } as const
 
 type SortKey = keyof typeof SORT_OPTIONS
-
-type ChartStaffRow = StaffHoursRow & { name: string }
-
-type AxisTickProps = {
-  x?: number | string
-  y?: number | string
-  payload?: { value: string }
-  staff?: ChartStaffRow[]
-}
-
-function toStaffMetrics(row: StaffHoursRow): Staff {
-  return {
-    name: row.staffName,
-    totalHours: row.totalHours,
-    directHours: row.directHours,
-    indirectHours: row.indirectHours,
-    cancellationHours: row.cancellationHours,
-    role: "Technician",
-    hireDate: "",
-    certification: "",
-    team: row.staffTeam,
-  }
-}
-
-function YAxisTick({ x = 0, y = 0, payload, staff = [] }: AxisTickProps) {
-  if (!payload) return null
-  const numX = Number(x)
-  const numY = Number(y)
-  const member = staff.find((s) => s.name === payload.value)
-  const flagged = member ? isStaffFlagged(toStaffMetrics(member)) : false
-
-  return (
-    <g transform={`translate(${numX},${numY})`}>
-      <foreignObject x={-120} y={-10} width={116} height={20}>
-        <div
-          className={`flex h-full items-center justify-end gap-1 text-xs ${
-            flagged ? "font-medium text-amber-600" : "text-foreground"
-          }`}
-        >
-          {flagged && (
-            <>
-              <TriangleAlert className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="sr-only">
-                Flagged: less than 50% direct hours.
-              </span>
-            </>
-          )}
-          <Link
-            to={"/staff/" + toSlug(payload.value)}
-            className="hover:underline underline-offset-2"
-          >
-            {payload.value}
-          </Link>
-        </div>
-      </foreignObject>
-    </g>
-  )
-}
 
 interface HoursByStaffTileProps {
   className?:      string
@@ -296,26 +331,19 @@ export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKe
       .finally(() => setLoading(false))
   }, [refreshKey])
 
-  // Owner v1: practice-wide hours — teamFilter prop accepted but not applied.
   const sortedStaff = summary
     ? [...summary.byStaff].sort(SORT_OPTIONS[sortKey].compare)
     : []
-  const chartStaff: ChartStaffRow[] = sortedStaff.map((row) => ({ ...row, name: row.staffName }))
 
   return (
     <>
-    <Card size="sm" className={cn("w-full", className)}>
+    <Card size="sm" className={cn("w-full flex flex-col", className)}>
       <CardHeader>
         <div className="space-y-0.5">
           <CardTitle>Hours by Staff</CardTitle>
           {summary && (
-            <CardDescription className="text-xs space-y-1">
-              <span className="block">Pay period: {summary.payPeriodLabel}</span>
-              <span className="block text-[11px] leading-snug text-muted-foreground/90">
-                <span className="font-medium text-emerald-700">Direct:</span> face-to-face client hours (completed + note done).{" "}
-                <span className="font-medium text-slate-600">Indirect:</span> supervision / indirect (completed + note done).{" "}
-                <span className="font-medium text-red-700">Cancellation:</span> canceled or no-show sessions. Flag if direct &lt; 50% of total.
-              </span>
+            <CardDescription className="text-xs">
+              Pay period: {summary.payPeriodLabel}
             </CardDescription>
           )}
         </div>
@@ -325,9 +353,7 @@ export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKe
               size="sm"
               variant="outline"
               className="h-7 px-2.5 text-xs gap-1 mr-2"
-              onClick={() => {
-                setModalOpen(true)
-              }}
+              onClick={() => setModalOpen(true)}
             >
               <Plus className="size-3.5" />
               New Staff
@@ -350,7 +376,7 @@ export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKe
           </Select>
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {loading && (
           <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
         )}
@@ -364,86 +390,14 @@ export function HoursByStaffTile({ className, teamFilter: _teamFilter, refreshKe
           </div>
         )}
         {!loading && !error && sortedStaff.length > 0 && (
-          <>
-            <div className="mb-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              {Object.entries(chartConfig).map(([key, { label, color }]) => (
-                <div key={key} className="flex items-center gap-1.5">
-                  <span
-                    className="inline-block h-3 w-3 rounded-sm"
-                    style={{ backgroundColor: color }}
-                    aria-hidden="true"
-                  />
-                  <span>{label}</span>
-                </div>
-              ))}
-            </div>
-
-            <ChartContainer
-              config={chartConfig}
-              className="aspect-auto h-[380px] w-full"
-            >
-              <BarChart
-                data={chartStaff}
-                layout="vertical"
-                margin={{ top: 4, right: 12, left: 12, bottom: 4 }}
-              >
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                <XAxis
-                  type="number"
-                  tick={{ fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={120}
-                  interval={0}
-                  tick={(props) => <YAxisTick {...props} staff={chartStaff} />}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      indicator="dot"
-                      labelFormatter={(label, payload) => {
-                        const row = payload?.[0]?.payload as ChartStaffRow | undefined
-                        return (
-                          <div className="space-y-0.5">
-                            <div>{label}</div>
-                            {row && row.cancelledSessionCount > 0 && (
-                              <div className="font-normal text-muted-foreground">
-                                {row.cancelledSessionCount} cancelled/no-show session
-                                {row.cancelledSessionCount === 1 ? "" : "s"}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      }}
-                    />
-                  }
-                />
-                <Bar
-                  dataKey="directHours"
-                  stackId="hours"
-                  fill="var(--color-directHours)"
-                />
-                <Bar
-                  dataKey="indirectHours"
-                  stackId="hours"
-                  fill="var(--color-indirectHours)"
-                />
-                <Bar
-                  dataKey="cancellationHours"
-                  stackId="hours"
-                  fill="var(--color-cancellationHours)"
-                />
-              </BarChart>
-            </ChartContainer>
-          </>
+          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-0.5">
+            {sortedStaff.map((row) => (
+              <PayrollStaffRow key={row.staffId} row={row} />
+            ))}
+          </div>
         )}
       </CardContent>
+      {!loading && !error && <HoursLegendFooter />}
     </Card>
 
     {practiceId && (

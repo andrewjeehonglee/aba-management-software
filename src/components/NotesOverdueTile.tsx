@@ -6,6 +6,7 @@ import {
   CardAction,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -125,12 +126,8 @@ export function NotesOverdueTile({
             </span>
           </CardTitle>
           {summary && (
-            <CardDescription className="text-xs space-y-1">
-              <span className="block">Pay period: {summary.payPeriodLabel}</span>
-              <span className="block text-[11px] leading-snug text-muted-foreground/90">
-                <span className="font-medium text-amber-700">Missing:</span> session completed, note not submitted, due before next session.{" "}
-                <span className="font-medium text-red-700">Overdue:</span> next session started or pay period ended, note still open.
-              </span>
+            <CardDescription className="text-xs">
+              Pay period: {summary.payPeriodLabel}
             </CardDescription>
           )}
         </div>
@@ -207,6 +204,18 @@ export function NotesOverdueTile({
           </>
         )}
       </CardContent>
+      {!loading && !error && (
+        <CardFooter className="flex flex-wrap gap-x-4 gap-y-1 border-t bg-slate-50/80 px-4 py-2.5 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
+            <span><span className="font-medium text-amber-700">Missing</span> — due before next session</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
+            <span><span className="font-medium text-red-700">Overdue</span> — next session started or period ended</span>
+          </span>
+        </CardFooter>
+      )}
     </Card>
   )
 }
