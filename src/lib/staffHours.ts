@@ -104,14 +104,23 @@ function finalizeRow(row: MutableStaffHoursRow): StaffHoursRow {
   }
 }
 
-export async function getStaffHoursByMonth(now: Date = new Date()): Promise<StaffHoursSummary> {
+export async function getStaffHoursByMonth(
+  now: Date = new Date(),
+  options?: { staffIds?: string[] },
+): Promise<StaffHoursSummary> {
   const month = getCurrentCalendarMonth(now)
 
-  const { data: sessionsData, error: sessionsError } = await supabase
+  let sessionsQuery = supabase
     .from("sessions")
     .select("id, staff_id, session_type, status, staff(full_name, team)")
     .gte("scheduled_at", month.start.toISOString())
     .lte("scheduled_at", month.end.toISOString())
+
+  if (options?.staffIds?.length) {
+    sessionsQuery = sessionsQuery.in("staff_id", options.staffIds)
+  }
+
+  const { data: sessionsData, error: sessionsError } = await sessionsQuery
 
   if (sessionsError) throw sessionsError
 

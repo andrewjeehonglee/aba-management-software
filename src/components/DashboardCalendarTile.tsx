@@ -18,6 +18,7 @@ interface DashboardCalendarTileProps {
   viewRole: CalendarViewRole
   isOwnerPreview: boolean
   currentStaffId: string | null
+  staffDisplayName?: string
   className?: string
 }
 
@@ -25,6 +26,7 @@ export function DashboardCalendarTile({
   viewRole,
   isOwnerPreview,
   currentStaffId,
+  staffDisplayName,
   className,
 }: DashboardCalendarTileProps) {
   const [includeSupervisees, setIncludeSupervisees] = useState(false)
@@ -65,7 +67,7 @@ export function DashboardCalendarTile({
     <Card size="sm" className={cn("w-full flex flex-col", className)}>
       <CardHeader>
         <div className="space-y-0.5">
-          <CardTitle>My Schedule</CardTitle>
+          <CardTitle>{staffDisplayName || "My Schedule"}</CardTitle>
           {monthLabel && (
             <CardDescription className="text-xs">
               This month: {monthLabel}
@@ -122,13 +124,15 @@ export function DashboardCalendarTile({
             <p className="text-sm text-muted-foreground">No sessions scheduled this month.</p>
           </div>
         )}
-        {!loading && !error && !needsStaffLink && sessions.length > 0 && (
+        {!loading && !error && !needsStaffLink && (resolvedStaff || isOwnerPreview) && (
           <SessionCalendar
             sessions={sessions}
             defaultView="month"
             displayMode="client"
             showStaffLabel={includeSupervisees}
             embedded
+            monthOnly
+            inlineDayContent
             onMonthChange={setMonthDate}
           />
         )}

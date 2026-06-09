@@ -101,23 +101,33 @@ const SORT_OPTIONS = {
 
 type SortKey = keyof typeof SORT_OPTIONS
 
-export function AuthorizationUtilizationTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
+export function AuthorizationUtilizationTile({
+  className,
+  teamFilter,
+  clientIds,
+}: {
+  className?: string
+  teamFilter?: TeamFilter
+  clientIds?: string[]
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("pctDesc")
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getAuthUtilizationByMonth()
+    getAuthUtilizationByMonth(undefined, clientIds?.length ? { clientIds } : undefined)
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load authorizations"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [clientIds])
 
   const teamClients = summary
-    ? (teamFilter && teamFilter !== "All"
-        ? summary.byClient.filter((c) => c.clientTeam === teamFilter)
-        : summary.byClient)
+    ? (clientIds?.length
+        ? summary.byClient
+        : teamFilter && teamFilter !== "All"
+          ? summary.byClient.filter((c) => c.clientTeam === teamFilter)
+          : summary.byClient)
     : []
 
   const sortedClients = [...teamClients].sort(SORT_OPTIONS[sortKey].compare)

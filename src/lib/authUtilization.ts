@@ -47,7 +47,10 @@ export interface AuthUtilizationSummary {
   byClient: ClientAuthUtilRow[]
 }
 
-export async function getAuthUtilizationByMonth(now: Date = new Date()): Promise<AuthUtilizationSummary> {
+export async function getAuthUtilizationByMonth(
+  now: Date = new Date(),
+  options?: { clientIds?: string[] },
+): Promise<AuthUtilizationSummary> {
   const month = getCurrentCalendarMonth(now)
 
   const { data: authData, error: authError } = await supabase
@@ -57,7 +60,12 @@ export async function getAuthUtilizationByMonth(now: Date = new Date()): Promise
   if (authError) throw authError
 
   const auths = (authData ?? []) as unknown as AuthRow[]
-  const activeAuths = auths.filter((a) => a.clients?.status === "active" || a.clients?.status == null)
+  let activeAuths = auths.filter((a) => a.clients?.status === "active" || a.clients?.status == null)
+
+  if (options?.clientIds?.length) {
+    const allowed = new Set(options.clientIds)
+    activeAuths = activeAuths.filter((a) => allowed.has(a.client_id))
+  }
 
   if (activeAuths.length === 0) {
     return { monthLabel: month.label, byClient: [] }

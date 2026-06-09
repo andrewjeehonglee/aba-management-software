@@ -79,15 +79,24 @@ function classifyNoteBucket(
   return now > payPeriodEnd ? "overdue" : "missing"
 }
 
-export async function getNotesStatus(now: Date = new Date()): Promise<NotesStatusSummary> {
+export async function getNotesStatus(
+  now: Date = new Date(),
+  options?: { staffIds?: string[] },
+): Promise<NotesStatusSummary> {
   const payPeriod = getCurrentPayPeriod(now)
 
-  const { data: sessionsData, error: sessionsError } = await supabase
+  let sessionsQuery = supabase
     .from("sessions")
     .select("id, scheduled_at, staff_id, staff(full_name, team), clients(first_name, last_name)")
     .eq("status", "completed")
     .gte("scheduled_at", payPeriod.start.toISOString())
     .lte("scheduled_at", payPeriod.end.toISOString())
+
+  if (options?.staffIds?.length) {
+    sessionsQuery = sessionsQuery.in("staff_id", options.staffIds)
+  }
+
+  const { data: sessionsData, error: sessionsError } = await sessionsQuery
 
   if (sessionsError) throw sessionsError
 

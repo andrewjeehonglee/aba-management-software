@@ -98,12 +98,16 @@ const TODAY_ISO = localISO(TODAY)
 
 export type SessionCalendarDisplayMode = "staff" | "client"
 
+const MAX_INLINE_SESSIONS = 3
+
 interface SessionCalendarProps {
   sessions: Session[]
   defaultView?: "week" | "month"
   displayMode?: SessionCalendarDisplayMode
   showStaffLabel?: boolean
   embedded?: boolean
+  monthOnly?: boolean
+  inlineDayContent?: boolean
   className?: string
   onMonthChange?: (anchorDate: Date) => void
 }
@@ -114,10 +118,12 @@ export function SessionCalendar({
   displayMode = "staff",
   showStaffLabel = false,
   embedded = false,
+  monthOnly = false,
+  inlineDayContent = false,
   className,
   onMonthChange,
 }: SessionCalendarProps) {
-  const [view, setView] = useState<"week" | "month">(defaultView)
+  const [view, setView] = useState<"week" | "month">(monthOnly ? "month" : defaultView)
   const [anchorDate, setAnchorDate] = useState<Date>(() =>
     defaultView === "month"
       ? new Date(TODAY.getFullYear(), TODAY.getMonth(), 1)
@@ -160,22 +166,26 @@ export function SessionCalendar({
     <>
       <div className={`flex items-center justify-between gap-2 ${embedded ? "" : "mt-0"}`}>
         {!embedded && <CardTitle>Session Calendar</CardTitle>}
-        {embedded && <span className="text-sm font-medium">{formatMonthYear(anchorDate)}</span>}
-        <div className="flex items-center gap-0.5 rounded-lg border border-border p-1 ml-auto">
-          {(["week", "month"] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => switchView(v)}
-              className={`rounded px-3 py-1 text-xs font-medium capitalize transition-colors ${
-                view === v
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
+        {embedded && !monthOnly && (
+          <span className="text-sm font-medium">{formatMonthYear(anchorDate)}</span>
+        )}
+        {!monthOnly && (
+          <div className="flex items-center gap-0.5 rounded-lg border border-border p-1 ml-auto">
+            {(["week", "month"] as const).map((v) => (
+              <button
+                key={v}
+                onClick={() => switchView(v)}
+                className={`rounded px-3 py-1 text-xs font-medium capitalize transition-colors ${
+                  view === v
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex items-center justify-between gap-2 mt-1">
         <button
@@ -217,6 +227,7 @@ export function SessionCalendar({
           expandedDay={expandedDay}
           displayMode={displayMode}
           showStaffLabel={showStaffLabel}
+          inlineDayContent={inlineDayContent}
           onDayClick={(iso) =>
             setExpandedDay((prev) => (prev === iso ? null : iso))
           }
@@ -459,6 +470,49 @@ function WeekView({
 
 const DOW_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
+function InlineDaySessionCard({
+  session: s,
+  displayMode,
+  showStaffLabel,
+}: {
+  session: Session
+  displayMode: SessionCalendarDisplayMode
+  showStaffLabel: boolean
+}) {
+  const dim = isMuted(s)
+  const label =
+    displayMode === "client"
+      ? s.clientName
+      : s.staffName
+
+  return (
+    <div
+      className={`rounded border border-border border-l-2 px-1 py-0.5 text-[9px] leading-tight ${CARD_BORDER[s.status]} ${
+        dim ? "opacity-55" : ""
+      }`}
+    >
+      <div className="font-mono tabular-nums text-muted-foreground">
+        {formatTime(s.time)}
+      </div>
+      <div className={`truncate font-medium ${dim ? "line-through text-muted-foreground" : ""}`}>
+        {dim || displayMode !== "client" || !s.clientId ? (
+          label
+        ) : (
+          <Link
+            to={"/clients/" + s.clientId}
+            className="hover:underline underline-offset-1"
+          >
+            {label}
+          </Link>
+        )}
+      </div>
+      {showStaffLabel && displayMode === "client" && (
+        <div className="truncate text-[8px] text-muted-foreground">{s.staffName}</div>
+      )}
+    </div>
+  )
+}
+
 function MonthView({
   sessions,
   grid,
@@ -466,6 +520,7 @@ function MonthView({
   expandedDay,
   displayMode,
   showStaffLabel,
+  inlineDayContent,
   onDayClick,
 }: {
   sessions: Session[]
@@ -474,6 +529,7 @@ function MonthView({
   expandedDay: string | null
   displayMode: SessionCalendarDisplayMode
   showStaffLabel: boolean
+  inlineDayContent?: boolean
   onDayClick: (iso: string) => void
 }) {
   // Sessions for the currently expanded day (if any).
@@ -505,18 +561,69 @@ function MonthView({
         ))}
       </div>
 
-      {/* Calendar grid — fixed row height; aspect-square on empty cells caused huge gaps */}
+      {/* Calendar grid */}
       <div className="space-y-0.5">
         {grid.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7 gap-0.5">
             {week.map((day, di) => {
-              if (!day) return <div key={di} className="h-9" aria-hidden="true" />
+              if (!day) {
+                return (
+                  <div
+                    key={di}
+                    className={inlineDayContent ? "min-h-[5.5rem]" : "h-9"}
+                    aria-hidden="true"
+                  />
+                )
+              }
 
               const iso = localISO(day)
-              const count = sessionsOnDay(sessions, iso).length
+              const daySessions = sessionsOnDay(sessions, iso)
+              const count = daySessions.length
               const isToday = iso === todayISO
               const isExpanded = expandedDay === iso
               const hasData = count > 0
+
+              if (inlineDayContent) {
+                const visible = daySessions.slice(0, MAX_INLINE_SESSIONS)
+                const overflow = count - visible.length
+
+                return (
+                  <div
+                    key={iso}
+                    className={`
+                      flex min-h-[5.5rem] flex-col rounded-md border p-1 text-xs
+                      ${isToday ? "border-primary ring-1 ring-primary" : "border-border/60"}
+                    `}
+                  >
+                    <span
+                      className={`text-[10px] font-medium leading-none ${
+                        isToday ? "text-primary" : "text-muted-foreground"
+                      }`}
+                    >
+                      {day.getDate()}
+                    </span>
+                    {hasData ? (
+                      <div className="mt-0.5 flex max-h-24 flex-1 flex-col gap-0.5 overflow-y-auto">
+                        {visible.map((s) => (
+                          <InlineDaySessionCard
+                            key={s.id}
+                            session={s}
+                            displayMode={displayMode}
+                            showStaffLabel={showStaffLabel}
+                          />
+                        ))}
+                        {overflow > 0 && (
+                          <span className="text-[9px] text-muted-foreground">
+                            +{overflow} more
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex-1" aria-hidden="true" />
+                    )}
+                  </div>
+                )
+              }
 
               return (
                 <button
@@ -543,7 +650,6 @@ function MonthView({
                   >
                     {day.getDate()}
                   </span>
-                  {/* Session dots — up to 3 dots, then "+N" for overflow */}
                   {hasData && (
                     <div className="flex gap-0.5">
                       {Array.from({ length: Math.min(count, 3) }, (_, i) => (
@@ -567,7 +673,7 @@ function MonthView({
       </div>
 
       {/* Expanded day panel — appears below the grid when a day is selected */}
-      {expandedDay && (
+      {!inlineDayContent && expandedDay && (
         <div className="mt-4 border-t border-border pt-4">
           <p className="mb-3 text-xs font-semibold text-muted-foreground">
             {expandedLabel}

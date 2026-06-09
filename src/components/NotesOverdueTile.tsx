@@ -71,10 +71,12 @@ function OverduePill({ count }: { count: number }) {
 export function NotesOverdueTile({
   className,
   refreshKey,
+  staffIds,
 }: {
   className?: string
   teamFilter?: string
   refreshKey?: number
+  staffIds?: string[]
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("overdue")
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
@@ -84,11 +86,11 @@ export function NotesOverdueTile({
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getNotesStatus()
+    getNotesStatus(undefined, staffIds?.length ? { staffIds } : undefined)
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load notes status"))
       .finally(() => setLoading(false))
-  }, [refreshKey])
+  }, [refreshKey, staffIds])
 
   const sortedStaff = summary
     ? [...summary.byStaff].sort(SORT_OPTIONS[sortKey].compare)

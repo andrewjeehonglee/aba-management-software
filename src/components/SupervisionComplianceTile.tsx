@@ -16,13 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { getSupervision, type SupervisionRecord } from "@/lib/supabase"
+import {
+  getSupervision,
+  getSupervisionByStaffId,
+  getSupervisionForStaffIds,
+  type SupervisionRecord,
+} from "@/lib/supabase"
+import { supervisionOverlapsCurrentMonth } from "@/lib/dashboardScope"
+import { getCurrentCalendarMonth } from "@/lib/payPeriod"
 import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
 import { toSlug } from "@/lib/slug"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 
-// Urgency thresholds
 const CRITICAL_THRESHOLD = 5
 const WARNING_THRESHOLD  = 1
 
@@ -39,7 +45,6 @@ function headlineColorClass(flagged: number): string {
   if (flagged >= 1) return "text-amber-600"
   return "text-emerald-600"
 }
-
 
 const SORT_OPTIONS = {
   pctAsc: {
@@ -61,27 +66,60 @@ const SORT_OPTIONS = {
 
 type SortKey = keyof typeof SORT_OPTIONS
 
-export function SupervisionComplianceTile({ className, teamFilter }: { className?: string; teamFilter?: TeamFilter }) {
+function filterCurrentMonth(records: SupervisionRecord[]): SupervisionRecord[] {
+  return records.filter((r) =>
+    supervisionOverlapsCurrentMonth(r.periodStart, r.periodEnd),
+  )
+}
+
+export function SupervisionComplianceTile({
+  className,
+  teamFilter,
+  staffIds,
+  selfMode,
+}: {
+  className?: string
+  teamFilter?: TeamFilter
+  staffIds?: string[]
+  selfMode?: boolean
+}) {
   const [sortKey, setSortKey] = useState<SortKey>("pctAsc")
   const [allSupervision, setAllSupervision] = useState<SupervisionRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const monthLabel = getCurrentCalendarMonth().label
 
   useEffect(() => {
-    getSupervision()
-      .then(setAllSupervision)
+    setLoading(true)
+    setError(null)
+
+    const load = async () => {
+      if (selfMode && staffIds?.length === 1) {
+        const record = await getSupervisionByStaffId(staffIds[0])
+        return record ? [record] : []
+      }
+      if (staffIds?.length) {
+        return getSupervisionForStaffIds(staffIds)
+      }
+      return getSupervision()
+    }
+
+    load()
+      .then((records) => setAllSupervision(filterCurrentMonth(records)))
       .catch((err) => setError(err.message ?? "Failed to load supervision data"))
       .finally(() => setLoading(false))
-  }, [])
+  }, [staffIds, selfMode])
 
-  const teamSupervision = teamFilter && teamFilter !== "All"
-    ? allSupervision.filter(r => r.staffTeam === teamFilter)
+  const teamSupervision = teamFilter && teamFilter !== "All" && !staffIds?.length
+    ? allSupervision.filter((r) => r.staffTeam === teamFilter)
     : allSupervision
 
   const sortedRBTs = [...teamSupervision].sort(SORT_OPTIONS[sortKey].compare)
-  const flaggedCount = sortedRBTs.filter(r => r.supervisionPct < SUPERVISION_THRESHOLD).length
+  const flaggedCount = sortedRBTs.filter((r) => r.supervisionPct < SUPERVISION_THRESHOLD).length
   const totalRBTs = sortedRBTs.length
-  const urgency = urgencyLevel(flaggedCount)
+  const urgency = selfMode
+    ? (sortedRBTs[0]?.supervisionPct ?? 100) < SUPERVISION_THRESHOLD ? "warning" : "healthy"
+    : urgencyLevel(flaggedCount)
 
   const borderClass = urgency === "critical" ? "border-l-4 border-l-red-500"
                     : urgency === "warning"  ? "border-l-4 border-l-amber-500"
@@ -94,8 +132,11 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
     <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" aria-hidden />
   ) : null
 
+  const selfRecord = selfMode ? sortedRBTs[0] : null
+  const selfFlagged = selfRecord ? selfRecord.supervisionPct < SUPERVISION_THRESHOLD : false
+
   return (
-    <Card size="sm" className={cn("w-full", borderClass, shadowClass, className)}>
+    <Card size="sm" className={cn("w-full flex flex-col", borderClass, shadowClass, className)}>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
           {UrgencyIcon}
@@ -108,35 +149,62 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
           </span>
         </CardTitle>
         <CardDescription className="text-xs">
-          RBTs below {SUPERVISION_THRESHOLD}% supervision threshold flagged
+          {selfMode
+            ? `This month: ${monthLabel}`
+            : `This month: ${monthLabel} · RBTs below ${SUPERVISION_THRESHOLD}% flagged`}
         </CardDescription>
-        <CardAction>
-          <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
-            <SelectTrigger className="h-8 w-[180px] text-xs">
-              <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
-                <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardAction>
+        {!selfMode && sortedRBTs.length > 1 && (
+          <CardAction>
+            <Select value={sortKey} onValueChange={(v) => setSortKey(v as SortKey)}>
+              <SelectTrigger className="h-8 w-[180px] text-xs">
+                <SelectValue>{SORT_OPTIONS[sortKey].label}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(SORT_OPTIONS).map(([key, { label }]) => (
+                  <SelectItem key={key} value={key} className="text-xs">{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardAction>
+        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         {loading && (
           <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
         )}
         {error && (
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
-        {!loading && !error && sortedRBTs.length === 0 && (
+        {!loading && !error && selfMode && !selfRecord && (
+          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-8 text-center">
+            <ShieldCheck className="w-8 h-8 text-[#14A0A5]" />
+            <p className="text-sm text-muted-foreground">No supervision record this month.</p>
+          </div>
+        )}
+        {!loading && !error && selfMode && selfRecord && (
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <span
+              className={cn(
+                "text-4xl font-bold tabular-nums leading-none",
+                selfFlagged ? "text-red-600" : "text-emerald-600",
+              )}
+            >
+              {selfRecord.supervisionPct.toFixed(0)}%
+            </span>
+            <p className="text-sm text-muted-foreground">
+              {selfFlagged
+                ? `Below ${SUPERVISION_THRESHOLD}% supervision threshold`
+                : "Meeting supervision threshold this month"}
+            </p>
+          </div>
+        )}
+        {!loading && !error && !selfMode && sortedRBTs.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-8 text-center">
             <ShieldCheck className="w-8 h-8 text-[#14A0A5]" />
             <p className="text-sm text-muted-foreground">No supervision records found.</p>
           </div>
         )}
-        {!loading && !error && sortedRBTs.length > 0 && (
+        {!loading && !error && !selfMode && sortedRBTs.length > 0 && (
           <>
             <div className="flex items-baseline gap-2">
               <span className={`text-4xl font-bold tracking-tight tabular-nums leading-none ${headlineColorClass(flaggedCount)}`}>
@@ -150,7 +218,7 @@ export function SupervisionComplianceTile({ className, teamFilter }: { className
             <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
               {sortedRBTs.map((rbt) => {
                 const flagged = rbt.supervisionPct < SUPERVISION_THRESHOLD
-                const firstName = rbt.staffName.split(' ')[0]
+                const firstName = rbt.staffName.split(" ")[0]
                 return (
                   <Link
                     key={rbt.id}

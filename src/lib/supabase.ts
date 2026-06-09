@@ -532,6 +532,27 @@ export async function getSupervision(): Promise<SupervisionRecord[]> {
   }))
 }
 
+export async function getSupervisionForStaffIds(staffIds: string[]): Promise<SupervisionRecord[]> {
+  if (staffIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("supervision")
+    .select("id, supervision_pct, period_start, period_end, staff(full_name, team)")
+    .in("staff_id", staffIds)
+    .order("supervision_pct", { ascending: true })
+
+  if (error) throw error
+
+  return (data as unknown as SupervisionRow[]).map((row) => ({
+    id: row.id,
+    staffName: row.staff.full_name,
+    staffTeam: teamLabel(row.staff.team),
+    supervisionPct: row.supervision_pct,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+  }))
+}
+
 export async function getSupervisionByStaffId(staffId: string): Promise<SupervisionRecord | null> {
   const { data, error } = await supabase
     .from('supervision')

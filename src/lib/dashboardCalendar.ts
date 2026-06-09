@@ -1,15 +1,15 @@
 import { getCurrentCalendarMonth, type PayPeriod } from "@/lib/payPeriod"
+import {
+  getSuperviseeStaffIdsForBcba,
+  resolveEffectiveStaffId,
+  resolvePreviewStaffId,
+} from "@/lib/dashboardScope"
 import { supabase, type SessionRecord } from "@/lib/supabase"
-import { ROLE_DEFAULT_TEAM } from "@/types/team"
 import type { Session, SessionStatus } from "@/types/session"
 
-type DashboardViewRole = "Technician" | "Supervisor" | "BCBA"
+export { getSuperviseeStaffIdsForBcba, resolveEffectiveStaffId, resolvePreviewStaffId }
 
-const ROLE_DB: Record<DashboardViewRole, string> = {
-  Technician: "technician",
-  Supervisor: "supervisor",
-  BCBA: "bcba",
-}
+type DashboardViewRole = "Technician" | "Supervisor" | "BCBA"
 
 export function sessionRecordToSession(record: SessionRecord): Session {
   return {
@@ -59,61 +59,6 @@ export async function getStaffSessionsForMonth(
     sessionType: row.session_type,
     status: row.status,
   }))
-}
-
-/**
- * V1 supervisee approximation — no `staff.supervisor_id` yet.
- * Returns all technicians on the same team as the BCBA/supervisor (excluding self).
- * Replace with real supervisee graph in the multi-BCBA spike.
- */
-export async function getSuperviseeStaffIdsForBcba(bcbaStaffId: string): Promise<string[]> {
-  const { data: self, error: selfError } = await supabase
-    .from("staff")
-    .select("team")
-    .eq("id", bcbaStaffId)
-    .maybeSingle()
-
-  if (selfError) throw selfError
-  if (!self) return []
-
-  const { data: techs, error: techError } = await supabase
-    .from("staff")
-    .select("id")
-    .eq("team", (self as { team: string }).team)
-    .eq("role", "technician")
-    .neq("id", bcbaStaffId)
-
-  if (techError) throw techError
-  return ((techs ?? []) as { id: string }[]).map((row) => row.id)
-}
-
-/** Owner role-preview: map to a seeded staff row on the preview role's default team. */
-export async function resolvePreviewStaffId(viewRole: DashboardViewRole): Promise<string | null> {
-  const teamFilter = ROLE_DEFAULT_TEAM[viewRole]
-  const teamLetter = teamFilter.replace(/^Team /, "")
-
-  const { data, error } = await supabase
-    .from("staff")
-    .select("id")
-    .eq("team", teamLetter)
-    .eq("role", ROLE_DB[viewRole])
-    .order("full_name", { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
-  if (error) throw error
-  return data ? (data as { id: string }).id : null
-}
-
-export async function resolveEffectiveStaffId(
-  currentStaffId: string | null,
-  viewRole: DashboardViewRole,
-  isOwnerPreview: boolean,
-): Promise<string | null> {
-  if (isOwnerPreview) {
-    return resolvePreviewStaffId(viewRole)
-  }
-  return currentStaffId
 }
 
 export function monthWindowForDate(date: Date): PayPeriod {
