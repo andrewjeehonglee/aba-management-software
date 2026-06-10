@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { ClientAssignmentRole } from "@/lib/clientAssignments"
-import { supabase as browserSupabase } from "@/lib/supabase"
 
 export interface RosterImportRow {
   clientCode: string
@@ -38,11 +37,18 @@ const ROLE_SLUG: Record<StaffRole, string> = {
   technician: "BT",
 }
 
-let db: SupabaseClient = browserSupabase
+let db: SupabaseClient | null = null
 let codePrefix = "SPG"
 
 export function setRosterImportSupabase(client: SupabaseClient): void {
   db = client
+}
+
+function getDb(): SupabaseClient {
+  if (!db) {
+    throw new Error("Roster import client not configured — call setRosterImportSupabase() first")
+  }
+  return db
 }
 
 export function setRosterImportCodePrefix(prefix: string): void {
@@ -89,7 +95,7 @@ export async function upsertStaffByName(
 
   const code = externalCode ?? slugCode(normalized, role)
 
-  const { data: byCode, error: codeError } = await db
+  const { data: byCode, error: codeError } = await getDb()
     .from("staff")
     .select("id, full_name")
     .eq("practice_id", practiceId)
@@ -99,7 +105,7 @@ export async function upsertStaffByName(
   if (codeError) throw codeError
   if (byCode) {
     if (byCode.full_name !== normalized) {
-      const { error: updateError } = await db
+      const { error: updateError } = await getDb()
         .from("staff")
         .update({ full_name: normalized })
         .eq("id", byCode.id)
@@ -109,7 +115,7 @@ export async function upsertStaffByName(
     return byCode.id
   }
 
-  const { data: byPractice, error: listError } = await db
+  const { data: byPractice, error: listError } = await getDb()
     .from("staff")
     .select("id, full_name, external_code")
     .eq("practice_id", practiceId)
@@ -123,7 +129,7 @@ export async function upsertStaffByName(
 
   if (byName) {
     if (!byName.external_code) {
-      const { error: updateError } = await db
+      const { error: updateError } = await getDb()
         .from("staff")
         .update({ external_code: code, full_name: normalized, team: null })
         .eq("id", byName.id)
@@ -133,7 +139,7 @@ export async function upsertStaffByName(
     return byName.id
   }
 
-  const { data: inserted, error: insertError } = await db
+  const { data: inserted, error: insertError } = await getDb()
     .from("staff")
     .insert({
       practice_id: practiceId,
@@ -166,7 +172,7 @@ export async function upsertClientByCode(
   const first = normalizeName(firstName ?? "") || code
   const last = normalizeName(lastName ?? "")
 
-  const { data: existing, error: lookupError } = await db
+  const { data: existing, error: lookupError } = await getDb()
     .from("clients")
     .select("id, first_name, last_name, status")
     .eq("practice_id", practiceId)
@@ -182,7 +188,7 @@ export async function upsertClientByCode(
     if (existing.status !== "active") patch.status = "active"
 
     if (Object.keys(patch).length > 0) {
-      const { error: updateError } = await db
+      const { error: updateError } = await getDb()
         .from("clients")
         .update(patch)
         .eq("id", existing.id)
@@ -192,7 +198,7 @@ export async function upsertClientByCode(
     return existing.id
   }
 
-  const { data: inserted, error: insertError } = await db
+  const { data: inserted, error: insertError } = await getDb()
     .from("clients")
     .insert({
       practice_id: practiceId,
@@ -217,7 +223,7 @@ export async function upsertAssignment(
   location?: string | null,
   result?: RosterImportResult,
 ): Promise<"created" | "skipped"> {
-  const { data: existing, error: lookupError } = await db
+  const { data: existing, error: lookupError } = await getDb()
     .from("client_assignments")
     .select("id, is_active, location")
     .eq("client_id", clientId)
@@ -229,7 +235,7 @@ export async function upsertAssignment(
 
   if (existing) {
     if (!existing.is_active || (location && existing.location !== location)) {
-      const { error: updateError } = await db
+      const { error: updateError } = await getDb()
         .from("client_assignments")
         .update({
           is_active: true,
@@ -244,7 +250,7 @@ export async function upsertAssignment(
     return "skipped"
   }
 
-  const { error: insertError } = await db.from("client_assignments").insert({
+  const { error: insertError } = await getDb().from("client_assignments").insert({
     practice_id: practiceId,
     client_id: clientId,
     staff_id: staffId,
@@ -335,7 +341,7 @@ export async function upsertClientCareTeam(
     result.unassignedBtClients.push(row.clientCode)
   }
 
-  const { error: clientPatchError } = await db
+  const { error: clientPatchError } = await getDb()
     .from("clients")
     .update({ assigned_staff_id: primaryBtId })
     .eq("id", clientId)
