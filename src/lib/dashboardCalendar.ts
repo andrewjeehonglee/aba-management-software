@@ -1,5 +1,6 @@
 import { getCurrentCalendarMonth, type PayPeriod } from "@/lib/payPeriod"
 import {
+  getCaseloadClientIdsForBcba,
   getSuperviseeStaffIdsForBcba,
   resolveEffectiveStaffId,
   resolvePreviewStaffId,
@@ -26,16 +27,23 @@ export function sessionRecordToSession(record: SessionRecord): Session {
 export async function getStaffSessionsForMonth(
   staffIds: string[],
   monthWindow: PayPeriod,
+  clientIds?: string[],
 ): Promise<SessionRecord[]> {
   if (staffIds.length === 0) return []
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("sessions")
     .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)")
     .in("staff_id", staffIds)
     .gte("scheduled_at", monthWindow.start.toISOString())
     .lte("scheduled_at", monthWindow.end.toISOString())
     .order("scheduled_at", { ascending: true })
+
+  if (clientIds?.length) {
+    query = query.in("client_id", clientIds)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
 
@@ -85,18 +93,21 @@ export async function loadDashboardCalendarSessions(params: {
     return { monthLabel: month.label, sessions: [] }
   }
 
+  const isLeadRole = params.viewRole === "BCBA" || params.viewRole === "Supervisor"
   let staffIds = [effectiveStaffId]
+  let clientIds: string[] | undefined
 
-  if (
-    params.includeSupervisees &&
-    (params.viewRole === "BCBA" || params.viewRole === "Supervisor")
-  ) {
-    const superviseeIds = await getSuperviseeStaffIdsForBcba(effectiveStaffId)
-    staffIds = [...new Set([effectiveStaffId, ...superviseeIds])]
+  if (params.includeSupervisees && isLeadRole) {
+    const [superviseeIds, caseloadClientIds] = await Promise.all([
+      getSuperviseeStaffIdsForBcba(effectiveStaffId),
+      getCaseloadClientIdsForBcba(effectiveStaffId),
+    ])
+    staffIds = superviseeIds.length > 0 ? superviseeIds : [effectiveStaffId]
+    clientIds = caseloadClientIds.length > 0 ? caseloadClientIds : undefined
   }
 
   const month = monthWindowForDate(params.monthDate)
-  const records = await getStaffSessionsForMonth(staffIds, month)
+  const records = await getStaffSessionsForMonth(staffIds, month, clientIds)
 
   return {
     monthLabel: month.label,

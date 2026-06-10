@@ -55,12 +55,14 @@ export function NotesOverdueTile({
   className,
   refreshKey,
   staffIds,
+  clientIds,
   selfMode,
 }: {
   className?: string
   teamFilter?: string
   refreshKey?: number
   staffIds?: string[]
+  clientIds?: string[]
   selfMode?: boolean
 }) {
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
@@ -70,11 +72,16 @@ export function NotesOverdueTile({
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getNotesStatus(undefined, staffIds?.length ? { staffIds } : undefined)
+    getNotesStatus(
+      undefined,
+      staffIds?.length || clientIds?.length
+        ? { staffIds: staffIds?.length ? staffIds : undefined, clientIds: clientIds?.length ? clientIds : undefined }
+        : undefined,
+    )
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load notes status"))
       .finally(() => setLoading(false))
-  }, [refreshKey, staffIds])
+  }, [refreshKey, staffIds, clientIds])
 
   const sortedStaff = summary
     ? [...summary.byStaff].sort(sortByOverdueDesc)

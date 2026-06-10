@@ -283,6 +283,7 @@ interface HoursByStaffTileProps {
   practiceId?:     string
   onStaffCreated?: () => void
   staffIds?:       string[]
+  clientIds?:      string[]
 }
 
 export function HoursByStaffTile({
@@ -292,6 +293,7 @@ export function HoursByStaffTile({
   practiceId,
   onStaffCreated,
   staffIds,
+  clientIds,
 }: HoursByStaffTileProps) {
   const [summary, setSummary]     = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [loading, setLoading]     = useState(true)
@@ -301,11 +303,16 @@ export function HoursByStaffTile({
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getStaffHoursByMonth(undefined, staffIds?.length ? { staffIds } : undefined)
+    getStaffHoursByMonth(
+      undefined,
+      staffIds?.length || clientIds?.length
+        ? { staffIds: staffIds?.length ? staffIds : undefined, clientIds: clientIds?.length ? clientIds : undefined }
+        : undefined,
+    )
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load staff hours"))
       .finally(() => setLoading(false))
-  }, [refreshKey, staffIds])
+  }, [refreshKey, staffIds, clientIds])
 
   const sortedStaff = summary
     ? [...summary.byStaff].sort(sortByTotalHoursDesc)

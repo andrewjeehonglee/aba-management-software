@@ -31,7 +31,8 @@ export function DashboardCalendarTile({
   practiceId,
   className,
 }: DashboardCalendarTileProps) {
-  const [includeSupervisees, setIncludeSupervisees] = useState(false)
+  const showSuperviseeToggle = viewRole === "BCBA" || viewRole === "Supervisor"
+  const [includeSupervisees, setIncludeSupervisees] = useState(showSuperviseeToggle)
   const [monthDate, setMonthDate] = useState(() => new Date())
   const [monthLabel, setMonthLabel] = useState<string>("")
   const [sessions, setSessions] = useState<Session[]>([])
@@ -39,7 +40,9 @@ export function DashboardCalendarTile({
   const [error, setError] = useState<string | null>(null)
   const [resolvedStaff, setResolvedStaff] = useState(false)
 
-  const showSuperviseeToggle = viewRole === "BCBA" || viewRole === "Supervisor"
+  useEffect(() => {
+    setIncludeSupervisees(viewRole === "BCBA" || viewRole === "Supervisor")
+  }, [viewRole])
 
   useEffect(() => {
     setLoading(true)

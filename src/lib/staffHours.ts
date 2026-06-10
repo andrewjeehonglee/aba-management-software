@@ -106,7 +106,7 @@ function finalizeRow(row: MutableStaffHoursRow): StaffHoursRow {
 
 export async function getStaffHoursByMonth(
   now: Date = new Date(),
-  options?: { staffIds?: string[] },
+  options?: { staffIds?: string[]; clientIds?: string[] },
 ): Promise<StaffHoursSummary> {
   const month = getCurrentCalendarMonth(now)
 
@@ -118,6 +118,10 @@ export async function getStaffHoursByMonth(
 
   if (options?.staffIds?.length) {
     sessionsQuery = sessionsQuery.in("staff_id", options.staffIds)
+  }
+
+  if (options?.clientIds?.length) {
+    sessionsQuery = sessionsQuery.in("client_id", options.clientIds)
   }
 
   const { data: sessionsData, error: sessionsError } = await sessionsQuery

@@ -81,7 +81,7 @@ function classifyNoteBucket(
 
 export async function getNotesStatus(
   now: Date = new Date(),
-  options?: { staffIds?: string[] },
+  options?: { staffIds?: string[]; clientIds?: string[] },
 ): Promise<NotesStatusSummary> {
   const payPeriod = getCurrentPayPeriod(now)
 
@@ -94,6 +94,10 @@ export async function getNotesStatus(
 
   if (options?.staffIds?.length) {
     sessionsQuery = sessionsQuery.in("staff_id", options.staffIds)
+  }
+
+  if (options?.clientIds?.length) {
+    sessionsQuery = sessionsQuery.in("client_id", options.clientIds)
   }
 
   const { data: sessionsData, error: sessionsError } = await sessionsQuery

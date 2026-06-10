@@ -83,7 +83,7 @@ export function DashboardPage({
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!isOwnerView || !practiceId) {
+    if (!practiceId) {
       setRosterStaffIds([])
       setRosterClientIds([])
       return
@@ -101,7 +101,12 @@ export function DashboardPage({
         setRosterStaffIds([])
         setRosterClientIds([])
       })
-  }, [isOwnerView, practiceId])
+  }, [practiceId])
+
+  const rosterScope =
+    rosterStaffIds.length > 0
+      ? { staffIds: rosterStaffIds, clientIds: rosterClientIds }
+      : null
 
   useEffect(() => {
     if (isOwnerView) {
@@ -191,17 +196,19 @@ export function DashboardPage({
           <div id="notes-overdue">
             <NotesOverdueTile
               refreshKey={notesRefreshKey}
-              staffIds={rosterStaffIds.length > 0 ? rosterStaffIds : undefined}
+              staffIds={rosterScope?.staffIds}
+              clientIds={rosterScope?.clientIds}
             />
           </div>
           <HoursByStaffTile
             refreshKey={staffRefreshKey}
             practiceId={practiceId}
-            staffIds={rosterStaffIds.length > 0 ? rosterStaffIds : undefined}
+            staffIds={rosterScope?.staffIds}
+            clientIds={rosterScope?.clientIds}
             onStaffCreated={() => setStaffRefreshKey((k) => k + 1)}
           />
           <AuthorizationUtilizationTile
-            clientIds={rosterClientIds.length > 0 ? rosterClientIds : undefined}
+            clientIds={rosterScope?.clientIds}
           />
         </div>
       ) : (
@@ -218,11 +225,13 @@ export function DashboardPage({
             <div className="grid gap-4 lg:grid-cols-2">
               <NotesOverdueTile
                 refreshKey={notesRefreshKey}
-                staffIds={scopeStaffIds}
+                staffIds={scopeSuperviseeIds}
+                clientIds={scopeClientIds}
               />
               <HoursByStaffTile
                 refreshKey={staffRefreshKey}
-                staffIds={scopeStaffIds}
+                staffIds={scopeSuperviseeIds}
+                clientIds={scopeClientIds}
               />
               <AuthorizationUtilizationTile clientIds={scopeClientIds} />
               <SupervisionComplianceTile staffIds={scopeSuperviseeIds} />
