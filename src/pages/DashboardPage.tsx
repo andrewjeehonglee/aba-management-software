@@ -21,14 +21,24 @@ import {
   resolveCaseloadFilters,
   resolveEffectiveStaffId,
 } from "@/lib/dashboardScope"
-import { getRosterClientIds, getRosterTechnicianStaffIds } from "@/lib/rosterScope"
-import { getBcbaSummaries, type BcbaSummary } from "@/lib/rosterTable"
+import {
+  getRosterClientIds,
+  getRosterStaffByRole,
+  getRosterTechnicianStaffIds,
+  type RosterStaffEntry,
+} from "@/lib/rosterScope"
 import { setRolePreview } from "@/lib/rolePreview"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
 type CalendarRole = "Technician" | "Supervisor" | "BCBA"
 
 const ROLES: Role[] = ["Owner", "BCBA", "Supervisor", "Technician"]
+
+const PREVIEW_DEFAULTS: Record<CalendarRole, string> = {
+  BCBA: "Jennifer",
+  Supervisor: "Hilary",
+  Technician: "Jazmine",
+}
 
 function normaliseRole(raw: string): Role {
   const map: Record<string, Role> = {
@@ -79,8 +89,8 @@ export function DashboardPage({
   const [scopeLoading, setScopeLoading] = useState(false)
   const [rosterTechnicianIds, setRosterTechnicianIds] = useState<string[]>([])
   const [rosterClientIds, setRosterClientIds] = useState<string[]>([])
-  const [bcbaPreviewOptions, setBcbaPreviewOptions] = useState<BcbaSummary[]>([])
-  const [previewBcbaStaffId, setPreviewBcbaStaffId] = useState<string | null>(null)
+  const [previewOptions, setPreviewOptions] = useState<RosterStaffEntry[]>([])
+  const [previewStaffId, setPreviewStaffId] = useState<string | null>(null)
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -115,26 +125,35 @@ export function DashboardPage({
   }, [practiceId])
 
   useEffect(() => {
-    if (!practiceId || role !== "Owner") {
-      setBcbaPreviewOptions([])
-      setPreviewBcbaStaffId(null)
+    if (!practiceId || role !== "Owner" || isOwnerView) {
+      setPreviewOptions([])
+      setPreviewStaffId(null)
       return
     }
 
-    getBcbaSummaries(practiceId)
-      .then((summaries) => {
-        setBcbaPreviewOptions(summaries)
-        const jennifer = summaries.find((s) => s.fullName === "Jennifer")
-        setPreviewBcbaStaffId((prev) => {
-          if (prev && summaries.some((s) => s.staffId === prev)) return prev
-          return jennifer?.staffId ?? summaries[0]?.staffId ?? null
+    const roleMap: Record<CalendarRole, "bcba" | "supervisor" | "technician"> = {
+      BCBA: "bcba",
+      Supervisor: "supervisor",
+      Technician: "technician",
+    }
+    const dbRole = roleMap[viewRole as CalendarRole]
+    if (!dbRole) return
+
+    getRosterStaffByRole(practiceId, dbRole)
+      .then((options) => {
+        setPreviewOptions(options)
+        const preferredName = PREVIEW_DEFAULTS[viewRole as CalendarRole]
+        const preferred = options.find((s) => s.fullName === preferredName)
+        setPreviewStaffId((prev) => {
+          if (prev && options.some((s) => s.id === prev)) return prev
+          return preferred?.id ?? options[0]?.id ?? null
         })
       })
       .catch(() => {
-        setBcbaPreviewOptions([])
-        setPreviewBcbaStaffId(null)
+        setPreviewOptions([])
+        setPreviewStaffId(null)
       })
-  }, [practiceId, role])
+  }, [practiceId, role, viewRole, isOwnerView])
 
   const rosterScope =
     rosterTechnicianIds.length > 0
@@ -155,8 +174,8 @@ export function DashboardPage({
     setScopeLoading(true)
 
     const staffIdPromise =
-      isOwnerPreview && viewRole === "BCBA" && previewBcbaStaffId
-        ? Promise.resolve(previewBcbaStaffId)
+      isOwnerPreview && previewStaffId
+        ? Promise.resolve(previewStaffId)
         : resolveEffectiveStaffId(currentStaffId ?? null, calendarRole, isOwnerPreview, practiceId)
 
     staffIdPromise
@@ -185,11 +204,13 @@ export function DashboardPage({
         }
       })
       .finally(() => setScopeLoading(false))
-  }, [currentStaffId, viewRole, isOwnerView, isOwnerPreview, isTechnician, practiceId, previewBcbaStaffId])
+  }, [currentStaffId, viewRole, isOwnerView, isOwnerPreview, isTechnician, practiceId, previewStaffId])
 
-  const selectedBcba = bcbaPreviewOptions.find(
-    (b) => b.staffId === previewBcbaStaffId,
+  const selectedPreviewStaff = previewOptions.find(
+    (s) => s.id === previewStaffId,
   )
+  const previewRoleLabel =
+    viewRole === "BCBA" ? "BCBA" : viewRole === "Supervisor" ? "Supervisor" : "Technician"
 
   return (
     <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
@@ -258,6 +279,7 @@ export function DashboardPage({
             practiceId={practiceId}
             staffIds={rosterScope?.staffIds}
             clientIds={rosterScope?.clientIds}
+            includeZeroHourStaff
             onStaffCreated={() => setStaffRefreshKey((k) => k + 1)}
           />
           <AuthorizationUtilizationTile
@@ -266,22 +288,22 @@ export function DashboardPage({
         </div>
       ) : (
         <div className="w-full max-w-[min(100%,1680px)] space-y-4 px-4 sm:px-6">
-          {isOwnerPreview && viewRole === "BCBA" && bcbaPreviewOptions.length > 0 && (
+          {isOwnerPreview && previewOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="text-muted-foreground">View as BCBA:</span>
+              <span className="text-muted-foreground">View as {previewRoleLabel}:</span>
               <Select
-                value={previewBcbaStaffId ?? undefined}
-                onValueChange={(v) => setPreviewBcbaStaffId(v ?? null)}
+                value={previewStaffId ?? undefined}
+                onValueChange={(v) => setPreviewStaffId(v ?? null)}
               >
                 <SelectTrigger className="h-8 w-[180px] text-xs">
-                  <SelectValue placeholder="Select BCBA">
-                    {selectedBcba?.fullName ?? "Select BCBA"}
+                  <SelectValue placeholder={`Select ${previewRoleLabel}`}>
+                    {selectedPreviewStaff?.fullName ?? `Select ${previewRoleLabel}`}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {bcbaPreviewOptions.map((bcba) => (
-                    <SelectItem key={bcba.staffId} value={bcba.staffId}>
-                      {bcba.fullName}
+                  {previewOptions.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.fullName}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -309,6 +331,7 @@ export function DashboardPage({
                 refreshKey={staffRefreshKey}
                 staffIds={scopeSuperviseeIds}
                 clientIds={scopeClientIds}
+                includeZeroHourStaff={viewRole === "BCBA"}
               />
               <AuthorizationUtilizationTile clientIds={scopeClientIds} />
               <SupervisionComplianceTile staffIds={scopeSuperviseeIds} />

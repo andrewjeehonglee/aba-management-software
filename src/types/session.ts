@@ -11,6 +11,7 @@ export interface Session {
   clientId?: string
   clientName: string
   staffName: string
+  staffExternalCode?: string | null
   sessionType: string       // e.g. "Direct therapy", "Supervision", "Assessment"
   status: SessionStatus
   durationMinutes?: number  // session length; present in calendar data, absent in dashboard snapshots

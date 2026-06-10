@@ -19,7 +19,12 @@ import {
   type BcbaSummary,
   type RosterRow,
 } from "@/lib/rosterTable"
-import { toSlug } from "@/lib/slug"
+import {
+  clientProfilePath,
+  getRosterStaffManifest,
+  staffProfilePath,
+  type RosterStaffEntry,
+} from "@/lib/rosterScope"
 
 type BcbaFilter = "all" | string
 type SortKey = "client" | "bcba" | "supervisor" | "bt"
@@ -91,10 +96,11 @@ function UnassignedChip() {
   )
 }
 
-function StaffLink({ name }: { name: string }) {
+function StaffLink({ name, code }: { name: string; code?: string | null }) {
+  if (!code) return <span>{name}</span>
   return (
     <Link
-      to={`/staff/${toSlug(name)}`}
+      to={staffProfilePath(code)}
       className="hover:underline underline-offset-2"
       onClick={(e) => e.stopPropagation()}
     >
@@ -111,11 +117,11 @@ function RosterTableRow({ row }: { row: RosterRow }) {
   return (
     <tr
       className="border-b border-border last:border-0 hover:bg-muted/40 cursor-pointer"
-      onClick={() => navigate(`/clients/${row.clientId}`)}
+      onClick={() => navigate(clientProfilePath(row.clientCode))}
     >
       <td className="py-3 pr-4 pl-4 align-top">
         <Link
-          to={`/clients/${row.clientId}`}
+          to={clientProfilePath(row.clientCode)}
           className="block hover:underline underline-offset-2"
           onClick={(e) => e.stopPropagation()}
         >
@@ -128,16 +134,16 @@ function RosterTableRow({ row }: { row: RosterRow }) {
         </Link>
       </td>
       <td className="py-3 pr-4 align-top text-sm">
-        {row.bcbaName ? <StaffLink name={row.bcbaName} /> : "—"}
+        {row.bcbaName ? <StaffLink name={row.bcbaName} code={row.bcbaCode} /> : "—"}
       </td>
       <td className="py-3 pr-4 align-top text-sm">
-        {row.supervisorName ? <StaffLink name={row.supervisorName} /> : "—"}
+        {row.supervisorName ? <StaffLink name={row.supervisorName} code={row.supervisorCode} /> : "—"}
       </td>
       <td className="py-3 align-top text-sm">
         {row.btUnassigned ? (
           <UnassignedChip />
         ) : row.btName ? (
-          <StaffLink name={row.btName} />
+          <StaffLink name={row.btName} code={row.btCode} />
         ) : (
           "—"
         )}
@@ -152,7 +158,7 @@ function RosterMobileCard({ row }: { row: RosterRow }) {
 
   return (
     <Link
-      to={`/clients/${row.clientId}`}
+      to={clientProfilePath(row.clientCode)}
       className="block rounded-lg border border-border bg-white p-4 space-y-2 hover:bg-muted/30 transition-colors"
     >
       <div>
@@ -212,9 +218,105 @@ function BcbaOverviewCard({
   )
 }
 
+function StaffDirectory({ staff }: { staff: RosterStaffEntry[] }) {
+  const groups: { label: string; role: RosterStaffEntry["role"] }[] = [
+    { label: "BCBAs", role: "bcba" },
+    { label: "Clinical Supervisors", role: "supervisor" },
+    { label: "Behavior Technicians", role: "technician" },
+  ]
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Staff directory</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {groups.map(({ label, role }) => {
+          const members = staff.filter((s) => s.role === role)
+          if (members.length === 0) return null
+          return (
+            <div key={role}>
+              <p className="text-xs font-medium text-muted-foreground mb-2">{label}</p>
+              <ul className="flex flex-wrap gap-2">
+                {members.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      to={staffProfilePath(s.externalCode)}
+                      className="inline-flex rounded-md border border-border bg-white px-3 py-1.5 text-sm hover:border-[#0D7377]/40 hover:bg-[#E8F7F7] transition-colors"
+                    >
+                      {s.fullName}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
+function ClientDirectory({ rows }: { rows: RosterRow[] }) {
+  const sorted = [...rows].sort((a, b) => a.clientCode.localeCompare(b.clientCode))
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Client directory</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="border-b border-border text-xs text-muted-foreground">
+                <th className="pb-2 pr-6 font-medium">Code</th>
+                <th className="pb-2 pr-6 font-medium">BCBA</th>
+                <th className="pb-2 font-medium">Profile</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sorted.map((row) => (
+                <tr key={row.clientId} className="hover:bg-muted/30">
+                  <td className="py-2 pr-6 font-semibold">{row.clientCode}</td>
+                  <td className="py-2 pr-6 text-muted-foreground">{row.bcbaName ?? "—"}</td>
+                  <td className="py-2">
+                    <Link
+                      to={clientProfilePath(row.clientCode)}
+                      className="text-[#0D7377] hover:underline underline-offset-2"
+                    >
+                      View care team →
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <ul className="sm:hidden space-y-2">
+          {sorted.map((row) => (
+            <li key={row.clientId}>
+              <Link
+                to={clientProfilePath(row.clientCode)}
+                className="block rounded-md border border-border px-3 py-2 hover:bg-muted/30"
+              >
+                <span className="font-semibold">{row.clientCode}</span>
+                <span className="block text-xs text-muted-foreground mt-0.5">
+                  BCBA: {row.bcbaName ?? "—"}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function RosterPage({ practiceId }: { practiceId: string }) {
   const [allRows, setAllRows] = useState<RosterRow[]>([])
   const [bcbaSummaries, setBcbaSummaries] = useState<BcbaSummary[]>([])
+  const [staffManifest, setStaffManifest] = useState<RosterStaffEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [bcbaFilter, setBcbaFilter] = useState<BcbaFilter>("all")
@@ -238,11 +340,13 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
     Promise.all([
       getRosterRows(practiceId),
       getBcbaSummaries(practiceId),
+      getRosterStaffManifest(practiceId),
     ])
-      .then(([rows, summaries]) => {
+      .then(([rows, summaries, manifest]) => {
         if (cancelled) return
         setAllRows(rows)
         setBcbaSummaries(summaries)
+        setStaffManifest(manifest)
       })
       .catch(() => {
         if (!cancelled) setError(true)
@@ -455,6 +559,13 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
               </div>
             )}
           </>
+        )}
+
+        {!loading && !error && hasRoster && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <StaffDirectory staff={staffManifest} />
+            <ClientDirectory rows={allRows} />
+          </div>
         )}
       </div>
     </div>

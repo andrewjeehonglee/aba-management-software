@@ -4,7 +4,7 @@ import { Link } from "react-router-dom"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTime } from "@/lib/sessions"
-import { toSlug } from "@/lib/slug"
+import { staffProfilePath } from "@/lib/rosterScope"
 import type { Session, SessionStatus } from "@/types/session"
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -342,7 +342,7 @@ function SessionPersonLine({
         s.staffName
       ) : (
         <Link
-          to={"/staff/" + toSlug(s.staffName)}
+          to={s.staffExternalCode ? staffProfilePath(s.staffExternalCode) : "#"}
           className="hover:underline underline-offset-1"
         >
           {s.staffName}
@@ -765,7 +765,7 @@ function SessionCard({
                 s.staffName
               ) : (
                 <Link
-                  to={"/staff/" + toSlug(s.staffName)}
+                  to={s.staffExternalCode ? staffProfilePath(s.staffExternalCode) : "#"}
                   className="hover:underline underline-offset-2"
                 >
                   {s.staffName}

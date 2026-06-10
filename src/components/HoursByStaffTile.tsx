@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select"
 import { createStaff } from "@/lib/supabase"
 import { getStaffHoursByMonth, type StaffHoursRow } from "@/lib/staffHours"
-import { toSlug } from "@/lib/slug"
+import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 
@@ -226,10 +226,11 @@ function PayrollStaffRow({ row }: { row: StaffHoursRow }) {
             />
           )}
           <Link
-            to={"/staff/" + toSlug(row.staffName)}
+            to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : "#"}
             className={cn(
               "truncate text-sm hover:underline underline-offset-2",
               row.flagged ? "font-medium text-amber-800" : "font-medium text-[#1E2A2A]",
+              !row.staffExternalCode && "pointer-events-none",
             )}
           >
             {row.staffName}
@@ -284,6 +285,7 @@ interface HoursByStaffTileProps {
   onStaffCreated?: () => void
   staffIds?:       string[]
   clientIds?:      string[]
+  includeZeroHourStaff?: boolean
 }
 
 export function HoursByStaffTile({
@@ -294,6 +296,7 @@ export function HoursByStaffTile({
   onStaffCreated,
   staffIds,
   clientIds,
+  includeZeroHourStaff,
 }: HoursByStaffTileProps) {
   const [summary, setSummary]     = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [loading, setLoading]     = useState(true)
@@ -305,14 +308,18 @@ export function HoursByStaffTile({
     setError(null)
     getStaffHoursByMonth(
       undefined,
-      staffIds?.length || clientIds?.length
-        ? { staffIds: staffIds?.length ? staffIds : undefined, clientIds: clientIds?.length ? clientIds : undefined }
+      staffIds?.length || clientIds?.length || includeZeroHourStaff
+        ? {
+            staffIds: staffIds?.length ? staffIds : undefined,
+            clientIds: clientIds?.length ? clientIds : undefined,
+            includeZeroHourStaff,
+          }
         : undefined,
     )
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load staff hours"))
       .finally(() => setLoading(false))
-  }, [refreshKey, staffIds, clientIds])
+  }, [refreshKey, staffIds, clientIds, includeZeroHourStaff])
 
   const sortedStaff = summary
     ? [...summary.byStaff].sort(sortByTotalHoursDesc)

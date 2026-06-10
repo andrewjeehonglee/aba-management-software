@@ -10,8 +10,8 @@ interface CompletedSessionRow {
   id: string
   scheduled_at: string
   staff_id: string
-  staff: { full_name: string; team: string }
-  clients: { first_name: string; last_name: string }
+  staff: { full_name: string; team: string; external_code: string | null }
+  clients: { first_name: string; last_name: string; external_code: string | null }
 }
 
 interface SessionNoteRow {
@@ -38,6 +38,7 @@ export interface NotesStatusItem {
 export interface StaffNotesStatus {
   staffId: string
   staffName: string
+  staffExternalCode: string | null
   staffTeam: string
   missingCount: number
   overdueCount: number
@@ -87,7 +88,7 @@ export async function getNotesStatus(
 
   let sessionsQuery = supabase
     .from("sessions")
-    .select("id, scheduled_at, staff_id, staff(full_name, team), clients(first_name, last_name)")
+    .select("id, scheduled_at, staff_id, staff(full_name, team, external_code), clients(first_name, last_name, external_code)")
     .eq("status", "completed")
     .gte("scheduled_at", payPeriod.start.toISOString())
     .lte("scheduled_at", payPeriod.end.toISOString())
@@ -169,6 +170,7 @@ export async function getNotesStatus(
       byStaffMap.set(session.staff_id, {
         staffId: session.staff_id,
         staffName: session.staff.full_name,
+        staffExternalCode: session.staff.external_code ?? null,
         staffTeam: teamLabel(session.staff.team),
         missingCount: bucket === "missing" ? 1 : 0,
         overdueCount: bucket === "overdue" ? 1 : 0,

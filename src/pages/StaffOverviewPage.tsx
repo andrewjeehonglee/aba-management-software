@@ -9,11 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { formatTime } from "@/lib/sessions"
-import { toSlug, unslug } from "@/lib/slug"
+import { unslug } from "@/lib/slug"
+import { resolveStaffByRouteKey } from "@/lib/rosterScope"
 import {
   getSessionsByStaffIdForMonth,
-  getStaff,
   getSupervisionByStaffId,
+  supabase,
   type SessionRecord,
   type StaffRecord,
   type SupervisionRecord,
@@ -116,7 +117,7 @@ function deriveStaffRoleFromSessions(
   return hasBcbaSession ? "Supervisor / BCBA" : "Technician"
 }
 
-export function StaffOverviewPage() {
+export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const { staffId } = useParams<{ staffId: string }>()
 
   // ── Live data ──────────────────────────────────────────────────────────────
@@ -134,16 +135,59 @@ export function StaffOverviewPage() {
     setDataLoading(true)
     setDataError(false)
 
-    getStaff()
-      .then(async (allStaff) => {
+    resolveStaffByRouteKey(practiceId, staffId)
+      .then(async (entry) => {
         if (cancelled) return
-        const match = allStaff.find((s) => toSlug(s.name) === staffId)
-        if (!match) { if (!cancelled) setDataLoading(false); return }
-        setStaff(match)
+        if (!entry) {
+          setStaff(null)
+          setDataLoading(false)
+          return
+        }
+
+        const { data, error } = await supabase
+          .from("staff")
+          .select("id, full_name, external_code, role, team, hire_date, certification, direct_hours, indirect_hours, cancellation_hours")
+          .eq("id", entry.id)
+          .eq("practice_id", practiceId)
+          .maybeSingle()
+
+        if (cancelled) return
+        if (error || !data) {
+          setStaff(null)
+          setDataLoading(false)
+          return
+        }
+
+        const row = data as {
+          id: string
+          full_name: string
+          external_code: string
+          role: string
+          team: string
+          hire_date: string
+          certification: string
+          direct_hours: number
+          indirect_hours: number
+          cancellation_hours: number
+        }
+
+        setStaff({
+          id: row.id,
+          name: row.full_name,
+          externalCode: row.external_code,
+          role: row.role,
+          team: row.team.startsWith("Team") ? row.team : `Team ${row.team}`,
+          hireDate: row.hire_date,
+          certification: row.certification,
+          directHours: row.direct_hours,
+          indirectHours: row.indirect_hours,
+          cancellationHours: row.cancellation_hours,
+          totalHours: row.direct_hours + row.indirect_hours + row.cancellation_hours,
+        })
 
         const [supervisionRow, monthResult] = await Promise.all([
-          getSupervisionByStaffId(match.id),
-          getSessionsByStaffIdForMonth(match.id),
+          getSupervisionByStaffId(entry.id),
+          getSessionsByStaffIdForMonth(entry.id),
         ])
         if (cancelled) return
         setSupervision(supervisionRow)
@@ -154,7 +198,7 @@ export function StaffOverviewPage() {
       .finally(() => { if (!cancelled) setDataLoading(false) })
 
     return () => { cancelled = true }
-  }, [staffId])
+  }, [staffId, practiceId])
 
   const displayName =
     staff?.name

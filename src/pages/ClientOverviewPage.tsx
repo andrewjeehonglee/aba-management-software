@@ -32,15 +32,13 @@ import {
   utilizationClass,
 } from "@/lib/authorization"
 import { formatEventStamp, formatTime } from "@/lib/sessions"
-import { toSlug, unslug } from "@/lib/slug"
-import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
+import { resolveClientByRouteKey, staffProfilePath } from "@/lib/rosterScope"
+import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import { getAssignmentsForClient } from "@/lib/clientAssignments"
 import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { Goal } from "@/types/goal"
 import type { Session, SessionStatus } from "@/types/session"
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // ─── New / Edit Authorization Modal ──────────────────────────────────────────
 
@@ -565,55 +563,70 @@ function formatDate(iso: string) {
 }
 
 
-export function ClientOverviewPage() {
-  const { clientId } = useParams<{ clientId: string }>()
+export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
+  const { clientId: clientRouteKey } = useParams<{ clientId: string }>()
   const navigate = useNavigate()
   const isDemo = useDemo()
 
-  // If the URL param is a UUID, fetch the client from Supabase.
-  // If it's a slug (old links / manual nav), fall back to mock matching.
-  const isUUID = UUID_RE.test(clientId ?? "")
   const [liveClient, setLiveClient] = useState<ClientDetail | null>(null)
-  const [clientLoading, setClientLoading] = useState(isUUID)
+  const [clientLoading, setClientLoading] = useState(true)
+  const [clientNotFound, setClientNotFound] = useState(false)
+  const resolvedClientId = liveClient?.id ?? null
   const [liveGoals, setLiveGoals] = useState<GoalRecord[] | null>(null)
-  const [goalsLoading, setGoalsLoading] = useState(isUUID)
+  const [goalsLoading, setGoalsLoading] = useState(false)
   const [goalsRefreshKey, setGoalsRefreshKey] = useState(0)
   const [liveSessions, setLiveSessions] = useState<SessionRecord[] | null>(null)
 
   useEffect(() => {
-    if (!isUUID || !clientId) return
-    getClientById(clientId)
-      .then(setLiveClient)
-      .catch(console.error)
+    if (!clientRouteKey) {
+      setClientNotFound(true)
+      setClientLoading(false)
+      return
+    }
+    setClientLoading(true)
+    setClientNotFound(false)
+    resolveClientByRouteKey(practiceId, clientRouteKey)
+      .then((client) => {
+        if (!client) {
+          setLiveClient(null)
+          setClientNotFound(true)
+          return
+        }
+        setLiveClient(client)
+      })
+      .catch(() => {
+        setLiveClient(null)
+        setClientNotFound(true)
+      })
       .finally(() => setClientLoading(false))
-  }, [clientId, isUUID])
+  }, [clientRouteKey, practiceId])
 
   useEffect(() => {
-    if (!isUUID || !clientId) return
+    if (!resolvedClientId) return
     setGoalsLoading(true)
-    getGoalsByClientId(clientId)
+    getGoalsByClientId(resolvedClientId)
       .then(setLiveGoals)
       .catch(console.error)
       .finally(() => setGoalsLoading(false))
-  }, [clientId, isUUID, goalsRefreshKey])
+  }, [resolvedClientId, goalsRefreshKey])
 
   useEffect(() => {
-    if (!isUUID || !clientId) return
-    getSessionsByClientId(clientId)
+    if (!resolvedClientId) return
+    getSessionsByClientId(resolvedClientId)
       .then(setLiveSessions)
       .catch(console.error)
-  }, [clientId, isUUID])
+  }, [resolvedClientId])
 
   const [liveAuth, setLiveAuth] = useState<AuthRecord | null>(null)
   const [authRefreshKey, setAuthRefreshKey] = useState(0)
   const [authModalOpen, setAuthModalOpen] = useState(false)
 
   useEffect(() => {
-    if (!isUUID || !clientId) return
-    getAuthorizationsByClientId(clientId)
+    if (!resolvedClientId) return
+    getAuthorizationsByClientId(resolvedClientId)
       .then(setLiveAuth)
       .catch(console.error)
-  }, [clientId, isUUID, authRefreshKey])
+  }, [resolvedClientId, authRefreshKey])
 
   const [practiceMembership, setPracticeMembership] = useState<PracticeMembership | null>(null)
   const [goalModalOpen, setGoalModalOpen] = useState(false)
@@ -637,22 +650,22 @@ export function ClientOverviewPage() {
   const canViewNotes = canViewClinicalNotes(effectiveUserRole)
 
   useEffect(() => {
-    if (!isUUID || !clientId || !canViewNotes) return
+    if (!resolvedClientId || !canViewNotes) return
     setNotesLoading(true)
-    getSessionNotesByClientId(clientId)
+    getSessionNotesByClientId(resolvedClientId)
       .then(setSessionNotes)
       .catch(console.error)
       .finally(() => setNotesLoading(false))
-  }, [clientId, isUUID, canViewNotes])
+  }, [resolvedClientId, canViewNotes])
 
   useEffect(() => {
-    if (!isUUID || !clientId || !canViewNotes) return
+    if (!resolvedClientId || !canViewNotes) return
     setIncidentsLoading(true)
-    getBehaviorIncidentsByClientId(clientId)
+    getBehaviorIncidentsByClientId(resolvedClientId)
       .then(setBehaviorIncidents)
       .catch(console.error)
       .finally(() => setIncidentsLoading(false))
-  }, [clientId, isUUID, canViewNotes])
+  }, [resolvedClientId, canViewNotes])
 
   const [behaviors, setBehaviors]                   = useState<BehaviorRecord[]>([])
   const [behaviorsLoading, setBehaviorsLoading]     = useState(false)
@@ -660,13 +673,13 @@ export function ClientOverviewPage() {
   const [behaviorModalOpen, setBehaviorModalOpen]   = useState(false)
 
   useEffect(() => {
-    if (!isUUID || !clientId) return
+    if (!resolvedClientId) return
     setBehaviorsLoading(true)
-    getBehaviorsByClientId(clientId)
+    getBehaviorsByClientId(resolvedClientId)
       .then(setBehaviors)
       .catch(console.error)
       .finally(() => setBehaviorsLoading(false))
-  }, [clientId, isUUID, behaviorsRefreshKey])
+  }, [resolvedClientId, behaviorsRefreshKey])
 
   const canAddGoal = canManageClinicalConfig(effectiveUserRole)
 
@@ -674,7 +687,7 @@ export function ClientOverviewPage() {
   const [startSessionError, setStartSessionError] = useState<string | null>(null)
 
   async function handleStartSession() {
-    if (!clientId) return
+    if (!resolvedClientId) return
     setStartSessionError(null)
     setStartSessionLoading(true)
     try {
@@ -685,10 +698,10 @@ export function ClientOverviewPage() {
       const staffRowId = await getStaffByUserId(user.id)
       if (!staffRowId) throw new Error("Your account isn't linked to a staff profile yet. Ask your practice owner to set one up for you.")
       // Use the real UUID from liveClient if loaded; fall back to URL param only if it's already a UUID
-      const resolvedClientId = liveClient?.id ?? clientId
+      const resolvedClientIdForSession = resolvedClientId
       const newSessionId = await createSession({
         practiceId:  membership.practice_id,
-        clientId:    resolvedClientId,
+        clientId:    resolvedClientIdForSession,
         staffId:     staffRowId,
         sessionType: "direct",
       })
@@ -718,8 +731,20 @@ export function ClientOverviewPage() {
   const calendarSessions = liveSessions ?? []
 
   const displayName = liveClient
-    ? `${liveClient.first_name} ${liveClient.last_name}`
-    : (clientId ? unslug(clientId) : "Unknown client")
+    ? (() => {
+        const name = [liveClient.first_name, liveClient.last_name].filter(Boolean).join(" ")
+        if (liveClient.external_code && name) return `${liveClient.external_code} — ${name}`
+        return liveClient.external_code ?? name ?? "Unknown client"
+      })()
+    : "Unknown client"
+
+  if (!clientLoading && clientNotFound) {
+    return (
+      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+        Client not found.
+      </div>
+    )
+  }
 
   const clientGoals: GoalRecord[] = liveGoals ?? []
   const sortedGoals = [...clientGoals].sort(
@@ -796,7 +821,7 @@ export function ClientOverviewPage() {
       <Card className="w-full max-w-3xl">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>Authorization utilization</CardTitle>
-          {canAddGoal && isUUID && (
+          {canAddGoal && resolvedClientId && (
             <Button
               size="sm"
               variant="outline"
@@ -818,11 +843,11 @@ export function ClientOverviewPage() {
         </CardContent>
       </Card>
 
-      {canAddGoal && isUUID && clientId && practiceMembership && (
+      {canAddGoal && resolvedClientId && practiceMembership && (
         <NewAuthorizationModal
           open={authModalOpen}
           practiceId={practiceMembership.practice_id}
-          clientId={clientId}
+          clientId={resolvedClientId}
           existingAuth={liveAuth}
           onClose={() => setAuthModalOpen(false)}
           onSuccess={() => { setAuthModalOpen(false); setAuthRefreshKey(k => k + 1) }}
@@ -865,7 +890,7 @@ export function ClientOverviewPage() {
                   </div>
                   <div className="truncate min-w-0 py-1.5 text-sm">
                     <Link
-                      to={"/staff/" + toSlug(s.staffName)}
+                      to={s.staffExternalCode ? staffProfilePath(s.staffExternalCode) : "#"}
                       className="hover:underline underline-offset-2"
                     >
                       {s.staffName}
@@ -888,7 +913,7 @@ export function ClientOverviewPage() {
       <Card className="w-full max-w-3xl">
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle>Active Goals</CardTitle>
-          {canAddGoal && isUUID && (
+          {canAddGoal && resolvedClientId && (
             <Button
               size="sm"
               variant="outline"
@@ -912,7 +937,7 @@ export function ClientOverviewPage() {
                 <p className="text-sm font-medium text-[#1E2A2A]">No goals yet</p>
                 <p className="text-xs text-muted-foreground max-w-xs mx-auto">Goals track what this client is working toward and how they're progressing.</p>
               </div>
-              {canAddGoal && isUUID && (
+              {canAddGoal && resolvedClientId && (
                 <button
                   className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
                   onClick={() => setGoalModalOpen(true)}
@@ -933,18 +958,18 @@ export function ClientOverviewPage() {
 
       <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} />
 
-      {canAddGoal && isUUID && clientId && practiceMembership && (
+      {canAddGoal && resolvedClientId && practiceMembership && (
         <NewGoalModal
           open={goalModalOpen}
           practiceId={practiceMembership.practice_id}
-          clientId={clientId}
+          clientId={resolvedClientId}
           onClose={() => setGoalModalOpen(false)}
           onSuccess={() => { setGoalModalOpen(false); setGoalsRefreshKey(k => k + 1) }}
         />
       )}
 
       {/* Section 5 — Behaviors */}
-      {isUUID && (
+      {resolvedClientId && (
         <Card className="w-full max-w-3xl">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle>Behaviors</CardTitle>
@@ -983,18 +1008,18 @@ export function ClientOverviewPage() {
         </Card>
       )}
 
-      {canAddGoal && isUUID && clientId && practiceMembership && (
+      {canAddGoal && resolvedClientId && practiceMembership && (
         <NewBehaviorModal
           open={behaviorModalOpen}
           practiceId={practiceMembership.practice_id}
-          clientId={clientId}
+          clientId={resolvedClientId}
           onClose={() => setBehaviorModalOpen(false)}
           onSuccess={() => { setBehaviorModalOpen(false); setBehaviorsRefreshKey(k => k + 1) }}
         />
       )}
 
       {/* Section 6 — Behavior Incidents (BCBA / Supervisor / Owner only) */}
-      {canViewNotes && isUUID && (
+      {canViewNotes && resolvedClientId && (
         <Card className="w-full max-w-3xl">
           <CardHeader>
             <CardTitle>Behavior Incidents</CardTitle>
@@ -1018,7 +1043,7 @@ export function ClientOverviewPage() {
       )}
 
       {/* Section 7 — Session Notes (BCBA / Supervisor / Owner only) */}
-      {canViewNotes && isUUID && (
+      {canViewNotes && resolvedClientId && (
         <Card className="w-full max-w-3xl">
           <CardHeader>
             <CardTitle>Session Notes</CardTitle>
@@ -1094,6 +1119,9 @@ function CareTeamCard({
   const [bcbaName, setBcbaName] = useState<string | null>(null)
   const [supervisorName, setSupervisorName] = useState<string | null>(null)
   const [btName, setBtName] = useState<string | null>(null)
+  const [bcbaCode, setBcbaCode] = useState<string | null>(null)
+  const [supervisorCode, setSupervisorCode] = useState<string | null>(null)
+  const [btCode, setBtCode] = useState<string | null>(null)
   const [btUnassigned, setBtUnassigned] = useState(false)
   const [hasAssignments, setHasAssignments] = useState(false)
 
@@ -1108,6 +1136,9 @@ function CareTeamCard({
           setHasAssignments(false)
           setBcbaName(null)
           setSupervisorName(null)
+          setBcbaCode(null)
+          setSupervisorCode(null)
+          setBtCode(null)
           setBtName(legacyStaffName ?? null)
           setBtUnassigned(!legacyStaffName)
           return
@@ -1117,21 +1148,28 @@ function CareTeamCard({
         const staffIds = [...new Set(assignments.map((a) => a.staffId))]
         const { data, error } = await supabase
           .from("staff")
-          .select("id, full_name")
+          .select("id, full_name, external_code")
           .in("id", staffIds)
 
         if (error) throw error
-        const names = new Map(
-          ((data ?? []) as { id: string; full_name: string }[]).map((s) => [s.id, s.full_name]),
+        const staffById = new Map(
+          ((data ?? []) as { id: string; full_name: string; external_code: string }[]).map((s) => [s.id, s]),
         )
 
         const bcba = assignments.find((a) => a.assignmentRole === "primary_bcba")
         const supervisor = assignments.find((a) => a.assignmentRole === "clinical_supervisor")
         const bt = assignments.find((a) => a.assignmentRole === "primary_bt")
 
-        setBcbaName(bcba ? (names.get(bcba.staffId) ?? null) : null)
-        setSupervisorName(supervisor ? (names.get(supervisor.staffId) ?? null) : null)
-        setBtName(bt ? (names.get(bt.staffId) ?? null) : null)
+        const bcbaStaff = bcba ? staffById.get(bcba.staffId) : undefined
+        const supervisorStaff = supervisor ? staffById.get(supervisor.staffId) : undefined
+        const btStaff = bt ? staffById.get(bt.staffId) : undefined
+
+        setBcbaName(bcbaStaff?.full_name ?? null)
+        setSupervisorName(supervisorStaff?.full_name ?? null)
+        setBtName(btStaff?.full_name ?? null)
+        setBcbaCode(bcbaStaff?.external_code ?? null)
+        setSupervisorCode(supervisorStaff?.external_code ?? null)
+        setBtCode(btStaff?.external_code ?? null)
         setBtUnassigned(!bt)
       })
       .catch(() => {
@@ -1166,20 +1204,20 @@ function CareTeamCard({
           <>
             <dt className="text-muted-foreground">BCBA</dt>
             <dd>
-              {bcbaName ? (
-                <Link to={"/staff/" + toSlug(bcbaName)} className="hover:underline underline-offset-2">
+              {bcbaName && bcbaCode ? (
+                <Link to={staffProfilePath(bcbaCode)} className="hover:underline underline-offset-2">
                   {bcbaName}
                 </Link>
-              ) : "—"}
+              ) : bcbaName ?? "—"}
             </dd>
 
             <dt className="text-muted-foreground">Clinical Supervisor</dt>
             <dd>
-              {supervisorName ? (
-                <Link to={"/staff/" + toSlug(supervisorName)} className="hover:underline underline-offset-2">
+              {supervisorName && supervisorCode ? (
+                <Link to={staffProfilePath(supervisorCode)} className="hover:underline underline-offset-2">
                   {supervisorName}
                 </Link>
-              ) : "—"}
+              ) : supervisorName ?? "—"}
             </dd>
           </>
         )}
@@ -1191,11 +1229,11 @@ function CareTeamCard({
               <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
               Unassigned
             </span>
-          ) : btName ? (
-            <Link to={"/staff/" + toSlug(btName)} className="hover:underline underline-offset-2">
+          ) : btName && btCode ? (
+            <Link to={staffProfilePath(btCode)} className="hover:underline underline-offset-2">
               {btName}
             </Link>
-          ) : "—"}
+          ) : btName ?? "—"}
         </dd>
       </dl>
     </div>

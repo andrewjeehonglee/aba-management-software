@@ -10,6 +10,9 @@ export interface RosterRow {
   supervisorName: string | null
   btId: string | null
   btName: string | null
+  bcbaCode: string | null
+  supervisorCode: string | null
+  btCode: string | null
   btUnassigned: boolean
   location: string | null
 }
@@ -36,7 +39,7 @@ type AssignmentRow = {
   location: string | null
 }
 
-type StaffNameRow = { id: string; full_name: string }
+type StaffNameRow = { id: string; full_name: string; external_code: string }
 
 function clientDisplayName(client: ClientRow): string {
   const parts = [client.first_name, client.last_name].filter(Boolean)
@@ -44,8 +47,14 @@ function clientDisplayName(client: ClientRow): string {
   return client.external_code
 }
 
-function staffNameMap(staff: StaffNameRow[]): Map<string, string> {
-  return new Map(staff.map((s) => [s.id, s.full_name]))
+function staffMaps(staff: StaffNameRow[]): {
+  names: Map<string, string>
+  codes: Map<string, string>
+} {
+  return {
+    names: new Map(staff.map((s) => [s.id, s.full_name])),
+    codes: new Map(staff.map((s) => [s.id, s.external_code])),
+  }
 }
 
 export async function getRosterRows(
@@ -78,14 +87,17 @@ export async function getRosterRows(
 
   const staffIds = [...new Set(assignmentList.map((a) => a.staff_id))]
   let names = new Map<string, string>()
+  let codes = new Map<string, string>()
   if (staffIds.length > 0) {
     const { data: staffRows, error: staffError } = await supabase
       .from("staff")
-      .select("id, full_name")
+      .select("id, full_name, external_code")
       .in("id", staffIds)
 
     if (staffError) throw staffError
-    names = staffNameMap((staffRows ?? []) as StaffNameRow[])
+    const maps = staffMaps((staffRows ?? []) as StaffNameRow[])
+    names = maps.names
+    codes = maps.codes
   }
 
   const byClient = new Map<string, AssignmentRow[]>()
@@ -117,6 +129,9 @@ export async function getRosterRows(
       supervisorName: supervisor ? (names.get(supervisor.staff_id) ?? null) : null,
       btId: bt?.staff_id ?? null,
       btName: bt ? (names.get(bt.staff_id) ?? null) : null,
+      bcbaCode: bcba ? (codes.get(bcba.staff_id) ?? null) : null,
+      supervisorCode: supervisor ? (codes.get(supervisor.staff_id) ?? null) : null,
+      btCode: bt ? (codes.get(bt.staff_id) ?? null) : null,
       btUnassigned: !bt,
       location,
     }

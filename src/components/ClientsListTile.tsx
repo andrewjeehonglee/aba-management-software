@@ -335,7 +335,7 @@ export function ClientsListTile({ refreshKey, canAddClient, practiceId, onClient
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                    <th className="pb-2 pr-6 font-medium">Name</th>
+                    <th className="pb-2 pr-6 font-medium">Client</th>
                     <th className="pb-2 pr-6 font-medium">Date of Birth</th>
                     <th className="pb-2 font-medium">Status</th>
                   </tr>
@@ -348,10 +348,15 @@ export function ClientsListTile({ refreshKey, canAddClient, practiceId, onClient
                     >
                       <td className="py-2.5 pr-6 font-medium">
                         <Link
-                          to={`/clients/${c.id}`}
+                          to={c.external_code ? `/clients/${c.external_code}` : `/clients/${c.id}`}
                           className="block after:absolute after:inset-0"
                         >
-                          {c.last_name}, {c.first_name}
+                          <span className="font-semibold">{c.external_code ?? "—"}</span>
+                          {(c.first_name || c.last_name) && (
+                            <span className="block text-xs text-muted-foreground font-normal">
+                              {[c.first_name, c.last_name].filter(Boolean).join(" ")}
+                            </span>
+                          )}
                         </Link>
                       </td>
                       <td className="py-2.5 pr-6 text-muted-foreground">

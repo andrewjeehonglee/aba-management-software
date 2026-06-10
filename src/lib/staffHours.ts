@@ -16,7 +16,7 @@ interface PayPeriodSessionRow {
   staff_id: string
   session_type: string
   status: string
-  staff: { full_name: string; team: string } | null
+  staff: { full_name: string; team: string; external_code: string | null } | null
 }
 
 interface SessionNoteRow {
@@ -66,6 +66,7 @@ export function classifySessionHours(input: ClassifySessionInput): SessionHoursB
 export interface StaffHoursRow {
   staffId: string
   staffName: string
+  staffExternalCode: string | null
   staffTeam: string
   directHours: number
   indirectHours: number
@@ -106,13 +107,13 @@ function finalizeRow(row: MutableStaffHoursRow): StaffHoursRow {
 
 export async function getStaffHoursByMonth(
   now: Date = new Date(),
-  options?: { staffIds?: string[]; clientIds?: string[] },
+  options?: { staffIds?: string[]; clientIds?: string[]; includeZeroHourStaff?: boolean },
 ): Promise<StaffHoursSummary> {
   const month = getCurrentCalendarMonth(now)
 
   let sessionsQuery = supabase
     .from("sessions")
-    .select("id, staff_id, session_type, status, staff(full_name, team)")
+    .select("id, staff_id, session_type, status, staff(full_name, team, external_code)")
     .gte("scheduled_at", month.start.toISOString())
     .lte("scheduled_at", month.end.toISOString())
 
@@ -157,6 +158,7 @@ export async function getStaffHoursByMonth(
       row = {
         staffId: session.staff_id,
         staffName: session.staff.full_name,
+        staffExternalCode: session.staff.external_code ?? null,
         staffTeam: teamLabel(session.staff.team),
         directHours: 0,
         indirectHours: 0,
@@ -189,10 +191,43 @@ export async function getStaffHoursByMonth(
     row.indirectHours += DEFAULT_SESSION_HOURS
   }
 
-  // Omit staff with zero billable hours (direct + indirect) to reduce list noise.
+  if (options?.includeZeroHourStaff && options.staffIds?.length) {
+    const { data: rosterStaff, error: rosterError } = await supabase
+      .from("staff")
+      .select("id, full_name, external_code, team")
+      .in("id", options.staffIds)
+      .not("external_code", "is", null)
+      .eq("status", "active")
+
+    if (rosterError) throw rosterError
+
+    for (const staff of (rosterStaff ?? []) as {
+      id: string
+      full_name: string
+      external_code: string
+      team: string
+    }[]) {
+      if (byStaffId.has(staff.id)) continue
+      byStaffId.set(staff.id, {
+        staffId: staff.id,
+        staffName: staff.full_name,
+        staffExternalCode: staff.external_code,
+        staffTeam: teamLabel(staff.team),
+        directHours: 0,
+        indirectHours: 0,
+        cancellationHours: 0,
+        cancelledSessionCount: 0,
+      })
+    }
+  }
+
   const byStaff = [...byStaffId.values()]
     .map(finalizeRow)
-    .filter((row) => row.directHours + row.indirectHours > 0)
+    .filter((row) =>
+      options?.includeZeroHourStaff
+        ? true
+        : row.directHours + row.indirectHours > 0,
+    )
     .sort((a, b) => b.totalHours - a.totalHours || a.staffName.localeCompare(b.staffName))
 
   return {

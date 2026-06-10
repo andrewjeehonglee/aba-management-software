@@ -17,8 +17,9 @@ export function sessionRecordToSession(record: SessionRecord): Session {
     id: record.id,
     time: record.time,
     clientId: record.clientId,
-    clientName: record.clientName,
+    clientName: record.clientCode ?? record.clientName,
     staffName: record.staffName,
+    staffExternalCode: record.staffExternalCode,
     sessionType: record.sessionType,
     status: record.status as SessionStatus,
   }
@@ -33,7 +34,7 @@ export async function getStaffSessionsForMonth(
 
   let query = supabase
     .from("sessions")
-    .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)")
+    .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)")
     .in("staff_id", staffIds)
     .gte("scheduled_at", monthWindow.start.toISOString())
     .lte("scheduled_at", monthWindow.end.toISOString())
@@ -54,7 +55,7 @@ export async function getStaffSessionsForMonth(
     status: string
     client_id: string
     clients: { first_name: string; last_name: string; external_code: string | null }
-    staff: { full_name: string; team: string } | null
+    staff: { full_name: string; team: string; external_code: string | null } | null
   }
 
   return ((data ?? []) as unknown as Row[]).map((row) => ({
@@ -64,6 +65,7 @@ export async function getStaffSessionsForMonth(
     clientName: `${row.clients.first_name} ${row.clients.last_name}`.trim() || (row.clients.external_code ?? "Unknown"),
     clientCode: row.clients.external_code ?? null,
     staffName: row.staff?.full_name ?? "Unknown",
+    staffExternalCode: row.staff?.external_code ?? null,
     staffTeam: row.staff?.team ? (row.staff.team.startsWith("Team") ? row.staff.team : `Team ${row.staff.team}`) : "",
     sessionType: row.session_type,
     status: row.status,

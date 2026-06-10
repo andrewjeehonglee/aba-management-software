@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { getNotesStatus, type StaffNotesStatus } from "@/lib/notesStatus"
-import { toSlug } from "@/lib/slug"
+import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 
 const CRITICAL_THRESHOLD = 10
@@ -189,7 +189,7 @@ export function NotesOverdueTile({
                 <li key={row.staffId} className="flex items-center justify-between gap-2 text-sm">
                   <span className="truncate min-w-0 pr-2">
                     <Link
-                      to={"/staff/" + toSlug(row.staffName)}
+                      to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : "#"}
                       className="hover:underline underline-offset-2"
                     >
                       {row.staffName}

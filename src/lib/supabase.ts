@@ -38,6 +38,7 @@ export interface PracticeMembership {
 // 0 rows are found, which is safer than single() for the "new user" case.
 export interface Client {
   id: string
+  external_code: string | null
   first_name: string
   last_name: string
   date_of_birth: string | null
@@ -46,6 +47,7 @@ export interface Client {
 
 export interface ClientDetail {
   id: string
+  external_code: string | null
   first_name: string
   last_name: string
   date_of_birth: string | null
@@ -83,12 +85,13 @@ export async function getPrimaryStaffForClient(clientId: string): Promise<{ full
 export async function getClientById(id: string): Promise<ClientDetail | null> {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, first_name, last_name, date_of_birth, home_address, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff!assigned_staff_id(full_name)')
+    .select('id, external_code, first_name, last_name, date_of_birth, home_address, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff!assigned_staff_id(full_name)')
     .eq('id', id)
     .maybeSingle()
   if (error) throw error
   if (!data) return null
   const row = data as unknown as Omit<ClientDetail, 'assigned_staff'> & { staff: { full_name: string } | null }
+  if (!row.external_code?.trim() || (row.status ?? 'active').toLowerCase() === 'inactive') return null
   let assigned_staff = row.staff
   if (!assigned_staff) {
     assigned_staff = await getPrimaryStaffForClient(id)
@@ -126,9 +129,11 @@ export async function createNewClient(client: NewClient): Promise<void> {
 export async function getClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, first_name, last_name, date_of_birth, status')
+    .select('id, external_code, first_name, last_name, date_of_birth, status')
     .eq('status', 'active')
-    .order('last_name', { ascending: true })
+    .not('external_code', 'is', null)
+    .neq('external_code', '')
+    .order('external_code', { ascending: true })
   if (error) throw error
   return data as Client[]
 }
@@ -136,6 +141,7 @@ export async function getClients(): Promise<Client[]> {
 interface StaffRow {
   id: string
   full_name: string
+  external_code: string | null
   role: string
   team: string
   hire_date: string
@@ -143,11 +149,13 @@ interface StaffRow {
   direct_hours: number
   indirect_hours: number
   cancellation_hours: number
+  status: string | null
 }
 
 export interface StaffRecord {
   id: string
   name: string
+  externalCode: string | null
   role: string
   team: string
   hireDate: string
@@ -186,12 +194,16 @@ export async function createStaff(staff: NewStaff): Promise<void> {
 export async function getStaff(): Promise<StaffRecord[]> {
   const { data, error } = await supabase
     .from('staff')
-    .select('id, full_name, role, team, hire_date, certification, direct_hours, indirect_hours, cancellation_hours')
+    .select('id, full_name, external_code, role, team, hire_date, certification, direct_hours, indirect_hours, cancellation_hours, status')
+    .not('external_code', 'is', null)
+    .neq('external_code', '')
+    .eq('status', 'active')
     .order('full_name', { ascending: true })
   if (error) throw error
   return (data as StaffRow[]).map((row) => ({
     id: row.id,
     name: row.full_name,
+    externalCode: row.external_code,
     role: row.role,
     team: teamLabel(row.team),
     hireDate: row.hire_date,
@@ -210,7 +222,7 @@ interface SessionRow {
   status: string
   client_id: string
   clients: { first_name: string; last_name: string; external_code: string | null }
-  staff: { full_name: string; team: string }
+  staff: { full_name: string; team: string; external_code: string | null }
 }
 
 export interface SessionRecord {
@@ -220,6 +232,7 @@ export interface SessionRecord {
   clientName: string
   clientCode: string | null
   staffName: string
+  staffExternalCode: string | null
   staffTeam: string
   sessionType: string
   status: string
@@ -243,6 +256,7 @@ function mapSessionRows(data: SessionRow[]): SessionRecord[] {
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`.trim() || (row.clients.external_code ?? "Unknown"),
     clientCode:  row.clients.external_code ?? null,
     staffName:   row.staff?.full_name ?? 'Unknown',
+    staffExternalCode: row.staff?.external_code ?? null,
     staffTeam:   teamLabel(row.staff?.team),
     sessionType: row.session_type,
     status:      row.status,
@@ -252,7 +266,7 @@ function mapSessionRows(data: SessionRow[]): SessionRecord[] {
 async function querySessionsInRange(start: string, end: string, staffId?: string): Promise<SessionRecord[]> {
   let query = supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
     .gte('scheduled_at', start)
     .lte('scheduled_at', end)
     .order('scheduled_at', { ascending: true })
@@ -511,13 +525,14 @@ interface SupervisionRow {
   supervision_pct: number
   period_start: string
   period_end: string
-  staff: { full_name: string; team: string }
+  staff: { full_name: string; team: string; external_code: string | null }
 }
 
 export interface SupervisionRecord {
   id: string
   staffId: string
   staffName: string
+  staffExternalCode: string | null
   staffTeam: string
   supervisionPct: number
   periodStart: string
@@ -527,7 +542,7 @@ export interface SupervisionRecord {
 export async function getSupervision(): Promise<SupervisionRecord[]> {
   const { data, error } = await supabase
     .from('supervision')
-    .select('id, staff_id, supervision_pct, period_start, period_end, staff(full_name, team)')
+    .select('id, staff_id, supervision_pct, period_start, period_end, staff(full_name, team, external_code)')
     .order('supervision_pct', { ascending: true })
   if (error) throw error
 
@@ -535,6 +550,7 @@ export async function getSupervision(): Promise<SupervisionRecord[]> {
     id:            row.id,
     staffId:       row.staff_id,
     staffName:     row.staff.full_name,
+    staffExternalCode: row.staff.external_code ?? null,
     staffTeam:     teamLabel(row.staff.team),
     supervisionPct: row.supervision_pct,
     periodStart:   row.period_start,
@@ -547,7 +563,7 @@ export async function getSupervisionForStaffIds(staffIds: string[]): Promise<Sup
 
   const { data, error } = await supabase
     .from("supervision")
-    .select("id, staff_id, supervision_pct, period_start, period_end, staff(full_name, team)")
+    .select("id, staff_id, supervision_pct, period_start, period_end, staff(full_name, team, external_code)")
     .in("staff_id", staffIds)
     .order("supervision_pct", { ascending: true })
 
@@ -557,6 +573,7 @@ export async function getSupervisionForStaffIds(staffIds: string[]): Promise<Sup
     id: row.id,
     staffId: row.staff_id,
     staffName: row.staff.full_name,
+    staffExternalCode: row.staff.external_code ?? null,
     staffTeam: teamLabel(row.staff.team),
     supervisionPct: row.supervision_pct,
     periodStart: row.period_start,
@@ -583,7 +600,7 @@ export async function getSupervisionByStaffId(staffId: string): Promise<Supervis
 export async function getSessionsByStaffId(staffId: string): Promise<SessionRecord[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
     .eq('staff_id', staffId)
     .order('scheduled_at', { ascending: true })
   if (error) throw error

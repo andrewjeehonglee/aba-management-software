@@ -188,8 +188,8 @@ function App() {
               : <Navigate to="/" replace />
           }
         />
-        <Route path="/clients/:clientId" element={<ClientOverviewPage />} />
-        <Route path="/staff/:staffId" element={<StaffOverviewPage />} />
+        <Route path="/clients/:clientId" element={<ClientOverviewPage practiceId={practice.practice_id} />} />
+        <Route path="/staff/:staffId" element={<StaffOverviewPage practiceId={practice.practice_id} />} />
         <Route path="/session/:sessionId" element={<SessionViewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -15,7 +15,7 @@ import {
 } from "@/lib/supabase"
 import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
-import { toSlug } from "@/lib/slug"
+import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 
@@ -187,7 +187,7 @@ export function SupervisionComplianceTile({
                 return (
                   <Link
                     key={rbt.id}
-                    to={"/staff/" + toSlug(rbt.staffName)}
+                    to={rbt.staffExternalCode ? staffProfilePath(rbt.staffExternalCode) : "#"}
                     title={rbt.staffName}
                     className={`inline-flex h-14 w-[4.75rem] flex-col items-center justify-center rounded-xl border-2 px-1 py-1 text-center transition-opacity hover:opacity-75 ${
                       flagged
