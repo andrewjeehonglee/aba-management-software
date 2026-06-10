@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { ArrowLeft, ChevronDown, ChevronRight, Loader2, Play, Plus } from "lucide-react"
+import { AlertCircle, ArrowLeft, ChevronDown, ChevronRight, Loader2, Play, Plus } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useDemo } from "@/context/DemoContext"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
@@ -34,6 +34,7 @@ import {
 import { formatEventStamp, formatTime } from "@/lib/sessions"
 import { toSlug, unslug } from "@/lib/slug"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
+import { getAssignmentsForClient } from "@/lib/clientAssignments"
 import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { Goal } from "@/types/goal"
@@ -773,11 +774,20 @@ export function ClientOverviewPage() {
         <CardContent className="space-y-3">
           {/* Client detail — shown once the live record loads */}
           {!clientLoading && liveClient && (
-            <LiveClientDetailGrid
-              client={liveClient}
-              auth={liveAuth}
-              primaryStaffName={liveClient.assigned_staff?.full_name ?? primaryStaffFromSessions ?? uniqueStaff[0]}
-            />
+            <>
+              <CareTeamCard
+                clientId={liveClient.id}
+                legacyStaffName={
+                  liveClient.assigned_staff?.full_name
+                  ?? primaryStaffFromSessions
+                  ?? uniqueStaff[0]
+                }
+              />
+              <LiveClientDetailGrid
+                client={liveClient}
+                auth={liveAuth}
+              />
+            </>
           )}
         </CardContent>
       </Card>
@@ -1072,17 +1082,135 @@ function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
   )
 }
 
+// Care team from client_assignments; legacy assigned_staff when no rows exist.
+function CareTeamCard({
+  clientId,
+  legacyStaffName,
+}: {
+  clientId: string
+  legacyStaffName?: string
+}) {
+  const [loading, setLoading] = useState(true)
+  const [bcbaName, setBcbaName] = useState<string | null>(null)
+  const [supervisorName, setSupervisorName] = useState<string | null>(null)
+  const [btName, setBtName] = useState<string | null>(null)
+  const [btUnassigned, setBtUnassigned] = useState(false)
+  const [hasAssignments, setHasAssignments] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+
+    getAssignmentsForClient(clientId)
+      .then(async (assignments) => {
+        if (cancelled) return
+        if (assignments.length === 0) {
+          setHasAssignments(false)
+          setBcbaName(null)
+          setSupervisorName(null)
+          setBtName(legacyStaffName ?? null)
+          setBtUnassigned(!legacyStaffName)
+          return
+        }
+
+        setHasAssignments(true)
+        const staffIds = [...new Set(assignments.map((a) => a.staffId))]
+        const { data, error } = await supabase
+          .from("staff")
+          .select("id, full_name")
+          .in("id", staffIds)
+
+        if (error) throw error
+        const names = new Map(
+          ((data ?? []) as { id: string; full_name: string }[]).map((s) => [s.id, s.full_name]),
+        )
+
+        const bcba = assignments.find((a) => a.assignmentRole === "primary_bcba")
+        const supervisor = assignments.find((a) => a.assignmentRole === "clinical_supervisor")
+        const bt = assignments.find((a) => a.assignmentRole === "primary_bt")
+
+        setBcbaName(bcba ? (names.get(bcba.staffId) ?? null) : null)
+        setSupervisorName(supervisor ? (names.get(supervisor.staffId) ?? null) : null)
+        setBtName(bt ? (names.get(bt.staffId) ?? null) : null)
+        setBtUnassigned(!bt)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasAssignments(false)
+          setBtName(legacyStaffName ?? null)
+          setBtUnassigned(!legacyStaffName)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [clientId, legacyStaffName])
+
+  if (loading) {
+    return (
+      <div className="rounded-md border border-border p-4 text-sm text-muted-foreground animate-pulse">
+        Loading care team…
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-md border border-border p-4 space-y-3">
+      <p className="text-sm font-semibold">Care Team</p>
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
+        {hasAssignments && (
+          <>
+            <dt className="text-muted-foreground">BCBA</dt>
+            <dd>
+              {bcbaName ? (
+                <Link to={"/staff/" + toSlug(bcbaName)} className="hover:underline underline-offset-2">
+                  {bcbaName}
+                </Link>
+              ) : "—"}
+            </dd>
+
+            <dt className="text-muted-foreground">Clinical Supervisor</dt>
+            <dd>
+              {supervisorName ? (
+                <Link to={"/staff/" + toSlug(supervisorName)} className="hover:underline underline-offset-2">
+                  {supervisorName}
+                </Link>
+              ) : "—"}
+            </dd>
+          </>
+        )}
+
+        <dt className="text-muted-foreground">Behavior Technician</dt>
+        <dd>
+          {btUnassigned ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
+              <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
+              Unassigned
+            </span>
+          ) : btName ? (
+            <Link to={"/staff/" + toSlug(btName)} className="hover:underline underline-offset-2">
+              {btName}
+            </Link>
+          ) : "—"}
+        </dd>
+      </dl>
+    </div>
+  )
+}
+
 // Detail grid shown when the page loads via a UUID-based URL. All fields come
 // from the clients row; auth-period and CPT code fall back to the separate
 // authorizations row when the client record doesn't carry those values directly.
 function LiveClientDetailGrid({
   client,
   auth,
-  primaryStaffName,
 }: {
   client: ClientDetail
   auth?: AuthRecord | null
-  primaryStaffName?: string
 }) {
   const STATUS_STYLES: Record<string, string> = {
     active:     "bg-green-100 text-green-800",
@@ -1126,29 +1254,6 @@ function LiveClientDetailGrid({
         {cptDisplay
           ? <span className="font-mono">{cptDisplay}</span>
           : "—"}
-      </dd>
-
-      <dt className="text-muted-foreground">Assigned staff</dt>
-      <dd>
-        {client.assigned_staff
-          ? (
-            <Link
-              to={"/staff/" + toSlug(client.assigned_staff.full_name)}
-              className="hover:underline underline-offset-2"
-            >
-              {client.assigned_staff.full_name}
-            </Link>
-          )
-          : primaryStaffName
-            ? (
-              <Link
-                to={"/staff/" + toSlug(primaryStaffName)}
-                className="hover:underline underline-offset-2"
-              >
-                {primaryStaffName}
-              </Link>
-            )
-            : "—"}
       </dd>
 
     </dl>

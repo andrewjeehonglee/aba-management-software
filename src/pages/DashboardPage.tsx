@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useSearchParams, Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
@@ -13,7 +20,8 @@ import {
   resolveCaseloadFilters,
   resolveEffectiveStaffId,
 } from "@/lib/dashboardScope"
-import { getRosterClientIds, getRosterStaffIds } from "@/lib/rosterScope"
+import { getRosterClientIds, getRosterTechnicianStaffIds } from "@/lib/rosterScope"
+import { getBcbaSummaries, type BcbaSummary } from "@/lib/rosterTable"
 import { setRolePreview } from "@/lib/rolePreview"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
@@ -68,8 +76,10 @@ export function DashboardPage({
   const [scopeClientIds, setScopeClientIds] = useState<string[]>([])
   const [scopeSuperviseeIds, setScopeSuperviseeIds] = useState<string[]>([])
   const [scopeLoading, setScopeLoading] = useState(false)
-  const [rosterStaffIds, setRosterStaffIds] = useState<string[]>([])
+  const [rosterTechnicianIds, setRosterTechnicianIds] = useState<string[]>([])
   const [rosterClientIds, setRosterClientIds] = useState<string[]>([])
+  const [bcbaPreviewOptions, setBcbaPreviewOptions] = useState<BcbaSummary[]>([])
+  const [previewBcbaStaffId, setPreviewBcbaStaffId] = useState<string | null>(null)
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -84,28 +94,50 @@ export function DashboardPage({
 
   useEffect(() => {
     if (!practiceId) {
-      setRosterStaffIds([])
+      setRosterTechnicianIds([])
       setRosterClientIds([])
       return
     }
 
     Promise.all([
-      getRosterStaffIds(practiceId),
+      getRosterTechnicianStaffIds(practiceId),
       getRosterClientIds(practiceId),
     ])
-      .then(([staffIds, clientIds]) => {
-        setRosterStaffIds(staffIds)
+      .then(([technicianIds, clientIds]) => {
+        setRosterTechnicianIds(technicianIds)
         setRosterClientIds(clientIds)
       })
       .catch(() => {
-        setRosterStaffIds([])
+        setRosterTechnicianIds([])
         setRosterClientIds([])
       })
   }, [practiceId])
 
+  useEffect(() => {
+    if (!practiceId || role !== "Owner") {
+      setBcbaPreviewOptions([])
+      setPreviewBcbaStaffId(null)
+      return
+    }
+
+    getBcbaSummaries(practiceId)
+      .then((summaries) => {
+        setBcbaPreviewOptions(summaries)
+        const jennifer = summaries.find((s) => s.fullName === "Jennifer")
+        setPreviewBcbaStaffId((prev) => {
+          if (prev && summaries.some((s) => s.staffId === prev)) return prev
+          return jennifer?.staffId ?? summaries[0]?.staffId ?? null
+        })
+      })
+      .catch(() => {
+        setBcbaPreviewOptions([])
+        setPreviewBcbaStaffId(null)
+      })
+  }, [practiceId, role])
+
   const rosterScope =
-    rosterStaffIds.length > 0
-      ? { staffIds: rosterStaffIds, clientIds: rosterClientIds }
+    rosterTechnicianIds.length > 0
+      ? { staffIds: rosterTechnicianIds, clientIds: rosterClientIds }
       : null
 
   useEffect(() => {
@@ -121,7 +153,12 @@ export function DashboardPage({
     const calendarRole = viewRole as CalendarRole
     setScopeLoading(true)
 
-    resolveEffectiveStaffId(currentStaffId ?? null, calendarRole, isOwnerPreview, practiceId)
+    const staffIdPromise =
+      isOwnerPreview && viewRole === "BCBA" && previewBcbaStaffId
+        ? Promise.resolve(previewBcbaStaffId)
+        : resolveEffectiveStaffId(currentStaffId ?? null, calendarRole, isOwnerPreview, practiceId)
+
+    staffIdPromise
       .then(async (id) => {
         setEffectiveStaffId(id)
         if (!id) {
@@ -147,7 +184,7 @@ export function DashboardPage({
         }
       })
       .finally(() => setScopeLoading(false))
-  }, [currentStaffId, viewRole, isOwnerView, isOwnerPreview, isTechnician, practiceId])
+  }, [currentStaffId, viewRole, isOwnerView, isOwnerPreview, isTechnician, practiceId, previewBcbaStaffId])
 
   return (
     <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
@@ -159,6 +196,14 @@ export function DashboardPage({
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
+          {role === "Owner" && (
+            <Link
+              to="/roster"
+              className="hidden sm:inline text-xs text-[#0D7377] hover:underline underline-offset-2"
+            >
+              Caseload roster →
+            </Link>
+          )}
           {role === "Owner" ? (
             <div className="hidden sm:flex items-center rounded-full border border-[#D0DCDC] bg-[#E8F7F7] p-0.5 gap-px">
               {ROLES.map((r) => (
@@ -213,6 +258,27 @@ export function DashboardPage({
         </div>
       ) : (
         <div className="w-full max-w-[min(100%,1680px)] space-y-4 px-4 sm:px-6">
+          {isOwnerPreview && viewRole === "BCBA" && bcbaPreviewOptions.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-muted-foreground">View as BCBA:</span>
+              <Select
+                value={previewBcbaStaffId ?? undefined}
+                onValueChange={(v) => setPreviewBcbaStaffId(v ?? null)}
+              >
+                <SelectTrigger className="h-8 w-[180px] text-xs">
+                  <SelectValue placeholder="Select BCBA" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bcbaPreviewOptions.map((bcba) => (
+                    <SelectItem key={bcba.staffId} value={bcba.staffId}>
+                      {bcba.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <DashboardCalendarTile
             viewRole={viewRole as CalendarRole}
             isOwnerPreview={isOwnerPreview}

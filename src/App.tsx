@@ -4,6 +4,7 @@ import { Toaster } from "sonner"
 import type { Session } from "@supabase/supabase-js"
 import { ClientOverviewPage } from "@/pages/ClientOverviewPage"
 import { DashboardPage } from "@/pages/DashboardPage"
+import { RosterPage } from "@/pages/RosterPage"
 import { AuthPage } from "@/pages/AuthPage"
 import { LandingPage } from "@/pages/LandingPage"
 import { CreatePracticePage } from "@/pages/CreatePracticePage"
@@ -179,6 +180,14 @@ function App() {
       {isDemo && <DemoBanner />}
       <Routes>
         <Route path="/" element={<DashboardPage practiceId={practice.practice_id} userRole={userRole} currentStaffId={currentStaffId} isDemo={isDemo} />} />
+        <Route
+          path="/roster"
+          element={
+            userRole.toLowerCase() === "owner"
+              ? <RosterPage practiceId={practice.practice_id} />
+              : <Navigate to="/" replace />
+          }
+        />
         <Route path="/clients/:clientId" element={<ClientOverviewPage />} />
         <Route path="/staff/:staffId" element={<StaffOverviewPage />} />
         <Route path="/session/:sessionId" element={<SessionViewPage />} />

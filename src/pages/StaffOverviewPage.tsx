@@ -18,6 +18,8 @@ import {
   type StaffRecord,
   type SupervisionRecord,
 } from "@/lib/supabase"
+import { getAssignmentsForStaff, type ClientAssignmentRole } from "@/lib/clientAssignments"
+import { getClientCaseloadLabels, type ClientCaseloadLabel } from "@/lib/rosterTable"
 import {
   CERT_URGENT_DAYS,
   CERT_WARNING_DAYS,
@@ -240,6 +242,8 @@ export function StaffOverviewPage() {
         </CardContent>
       </Card>
 
+      {staff && <AssignmentCaseloadCard staffId={staff.id} />}
+
       {/* Section 2 — Certifications (always visible regardless of activity) */}
       <Card className="w-full max-w-3xl">
         <CardHeader>
@@ -364,6 +368,129 @@ export function StaffOverviewPage() {
           </Card>
         </>
       )}
+    </div>
+  )
+}
+
+// Caseload from client_assignments — distinct from session activity this week.
+function AssignmentCaseloadCard({ staffId }: { staffId: string }) {
+  const [loading, setLoading] = useState(true)
+  const [asBcba, setAsBcba] = useState<ClientCaseloadLabel[]>([])
+  const [asSupervisor, setAsSupervisor] = useState<ClientCaseloadLabel[]>([])
+  const [asBt, setAsBt] = useState<ClientCaseloadLabel[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+
+    getAssignmentsForStaff(staffId)
+      .then(async (assignments) => {
+        if (cancelled) return
+
+        const roleBuckets: Record<ClientAssignmentRole, string[]> = {
+          primary_bcba: [],
+          clinical_supervisor: [],
+          primary_bt: [],
+          secondary_bt: [],
+        }
+
+        for (const row of assignments) {
+          roleBuckets[row.assignmentRole].push(row.clientId)
+        }
+
+        const bcbaIds = [...new Set(roleBuckets.primary_bcba)]
+        const supervisorIds = [...new Set(roleBuckets.clinical_supervisor)]
+        const btIds = [...new Set([...roleBuckets.primary_bt, ...roleBuckets.secondary_bt])]
+
+        const [bcbaLabels, supervisorLabels, btLabels] = await Promise.all([
+          getClientCaseloadLabels(bcbaIds),
+          getClientCaseloadLabels(supervisorIds),
+          getClientCaseloadLabels(btIds),
+        ])
+
+        if (cancelled) return
+        setAsBcba(bcbaLabels)
+        setAsSupervisor(supervisorLabels)
+        setAsBt(btLabels)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAsBcba([])
+          setAsSupervisor([])
+          setAsBt([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [staffId])
+
+  const total = asBcba.length + asSupervisor.length + asBt.length
+
+  return (
+    <Card className="w-full max-w-3xl">
+      <CardHeader>
+        <CardTitle>Caseload</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-sm text-muted-foreground animate-pulse py-4">Loading caseload…</p>
+        ) : total === 0 ? (
+          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            Not assigned to any client caseload yet
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {asBcba.length > 0 && (
+              <CaseloadRoleSection
+                title={`As BCBA (${asBcba.length})`}
+                clients={asBcba}
+              />
+            )}
+            {asSupervisor.length > 0 && (
+              <CaseloadRoleSection
+                title={`As Supervisor (${asSupervisor.length})`}
+                clients={asSupervisor}
+              />
+            )}
+            {asBt.length > 0 && (
+              <CaseloadRoleSection
+                title={`As BT (${asBt.length})`}
+                clients={asBt}
+              />
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function CaseloadRoleSection({
+  title,
+  clients,
+}: {
+  title: string
+  clients: ClientCaseloadLabel[]
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-muted-foreground mb-2">{title}</p>
+      <div className="flex flex-wrap gap-2">
+        {clients.map((client) => (
+          <Link
+            key={client.clientId}
+            to={`/clients/${client.clientId}`}
+            className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+          >
+            {client.clientCode ?? client.displayName}
+          </Link>
+        ))}
+      </div>
     </div>
   )
 }
