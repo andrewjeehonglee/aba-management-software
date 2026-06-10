@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
+import { BcbaCaseloadPanel } from "@/components/BcbaCaseloadPanel"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { MyHoursTile } from "@/components/MyHoursTile"
@@ -20,6 +21,7 @@ import {
   getStaffFullName,
   resolveCaseloadFilters,
   resolveEffectiveStaffId,
+  resolvePreviewStaffId,
 } from "@/lib/dashboardScope"
 import {
   getRosterClientIds,
@@ -27,6 +29,7 @@ import {
   getRosterTechnicianStaffIds,
   type RosterStaffEntry,
 } from "@/lib/rosterScope"
+import { getCaseloadStaffForBcba } from "@/lib/rosterTable"
 import { setRolePreview } from "@/lib/rolePreview"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
@@ -86,11 +89,14 @@ export function DashboardPage({
   const [scopeStaffIds, setScopeStaffIds] = useState<string[]>([])
   const [scopeClientIds, setScopeClientIds] = useState<string[]>([])
   const [scopeSuperviseeIds, setScopeSuperviseeIds] = useState<string[]>([])
+  const [scopeTeamStaffIds, setScopeTeamStaffIds] = useState<string[]>([])
   const [scopeLoading, setScopeLoading] = useState(false)
   const [rosterTechnicianIds, setRosterTechnicianIds] = useState<string[]>([])
   const [rosterClientIds, setRosterClientIds] = useState<string[]>([])
   const [previewOptions, setPreviewOptions] = useState<RosterStaffEntry[]>([])
   const [previewStaffId, setPreviewStaffId] = useState<string | null>(null)
+  /** BCBA selected on BCBA tab — scopes supervisor/BT preview dropdowns to that caseload. */
+  const [anchorBcbaId, setAnchorBcbaId] = useState<string | null>(null)
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -125,6 +131,15 @@ export function DashboardPage({
   }, [practiceId])
 
   useEffect(() => {
+    if (!practiceId || role !== "Owner") return
+    resolvePreviewStaffId("BCBA", practiceId)
+      .then((id) => {
+        if (id) setAnchorBcbaId((prev) => prev ?? id)
+      })
+      .catch(() => {})
+  }, [practiceId, role])
+
+  useEffect(() => {
     if (!practiceId || role !== "Owner" || isOwnerView) {
       setPreviewOptions([])
       setPreviewStaffId(null)
@@ -139,21 +154,60 @@ export function DashboardPage({
     const dbRole = roleMap[viewRole as CalendarRole]
     if (!dbRole) return
 
-    getRosterStaffByRole(practiceId, dbRole)
-      .then((options) => {
+    const preferredName = PREVIEW_DEFAULTS[viewRole as CalendarRole]
+
+    async function loadOptions() {
+      if (viewRole === "BCBA") {
+        const options = await getRosterStaffByRole(practiceId!, "bcba")
         setPreviewOptions(options)
-        const preferredName = PREVIEW_DEFAULTS[viewRole as CalendarRole]
+        const preferred = options.find((s) => s.fullName === preferredName)
+        setPreviewStaffId((prev) => {
+          if (prev && options.some((s) => s.id === prev)) return prev
+          const next = preferred?.id ?? options[0]?.id ?? null
+          if (next) setAnchorBcbaId(next)
+          return next
+        })
+        return
+      }
+
+      if (anchorBcbaId) {
+        const caseloadRole = viewRole === "Supervisor" ? "supervisor" : "technician"
+        const staff = await getCaseloadStaffForBcba(practiceId!, anchorBcbaId, caseloadRole)
+        const options: RosterStaffEntry[] = staff.map((s) => ({
+          id: s.staffId,
+          fullName: s.fullName,
+          externalCode: s.externalCode,
+          role: caseloadRole,
+        }))
+        setPreviewOptions(options)
         const preferred = options.find((s) => s.fullName === preferredName)
         setPreviewStaffId((prev) => {
           if (prev && options.some((s) => s.id === prev)) return prev
           return preferred?.id ?? options[0]?.id ?? null
         })
+        return
+      }
+
+      const options = await getRosterStaffByRole(practiceId!, dbRole)
+      setPreviewOptions(options)
+      const preferred = options.find((s) => s.fullName === preferredName)
+      setPreviewStaffId((prev) => {
+        if (prev && options.some((s) => s.id === prev)) return prev
+        return preferred?.id ?? options[0]?.id ?? null
       })
-      .catch(() => {
-        setPreviewOptions([])
-        setPreviewStaffId(null)
-      })
-  }, [practiceId, role, viewRole, isOwnerView])
+    }
+
+    loadOptions().catch(() => {
+      setPreviewOptions([])
+      setPreviewStaffId(null)
+    })
+  }, [practiceId, role, viewRole, isOwnerView, anchorBcbaId])
+
+  useEffect(() => {
+    if (viewRole === "BCBA" && previewStaffId) {
+      setAnchorBcbaId(previewStaffId)
+    }
+  }, [viewRole, previewStaffId])
 
   const rosterScope =
     rosterTechnicianIds.length > 0
@@ -167,6 +221,7 @@ export function DashboardPage({
       setScopeStaffIds([])
       setScopeClientIds([])
       setScopeSuperviseeIds([])
+      setScopeTeamStaffIds([])
       return
     }
 
@@ -186,6 +241,7 @@ export function DashboardPage({
           setScopeStaffIds([])
           setScopeClientIds([])
           setScopeSuperviseeIds([])
+          setScopeTeamStaffIds([])
           return
         }
 
@@ -196,11 +252,13 @@ export function DashboardPage({
           setScopeStaffIds([id])
           setScopeClientIds([])
           setScopeSuperviseeIds([])
+          setScopeTeamStaffIds([id])
         } else {
           const filters = await resolveCaseloadFilters({ mode: "caseload", staffId: id })
           setScopeStaffIds(filters.staffIds)
           setScopeClientIds(filters.clientIds)
           setScopeSuperviseeIds(filters.superviseeStaffIds)
+          setScopeTeamStaffIds(filters.teamStaffIds)
         }
       })
       .finally(() => setScopeLoading(false))
@@ -320,21 +378,33 @@ export function DashboardPage({
             practiceId={practiceId}
           />
 
+          {isOwnerPreview && viewRole === "BCBA" && effectiveStaffId && practiceId && (
+            <BcbaCaseloadPanel
+              practiceId={practiceId}
+              bcbaStaffId={effectiveStaffId}
+              bcbaName={selectedPreviewStaff?.fullName ?? staffDisplayName}
+            />
+          )}
+
           {!scopeLoading && effectiveStaffId && isBcbaOrSupervisor && (
             <div className="grid gap-4 lg:grid-cols-2">
               <NotesOverdueTile
                 refreshKey={notesRefreshKey}
-                staffIds={scopeSuperviseeIds}
+                staffIds={viewRole === "BCBA" ? scopeTeamStaffIds : scopeSuperviseeIds}
                 clientIds={scopeClientIds}
+                includeCaseloadStaff={viewRole === "BCBA"}
               />
               <HoursByStaffTile
                 refreshKey={staffRefreshKey}
-                staffIds={scopeSuperviseeIds}
+                staffIds={viewRole === "BCBA" ? scopeTeamStaffIds : scopeSuperviseeIds}
                 clientIds={scopeClientIds}
                 includeZeroHourStaff={viewRole === "BCBA"}
               />
               <AuthorizationUtilizationTile clientIds={scopeClientIds} />
-              <SupervisionComplianceTile staffIds={scopeSuperviseeIds} />
+              <SupervisionComplianceTile
+                staffIds={scopeSuperviseeIds}
+                includeAllCaseloadStaff={viewRole === "BCBA"}
+              />
             </div>
           )}
 

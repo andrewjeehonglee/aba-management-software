@@ -98,3 +98,69 @@ export async function getStaffIdsForClientsByRoles(
   const ids = (data ?? []).map((row) => (row as { staff_id: string }).staff_id)
   return [...new Set(ids)]
 }
+
+export interface CareTeamMember {
+  staffId: string
+  fullName: string
+  externalCode: string
+}
+
+export interface CareTeamDetails {
+  bcba: CareTeamMember | null
+  supervisor: CareTeamMember | null
+  bt: CareTeamMember | null
+  hasAssignments: boolean
+}
+
+type StaffCareRow = {
+  id: string
+  full_name: string
+  external_code: string | null
+  status: string | null
+}
+
+function mapRosterStaff(row: StaffCareRow): CareTeamMember | null {
+  if (!row.external_code?.trim()) return null
+  if ((row.status ?? "active").toLowerCase() === "inactive") return null
+  return {
+    staffId: row.id,
+    fullName: row.full_name,
+    externalCode: row.external_code,
+  }
+}
+
+/** Care team from active client_assignments + roster staff only. */
+export async function getCareTeamDetailsForClient(
+  clientId: string,
+): Promise<CareTeamDetails> {
+  const assignments = await getAssignmentsForClient(clientId)
+  if (assignments.length === 0) {
+    return { bcba: null, supervisor: null, bt: null, hasAssignments: false }
+  }
+
+  const staffIds = [...new Set(assignments.map((a) => a.staffId))]
+  const { data, error } = await supabase
+    .from("staff")
+    .select("id, full_name, external_code, status")
+    .in("id", staffIds)
+
+  if (error) throw error
+
+  const staffById = new Map(
+    ((data ?? []) as StaffCareRow[]).map((s) => [s.id, s]),
+  )
+
+  const pick = (role: ClientAssignmentRole): CareTeamMember | null => {
+    const assignment = assignments.find((a) => a.assignmentRole === role)
+    if (!assignment) return null
+    const staff = staffById.get(assignment.staffId)
+    return staff ? mapRosterStaff(staff) : null
+  }
+
+  return {
+    hasAssignments: true,
+    bcba: pick("primary_bcba"),
+    supervisor: pick("clinical_supervisor"),
+    bt: pick("primary_bt"),
+  }
+}

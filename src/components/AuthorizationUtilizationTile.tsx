@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card"
 import { getAuthUtilizationByMonth, type ClientAuthUtilRow } from "@/lib/authUtilization"
 import { FLAGGED_THRESHOLD, utilizationClass } from "@/lib/authorization"
+import { clientProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 
@@ -30,6 +31,7 @@ function MiniBar({ pct }: { pct: number }) {
 
 function AuthClientRow({ row }: { row: ClientAuthUtilRow }) {
   const { text } = utilizationClass(row.utilizationPct)
+  const href = row.clientCode ? clientProfilePath(row.clientCode) : null
 
   return (
     <div className="space-y-1.5 rounded-lg border border-border/50 bg-card px-3 py-2.5 shadow-sm">
@@ -41,15 +43,24 @@ function AuthClientRow({ row }: { row: ClientAuthUtilRow }) {
               aria-label={`At or above ${FLAGGED_THRESHOLD}% utilization`}
             />
           )}
-          <Link
-            to={"/clients/" + row.clientId}
-            className={cn(
-              "truncate text-sm hover:underline underline-offset-2",
+          {href ? (
+            <Link
+              to={href}
+              className={cn(
+                "truncate text-sm hover:underline underline-offset-2",
+                row.flagged ? "font-medium text-amber-800" : "font-medium text-[#1E2A2A]",
+              )}
+            >
+              {row.clientName}
+            </Link>
+          ) : (
+            <span className={cn(
+              "truncate text-sm",
               row.flagged ? "font-medium text-amber-800" : "font-medium text-[#1E2A2A]",
-            )}
-          >
-            {row.clientName}
-          </Link>
+            )}>
+              {row.clientName}
+            </span>
+          )}
         </div>
         <p className={cn("shrink-0 text-xs tabular-nums", text)}>
           {row.usedHours} / {row.authorizedHours} hrs · {row.utilizationPct}%
@@ -129,7 +140,11 @@ export function AuthorizationUtilizationTile({
         {!loading && !error && sortedClients.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
             <BadgeCheck className="w-8 h-8 text-[#14A0A5]" />
-            <p className="text-sm text-muted-foreground">No billable sessions this month.</p>
+            <p className="text-sm text-muted-foreground">
+              {clientIds?.length
+                ? "No authorization records for this caseload yet."
+                : "No billable sessions this month."}
+            </p>
           </div>
         )}
         {!loading && !error && sortedClients.length > 0 && (

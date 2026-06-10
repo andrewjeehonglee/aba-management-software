@@ -13,7 +13,13 @@ interface AuthRow {
   id: string
   client_id: string
   authorized_units: number
-  clients: { first_name: string; last_name: string; team: string; status: string | null }
+  clients: {
+    first_name: string
+    last_name: string
+    external_code: string | null
+    team: string
+    status: string | null
+  }
 }
 
 interface ClientSessionRow {
@@ -34,6 +40,7 @@ interface SessionNoteRow {
 export interface ClientAuthUtilRow {
   authId: string
   clientId: string
+  clientCode: string | null
   clientName: string
   clientTeam: string
   authorizedHours: number
@@ -55,12 +62,16 @@ export async function getAuthUtilizationByMonth(
 
   const { data: authData, error: authError } = await supabase
     .from("authorizations")
-    .select("id, client_id, authorized_units, clients(first_name, last_name, team, status)")
+    .select("id, client_id, authorized_units, clients(first_name, last_name, external_code, team, status)")
 
   if (authError) throw authError
 
   const auths = (authData ?? []) as unknown as AuthRow[]
-  let activeAuths = auths.filter((a) => a.clients?.status === "active" || a.clients?.status == null)
+  let activeAuths = auths.filter(
+    (a) =>
+      (a.clients?.status === "active" || a.clients?.status == null) &&
+      a.clients?.external_code?.trim(),
+  )
 
   if (options?.clientIds?.length) {
     const allowed = new Set(options.clientIds)
@@ -125,11 +136,18 @@ export async function getAuthUtilizationByMonth(
       const utilizationPct = authorizedHours > 0
         ? Math.round((usedHours / authorizedHours) * 100)
         : 0
+      const code = auth.clients.external_code
+      const nameParts = [auth.clients.first_name, auth.clients.last_name].filter(Boolean)
+      let displayName = "Unknown"
+      if (code && nameParts.length) displayName = `${code} — ${nameParts.join(" ")}`
+      else if (code) displayName = code
+      else if (nameParts.length) displayName = nameParts.join(" ")
 
       return {
         authId: auth.id,
         clientId: auth.client_id,
-        clientName: `${auth.clients.first_name} ${auth.clients.last_name}`,
+        clientCode: code,
+        clientName: displayName,
         clientTeam: teamLabel(auth.clients.team),
         authorizedHours,
         usedHours,
@@ -137,7 +155,7 @@ export async function getAuthUtilizationByMonth(
         flagged: utilizationPct >= FLAGGED_THRESHOLD,
       }
     })
-    .filter((row) => row.usedHours > 0)
+    .filter((row) => options?.clientIds?.length ? true : row.usedHours > 0)
     .sort(
       (a, b) =>
         b.utilizationPct - a.utilizationPct ||

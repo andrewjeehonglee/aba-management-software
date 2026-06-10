@@ -82,7 +82,7 @@ function classifyNoteBucket(
 
 export async function getNotesStatus(
   now: Date = new Date(),
-  options?: { staffIds?: string[]; clientIds?: string[] },
+  options?: { staffIds?: string[]; clientIds?: string[]; includeCaseloadStaff?: boolean },
 ): Promise<NotesStatusSummary> {
   const payPeriod = getCurrentPayPeriod(now)
 
@@ -106,7 +106,8 @@ export async function getNotesStatus(
   if (sessionsError) throw sessionsError
 
   const completedSessions = (sessionsData ?? []) as unknown as CompletedSessionRow[]
-  if (completedSessions.length === 0) {
+
+  if (completedSessions.length === 0 && !options?.includeCaseloadStaff) {
     return {
       payPeriodLabel: payPeriod.label,
       totalMissing: 0,
@@ -116,21 +117,23 @@ export async function getNotesStatus(
   }
 
   const sessionIds = completedSessions.map((s) => s.id)
-  const staffIds = [...new Set(completedSessions.map((s) => s.staff_id))]
+  const sessionStaffIds = [...new Set(completedSessions.map((s) => s.staff_id))]
 
   const [{ data: notesData, error: notesError }, { data: staffSessionsData, error: staffSessionsError }] =
-    await Promise.all([
-      supabase
-        .from("session_notes")
-        .select("session_id, subjective, objective, assessment, plan")
-        .in("session_id", sessionIds),
-      supabase
-        .from("sessions")
-        .select("staff_id, scheduled_at, status")
-        .in("staff_id", staffIds)
-        .neq("status", "cancelled")
-        .order("scheduled_at", { ascending: true }),
-    ])
+    completedSessions.length > 0
+      ? await Promise.all([
+          supabase
+            .from("session_notes")
+            .select("session_id, subjective, objective, assessment, plan")
+            .in("session_id", sessionIds),
+          supabase
+            .from("sessions")
+            .select("staff_id, scheduled_at, status")
+            .in("staff_id", sessionStaffIds)
+            .neq("status", "cancelled")
+            .order("scheduled_at", { ascending: true }),
+        ])
+      : [{ data: [], error: null }, { data: [], error: null }]
 
   if (notesError) throw notesError
   if (staffSessionsError) throw staffSessionsError
@@ -180,6 +183,35 @@ export async function getNotesStatus(
           clientName,
           bucket,
         }],
+      })
+    }
+  }
+
+  if (options?.includeCaseloadStaff && options.staffIds?.length) {
+    const { data: rosterStaff, error: rosterError } = await supabase
+      .from("staff")
+      .select("id, full_name, external_code, team")
+      .in("id", options.staffIds)
+      .not("external_code", "is", null)
+      .eq("status", "active")
+
+    if (rosterError) throw rosterError
+
+    for (const staff of (rosterStaff ?? []) as {
+      id: string
+      full_name: string
+      external_code: string
+      team: string | null
+    }[]) {
+      if (byStaffMap.has(staff.id)) continue
+      byStaffMap.set(staff.id, {
+        staffId: staff.id,
+        staffName: staff.full_name,
+        staffExternalCode: staff.external_code,
+        staffTeam: teamLabel(staff.team),
+        missingCount: 0,
+        overdueCount: 0,
+        items: [],
       })
     }
   }

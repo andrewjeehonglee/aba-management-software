@@ -30,6 +30,12 @@ const PREVIEW_PREFERRED_NAME: Record<DashboardViewRole, string> = {
   Technician: "Jazmine",
 }
 
+const PREVIEW_EXTERNAL_CODE: Record<DashboardViewRole, string> = {
+  BCBA: "SPG-BCBA-jennifer",
+  Supervisor: "SPG-SUP-hilary",
+  Technician: "SPG-BT-jazmine",
+}
+
 const PREVIEW_ROLE_FILTER: Record<DashboardViewRole, StaffRole> = {
   BCBA: "bcba",
   Supervisor: "supervisor",
@@ -93,6 +99,8 @@ async function filterActiveClientIds(clientIds: string[]): Promise<string[]> {
     .select("id")
     .in("id", clientIds)
     .eq("status", "active")
+    .not("external_code", "is", null)
+    .neq("external_code", "")
 
   if (error) throw error
   return ((data ?? []) as { id: string }[]).map((row) => row.id)
@@ -273,12 +281,25 @@ export async function resolvePreviewStaffId(
   const pid = practiceId ?? (await resolvePracticeIdForCurrentUser())
   if (!pid) return null
 
+  const preferredCode = PREVIEW_EXTERNAL_CODE[viewRole]
+  const { data: byCode, error: codeError } = await supabase
+    .from("staff")
+    .select("id")
+    .eq("practice_id", pid)
+    .eq("external_code", preferredCode)
+    .eq("status", "active")
+    .maybeSingle()
+
+  if (codeError) throw codeError
+  if (byCode) return (byCode as { id: string }).id
+
   const preferredName = PREVIEW_PREFERRED_NAME[viewRole]
   const { data: byName, error: nameError } = await supabase
     .from("staff")
     .select("id")
     .eq("practice_id", pid)
     .eq("full_name", preferredName)
+    .eq("status", "active")
     .maybeSingle()
 
   if (nameError) throw nameError
@@ -319,13 +340,39 @@ export async function getStaffFullName(staffId: string): Promise<string | null> 
   return data ? (data as { full_name: string }).full_name : null
 }
 
+/** Supervisors + BTs on BCBA caseload — for notes/hours visibility tiles. */
+export async function getCaseloadTeamStaffIdsForBcba(staffId: string): Promise<string[]> {
+  const clientIds = await getCaseloadClientIdsForBcba(staffId)
+  if (clientIds.length === 0) return []
+
+  const teamRoles: ClientAssignmentRole[] = [
+    "clinical_supervisor",
+    "primary_bt",
+    "secondary_bt",
+  ]
+  const staffIds = await getStaffIdsForClientsByRoles(clientIds, teamRoles)
+  if (staffIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("staff")
+    .select("id")
+    .in("id", staffIds)
+    .not("external_code", "is", null)
+    .neq("external_code", "")
+    .eq("status", "active")
+
+  if (error) throw error
+  return ((data ?? []) as { id: string }[]).map((row) => row.id)
+}
+
 export async function resolveCaseloadFilters(scope: DashboardScope): Promise<{
   staffIds: string[]
   clientIds: string[]
   superviseeStaffIds: string[]
+  teamStaffIds: string[]
 }> {
   if (scope.mode === "practice") {
-    return { staffIds: [], clientIds: [], superviseeStaffIds: [] }
+    return { staffIds: [], clientIds: [], superviseeStaffIds: [], teamStaffIds: [] }
   }
 
   if (scope.mode === "self") {
@@ -333,16 +380,18 @@ export async function resolveCaseloadFilters(scope: DashboardScope): Promise<{
       staffIds: [scope.staffId],
       clientIds: [],
       superviseeStaffIds: [],
+      teamStaffIds: [scope.staffId],
     }
   }
 
-  const [staffIds, clientIds, superviseeStaffIds] = await Promise.all([
+  const [staffIds, clientIds, superviseeStaffIds, teamStaffIds] = await Promise.all([
     getCaseloadStaffIdsForBcba(scope.staffId),
     getCaseloadClientIdsForBcba(scope.staffId),
     getSuperviseeStaffIdsForBcba(scope.staffId),
+    getCaseloadTeamStaffIdsForBcba(scope.staffId),
   ])
 
-  return { staffIds, clientIds, superviseeStaffIds }
+  return { staffIds, clientIds, superviseeStaffIds, teamStaffIds }
 }
 
 export function supervisionOverlapsCurrentMonth(

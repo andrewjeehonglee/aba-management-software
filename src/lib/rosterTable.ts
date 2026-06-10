@@ -182,6 +182,65 @@ export interface ClientCaseloadLabel {
   displayName: string
 }
 
+export interface CaseloadStaffLink {
+  staffId: string
+  fullName: string
+  externalCode: string
+}
+
+export interface BcbaCaseloadOverview {
+  bcbaStaffId: string
+  clients: { clientId: string; clientCode: string }[]
+  supervisors: CaseloadStaffLink[]
+  technicians: CaseloadStaffLink[]
+}
+
+export async function getBcbaCaseloadOverview(
+  practiceId: string,
+  bcbaStaffId: string,
+): Promise<BcbaCaseloadOverview> {
+  const rows = await getRosterRows(practiceId, { bcbaStaffId })
+
+  const supervisorMap = new Map<string, CaseloadStaffLink>()
+  const technicianMap = new Map<string, CaseloadStaffLink>()
+
+  for (const row of rows) {
+    if (row.supervisorId && row.supervisorName && row.supervisorCode) {
+      supervisorMap.set(row.supervisorId, {
+        staffId: row.supervisorId,
+        fullName: row.supervisorName,
+        externalCode: row.supervisorCode,
+      })
+    }
+    if (row.btId && row.btName && row.btCode) {
+      technicianMap.set(row.btId, {
+        staffId: row.btId,
+        fullName: row.btName,
+        externalCode: row.btCode,
+      })
+    }
+  }
+
+  const byName = (a: CaseloadStaffLink, b: CaseloadStaffLink) =>
+    a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" })
+
+  return {
+    bcbaStaffId,
+    clients: rows.map((r) => ({ clientId: r.clientId, clientCode: r.clientCode })),
+    supervisors: [...supervisorMap.values()].sort(byName),
+    technicians: [...technicianMap.values()].sort(byName),
+  }
+}
+
+export async function getCaseloadStaffForBcba(
+  practiceId: string,
+  bcbaStaffId: string,
+  role: "supervisor" | "technician",
+): Promise<CaseloadStaffLink[]> {
+  const overview = await getBcbaCaseloadOverview(practiceId, bcbaStaffId)
+  return role === "supervisor" ? overview.supervisors : overview.technicians
+}
+
 export async function getClientCaseloadLabels(
   clientIds: string[],
 ): Promise<ClientCaseloadLabel[]> {

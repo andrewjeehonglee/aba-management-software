@@ -207,8 +207,47 @@ export async function resolveStaffByRouteKey(
   return bySlug ?? null
 }
 
-const CLIENT_DETAIL_SELECT =
-  "id, external_code, first_name, last_name, date_of_birth, home_address, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff!assigned_staff_id(full_name)"
+const CLIENT_DETAIL_COLUMNS =
+  "id, external_code, first_name, last_name, date_of_birth, home_address, status, team, insurance, auth_start_date, auth_end_date, cpt_codes"
+
+async function fetchClientDetailRow(
+  practiceId: string,
+  routeKey: string,
+): Promise<Omit<ClientDetail, "assigned_staff"> | null> {
+  let query = supabase
+    .from("clients")
+    .select(CLIENT_DETAIL_COLUMNS)
+    .eq("practice_id", practiceId)
+
+  query = isUuid(routeKey)
+    ? query.eq("id", routeKey)
+    : query.eq("external_code", routeKey)
+
+  let { data, error } = await query.maybeSingle()
+
+  if (error?.message?.includes("home_address")) {
+    const fallback = supabase
+      .from("clients")
+      .select(
+        "id, external_code, first_name, last_name, date_of_birth, status, team, insurance, auth_start_date, auth_end_date, cpt_codes",
+      )
+      .eq("practice_id", practiceId)
+    const q = isUuid(routeKey)
+      ? fallback.eq("id", routeKey)
+      : fallback.eq("external_code", routeKey)
+    ;({ data, error } = await q.maybeSingle())
+    if (data) {
+      data = { ...data, home_address: null }
+    }
+  }
+
+  if (error) throw error
+  if (!data) return null
+
+  const row = data as Omit<ClientDetail, "assigned_staff">
+  if (!isRosterEntity(row.external_code, row.status)) return null
+  return row
+}
 
 export async function resolveClientByRouteKey(
   practiceId: string,
@@ -216,32 +255,11 @@ export async function resolveClientByRouteKey(
 ): Promise<ClientDetail | null> {
   if (!routeKey.trim()) return null
 
-  let query = supabase
-    .from("clients")
-    .select(CLIENT_DETAIL_SELECT)
-    .eq("practice_id", practiceId)
-
-  if (isUuid(routeKey)) {
-    query = query.eq("id", routeKey)
-  } else {
-    query = query.eq("external_code", routeKey)
-  }
-
-  const { data, error } = await query.maybeSingle()
-  if (error) throw error
-  if (!data) {
-    if (isUuid(routeKey)) return null
-    return null
-  }
-
-  const row = data as unknown as Omit<ClientDetail, "assigned_staff"> & {
-    staff: { full_name: string } | null
-  }
-
-  if (!isRosterEntity(row.external_code, row.status)) return null
+  const row = await fetchClientDetailRow(practiceId, routeKey)
+  if (!row) return null
 
   return {
     ...row,
-    assigned_staff: row.staff,
+    assigned_staff: null,
   }
 }

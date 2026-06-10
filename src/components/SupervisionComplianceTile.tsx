@@ -11,6 +11,7 @@ import {
 import {
   getSupervision,
   getSupervisionForStaffIds,
+  supabase,
   type SupervisionRecord,
 } from "@/lib/supabase"
 import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
@@ -45,11 +46,13 @@ export function SupervisionComplianceTile({
   teamFilter,
   staffIds,
   selfMode,
+  includeAllCaseloadStaff,
 }: {
   className?: string
   teamFilter?: TeamFilter
   staffIds?: string[]
   selfMode?: boolean
+  includeAllCaseloadStaff?: boolean
 }) {
   const [allSupervision, setAllSupervision] = useState<SupervisionRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,9 +72,38 @@ export function SupervisionComplianceTile({
     }
 
     load()
-      .then((records) => {
+      .then(async (records) => {
+        let scoped = records
+        if (includeAllCaseloadStaff && staffIds?.length) {
+          const present = new Set(records.map((r) => r.staffId))
+          const missingIds = staffIds.filter((id) => !present.has(id))
+          if (missingIds.length > 0) {
+            const { data: staffRows } = await supabase
+              .from("staff")
+              .select("id, full_name, external_code, team")
+              .in("id", missingIds)
+              .eq("status", "active")
+            for (const s of (staffRows ?? []) as {
+              id: string
+              full_name: string
+              external_code: string | null
+              team: string | null
+            }[]) {
+              scoped.push({
+                id: `placeholder-${s.id}`,
+                staffId: s.id,
+                staffName: s.full_name,
+                staffExternalCode: s.external_code,
+                staffTeam: s.team?.startsWith("Team") ? s.team : s.team ? `Team ${s.team}` : "",
+                supervisionPct: 0,
+                periodStart: "2026-06-01",
+                periodEnd: "2026-06-30",
+              })
+            }
+          }
+        }
         const { records: filtered, displayMonthLabel, isFallbackPeriod: fallback } =
-          filterSupervisionRecordsForTile(records)
+          filterSupervisionRecordsForTile(scoped)
         if (staffIds?.length && filtered.length === 0 && records.length > 0) {
           console.warn("[Supervision] scoped IDs had no rows for display period", staffIds)
         }
@@ -87,7 +119,7 @@ export function SupervisionComplianceTile({
       })
       .catch((err) => setError(err.message ?? "Failed to load supervision data"))
       .finally(() => setLoading(false))
-  }, [staffIds, selfMode])
+  }, [staffIds, selfMode, includeAllCaseloadStaff])
 
   const teamSupervision = teamFilter && teamFilter !== "All" && !staffIds?.length
     ? allSupervision.filter((r) => r.staffTeam === teamFilter)

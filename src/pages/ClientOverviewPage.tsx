@@ -34,7 +34,7 @@ import {
 import { formatEventStamp, formatTime } from "@/lib/sessions"
 import { resolveClientByRouteKey, staffProfilePath } from "@/lib/rosterScope"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
-import { getAssignmentsForClient } from "@/lib/clientAssignments"
+import { getCareTeamDetailsForClient } from "@/lib/clientAssignments"
 import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
 import type { ClientAuthorization } from "@/types/authorization"
 import type { Goal } from "@/types/goal"
@@ -1107,7 +1107,7 @@ function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
   )
 }
 
-// Care team from client_assignments; legacy assigned_staff when no rows exist.
+// Care team from client_assignments (roster staff only).
 function CareTeamCard({
   clientId,
   legacyStaffName,
@@ -1116,68 +1116,18 @@ function CareTeamCard({
   legacyStaffName?: string
 }) {
   const [loading, setLoading] = useState(true)
-  const [bcbaName, setBcbaName] = useState<string | null>(null)
-  const [supervisorName, setSupervisorName] = useState<string | null>(null)
-  const [btName, setBtName] = useState<string | null>(null)
-  const [bcbaCode, setBcbaCode] = useState<string | null>(null)
-  const [supervisorCode, setSupervisorCode] = useState<string | null>(null)
-  const [btCode, setBtCode] = useState<string | null>(null)
-  const [btUnassigned, setBtUnassigned] = useState(false)
-  const [hasAssignments, setHasAssignments] = useState(false)
+  const [team, setTeam] = useState<Awaited<ReturnType<typeof getCareTeamDetailsForClient>> | null>(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
 
-    getAssignmentsForClient(clientId)
-      .then(async (assignments) => {
-        if (cancelled) return
-        if (assignments.length === 0) {
-          setHasAssignments(false)
-          setBcbaName(null)
-          setSupervisorName(null)
-          setBcbaCode(null)
-          setSupervisorCode(null)
-          setBtCode(null)
-          setBtName(legacyStaffName ?? null)
-          setBtUnassigned(!legacyStaffName)
-          return
-        }
-
-        setHasAssignments(true)
-        const staffIds = [...new Set(assignments.map((a) => a.staffId))]
-        const { data, error } = await supabase
-          .from("staff")
-          .select("id, full_name, external_code")
-          .in("id", staffIds)
-
-        if (error) throw error
-        const staffById = new Map(
-          ((data ?? []) as { id: string; full_name: string; external_code: string }[]).map((s) => [s.id, s]),
-        )
-
-        const bcba = assignments.find((a) => a.assignmentRole === "primary_bcba")
-        const supervisor = assignments.find((a) => a.assignmentRole === "clinical_supervisor")
-        const bt = assignments.find((a) => a.assignmentRole === "primary_bt")
-
-        const bcbaStaff = bcba ? staffById.get(bcba.staffId) : undefined
-        const supervisorStaff = supervisor ? staffById.get(supervisor.staffId) : undefined
-        const btStaff = bt ? staffById.get(bt.staffId) : undefined
-
-        setBcbaName(bcbaStaff?.full_name ?? null)
-        setSupervisorName(supervisorStaff?.full_name ?? null)
-        setBtName(btStaff?.full_name ?? null)
-        setBcbaCode(bcbaStaff?.external_code ?? null)
-        setSupervisorCode(supervisorStaff?.external_code ?? null)
-        setBtCode(btStaff?.external_code ?? null)
-        setBtUnassigned(!bt)
+    getCareTeamDetailsForClient(clientId)
+      .then((details) => {
+        if (!cancelled) setTeam(details)
       })
       .catch(() => {
-        if (!cancelled) {
-          setHasAssignments(false)
-          setBtName(legacyStaffName ?? null)
-          setBtUnassigned(!legacyStaffName)
-        }
+        if (!cancelled) setTeam(null)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -1186,7 +1136,7 @@ function CareTeamCard({
     return () => {
       cancelled = true
     }
-  }, [clientId, legacyStaffName])
+  }, [clientId])
 
   if (loading) {
     return (
@@ -1196,28 +1146,41 @@ function CareTeamCard({
     )
   }
 
+  const bcba = team?.bcba
+  const supervisor = team?.supervisor
+  const bt = team?.bt
+  const hasAssignments = team?.hasAssignments ?? false
+  const btUnassigned = hasAssignments && !bt
+  const legacyBtOnly = !hasAssignments && legacyStaffName
+
   return (
     <div className="rounded-md border border-border p-4 space-y-3">
       <p className="text-sm font-semibold">Care Team</p>
+      {!hasAssignments && !legacyBtOnly && (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          No active care-team assignments for this client. Re-import the roster or check Supabase{" "}
+          <code className="text-[11px]">client_assignments</code>.
+        </p>
+      )}
       <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
         {hasAssignments && (
           <>
             <dt className="text-muted-foreground">BCBA</dt>
             <dd>
-              {bcbaName && bcbaCode ? (
-                <Link to={staffProfilePath(bcbaCode)} className="hover:underline underline-offset-2">
-                  {bcbaName}
+              {bcba ? (
+                <Link to={staffProfilePath(bcba.externalCode)} className="hover:underline underline-offset-2">
+                  {bcba.fullName}
                 </Link>
-              ) : bcbaName ?? "—"}
+              ) : "—"}
             </dd>
 
             <dt className="text-muted-foreground">Clinical Supervisor</dt>
             <dd>
-              {supervisorName && supervisorCode ? (
-                <Link to={staffProfilePath(supervisorCode)} className="hover:underline underline-offset-2">
-                  {supervisorName}
+              {supervisor ? (
+                <Link to={staffProfilePath(supervisor.externalCode)} className="hover:underline underline-offset-2">
+                  {supervisor.fullName}
                 </Link>
-              ) : supervisorName ?? "—"}
+              ) : "—"}
             </dd>
           </>
         )}
@@ -1229,11 +1192,13 @@ function CareTeamCard({
               <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
               Unassigned
             </span>
-          ) : btName && btCode ? (
-            <Link to={staffProfilePath(btCode)} className="hover:underline underline-offset-2">
-              {btName}
+          ) : bt ? (
+            <Link to={staffProfilePath(bt.externalCode)} className="hover:underline underline-offset-2">
+              {bt.fullName}
             </Link>
-          ) : btName ?? "—"}
+          ) : legacyBtOnly ? (
+            <span className="text-muted-foreground">{legacyStaffName}</span>
+          ) : "—"}
         </dd>
       </dl>
     </div>

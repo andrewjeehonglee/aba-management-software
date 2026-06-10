@@ -361,7 +361,11 @@ export function HoursByStaffTile({
         {!loading && !error && sortedStaff.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
             <Users className="w-8 h-8 text-[#14A0A5]" />
-            <p className="text-sm text-muted-foreground">No billable sessions this month.</p>
+            <p className="text-sm text-muted-foreground">
+              {includeZeroHourStaff
+                ? "No caseload staff to display."
+                : "No billable sessions this month."}
+            </p>
           </div>
         )}
         {!loading && !error && sortedStaff.length > 0 && (

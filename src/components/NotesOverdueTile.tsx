@@ -57,6 +57,7 @@ export function NotesOverdueTile({
   staffIds,
   clientIds,
   selfMode,
+  includeCaseloadStaff,
 }: {
   className?: string
   teamFilter?: string
@@ -64,6 +65,7 @@ export function NotesOverdueTile({
   staffIds?: string[]
   clientIds?: string[]
   selfMode?: boolean
+  includeCaseloadStaff?: boolean
 }) {
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -74,14 +76,18 @@ export function NotesOverdueTile({
     setError(null)
     getNotesStatus(
       undefined,
-      staffIds?.length || clientIds?.length
-        ? { staffIds: staffIds?.length ? staffIds : undefined, clientIds: clientIds?.length ? clientIds : undefined }
+      staffIds?.length || clientIds?.length || includeCaseloadStaff
+        ? {
+            staffIds: staffIds?.length ? staffIds : undefined,
+            clientIds: clientIds?.length ? clientIds : undefined,
+            includeCaseloadStaff,
+          }
         : undefined,
     )
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load notes status"))
       .finally(() => setLoading(false))
-  }, [refreshKey, staffIds, clientIds])
+  }, [refreshKey, staffIds, clientIds, includeCaseloadStaff])
 
   const sortedStaff = summary
     ? [...summary.byStaff].sort(sortByOverdueDesc)
@@ -92,6 +98,7 @@ export function NotesOverdueTile({
   const staffWithGaps = sortedStaff.length
   const urgency = urgencyLevel(totalOverdue, totalMissing)
   const hasGaps = totalMissing > 0 || totalOverdue > 0
+  const showCaseloadRoster = Boolean(includeCaseloadStaff && sortedStaff.length > 0 && !selfMode)
 
   const borderClass = urgency === "critical" ? "border-l-4 border-l-red-500"
                     : urgency === "warning"  ? "border-l-4 border-l-amber-500"
@@ -132,13 +139,35 @@ export function NotesOverdueTile({
         {error && (
           <p className="py-10 text-center text-sm text-destructive">{error}</p>
         )}
-        {!loading && !error && !hasGaps && (
+        {!loading && !error && !hasGaps && !showCaseloadRoster && (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-8 text-center">
             <CheckCircle2 className="w-8 h-8 text-[#14A0A5]" />
             <p className="text-sm text-muted-foreground">
               All completed sessions this pay period have notes.
             </p>
           </div>
+        )}
+        {!loading && !error && showCaseloadRoster && !hasGaps && (
+          <>
+            <p className="text-xs text-muted-foreground mb-2">
+              Caseload team — all notes complete this pay period
+            </p>
+            <ul className="space-y-2">
+              {sortedStaff.map((row) => (
+                <li key={row.staffId} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="truncate min-w-0 pr-2">
+                    <Link
+                      to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : "#"}
+                      className="hover:underline underline-offset-2"
+                    >
+                      {row.staffName}
+                    </Link>
+                  </span>
+                  <span className="text-xs text-emerald-700 shrink-0">0 gaps</span>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
         {!loading && !error && hasGaps && selfMode && (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
@@ -180,7 +209,9 @@ export function NotesOverdueTile({
                 </div>
               )}
               <span className="text-xs text-muted-foreground w-full sm:w-auto">
-                across {staffWithGaps} staff
+                {includeCaseloadStaff
+                  ? `${sortedStaff.length} on caseload`
+                  : `across ${staffWithGaps} staff`}
               </span>
             </div>
 
@@ -196,8 +227,14 @@ export function NotesOverdueTile({
                     </Link>
                   </span>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    <MissingPill count={row.missingCount} />
-                    <OverduePill count={row.overdueCount} />
+                    {row.missingCount === 0 && row.overdueCount === 0 ? (
+                      <span className="text-xs text-emerald-700">0 gaps</span>
+                    ) : (
+                      <>
+                        <MissingPill count={row.missingCount} />
+                        <OverduePill count={row.overdueCount} />
+                      </>
+                    )}
                   </div>
                 </li>
               ))}
