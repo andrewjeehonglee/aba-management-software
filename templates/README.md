@@ -51,3 +51,7 @@ Practice IDs:
 | Coastal demo | `a1b2c3d4-0000-0000-0000-000000000001` | `a1b2c3d4` |
 
 Expected assignment counts per practice after import: `primary_bcba=16`, `clinical_supervisor=16`, `primary_bt=11` (5 clients with unassigned BT).
+
+## Demo activity seed
+
+After roster import, run `seed_roster_demo_activity.sql` in the Supabase SQL Editor to populate June 2026 sessions, notes, authorizations, and supervision for roster staff/clients in **both** practices. Idempotent — safe to re-run.

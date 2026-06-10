@@ -13,6 +13,7 @@ import {
   resolveCaseloadFilters,
   resolveEffectiveStaffId,
 } from "@/lib/dashboardScope"
+import { getRosterClientIds, getRosterStaffIds } from "@/lib/rosterScope"
 import { setRolePreview } from "@/lib/rolePreview"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
@@ -67,6 +68,8 @@ export function DashboardPage({
   const [scopeClientIds, setScopeClientIds] = useState<string[]>([])
   const [scopeSuperviseeIds, setScopeSuperviseeIds] = useState<string[]>([])
   const [scopeLoading, setScopeLoading] = useState(false)
+  const [rosterStaffIds, setRosterStaffIds] = useState<string[]>([])
+  const [rosterClientIds, setRosterClientIds] = useState<string[]>([])
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -78,6 +81,27 @@ export function DashboardPage({
       }, { replace: true })
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isOwnerView || !practiceId) {
+      setRosterStaffIds([])
+      setRosterClientIds([])
+      return
+    }
+
+    Promise.all([
+      getRosterStaffIds(practiceId),
+      getRosterClientIds(practiceId),
+    ])
+      .then(([staffIds, clientIds]) => {
+        setRosterStaffIds(staffIds)
+        setRosterClientIds(clientIds)
+      })
+      .catch(() => {
+        setRosterStaffIds([])
+        setRosterClientIds([])
+      })
+  }, [isOwnerView, practiceId])
 
   useEffect(() => {
     if (isOwnerView) {
@@ -165,14 +189,20 @@ export function DashboardPage({
       {isOwnerView ? (
         <div className="grid w-full max-w-[min(100%,1680px)] gap-4 px-4 sm:px-6 lg:grid-cols-3">
           <div id="notes-overdue">
-            <NotesOverdueTile refreshKey={notesRefreshKey} />
+            <NotesOverdueTile
+              refreshKey={notesRefreshKey}
+              staffIds={rosterStaffIds.length > 0 ? rosterStaffIds : undefined}
+            />
           </div>
           <HoursByStaffTile
             refreshKey={staffRefreshKey}
             practiceId={practiceId}
+            staffIds={rosterStaffIds.length > 0 ? rosterStaffIds : undefined}
             onStaffCreated={() => setStaffRefreshKey((k) => k + 1)}
           />
-          <AuthorizationUtilizationTile />
+          <AuthorizationUtilizationTile
+            clientIds={rosterClientIds.length > 0 ? rosterClientIds : undefined}
+          />
         </div>
       ) : (
         <div className="w-full max-w-[min(100%,1680px)] space-y-4 px-4 sm:px-6">
