@@ -171,12 +171,13 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           cancellation_hours: number
         }
 
+        const rawTeam = row.team ?? ""
         setStaff({
           id: row.id,
           name: row.full_name,
           externalCode: row.external_code,
           role: row.role,
-          team: row.team.startsWith("Team") ? row.team : `Team ${row.team}`,
+          team: rawTeam.startsWith("Team") ? rawTeam : rawTeam ? `Team ${rawTeam}` : "—",
           hireDate: row.hire_date,
           certification: row.certification,
           directHours: row.direct_hours,
@@ -311,7 +312,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
                   </div>
                   <div className="truncate min-w-0 py-1.5 text-sm">
                     <Link
-                      to={`/clients/${s.clientId}`}
+                      to={s.clientCode ? `/clients/${s.clientCode}` : `/clients/${s.clientId}`}
                       className="hover:underline underline-offset-2"
                     >
                       {sessionClientLabel(s)}
@@ -497,7 +498,7 @@ function CaseloadRoleSection({
         {clients.map((client) => (
           <Link
             key={client.clientId}
-            to={`/clients/${client.clientId}`}
+            to={client.clientCode ? `/clients/${client.clientCode}` : `/clients/${client.clientId}`}
             className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
           >
             {client.clientCode ?? client.displayName}
