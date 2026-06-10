@@ -92,7 +92,7 @@ export function DashboardPage({
     const calendarRole = viewRole as CalendarRole
     setScopeLoading(true)
 
-    resolveEffectiveStaffId(currentStaffId ?? null, calendarRole, isOwnerPreview)
+    resolveEffectiveStaffId(currentStaffId ?? null, calendarRole, isOwnerPreview, practiceId)
       .then(async (id) => {
         setEffectiveStaffId(id)
         if (!id) {
@@ -118,7 +118,7 @@ export function DashboardPage({
         }
       })
       .finally(() => setScopeLoading(false))
-  }, [currentStaffId, viewRole, isOwnerView, isOwnerPreview, isTechnician])
+  }, [currentStaffId, viewRole, isOwnerView, isOwnerPreview, isTechnician, practiceId])
 
   return (
     <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
@@ -181,6 +181,7 @@ export function DashboardPage({
             isOwnerPreview={isOwnerPreview}
             currentStaffId={isOwnerPreview ? null : (currentStaffId ?? null)}
             staffDisplayName={staffDisplayName}
+            practiceId={practiceId}
           />
 
           {!scopeLoading && effectiveStaffId && isBcbaOrSupervisor && (

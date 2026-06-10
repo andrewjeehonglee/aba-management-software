@@ -71,11 +71,13 @@ export async function loadDashboardCalendarSessions(params: {
   isOwnerPreview: boolean
   includeSupervisees: boolean
   monthDate: Date
+  practiceId?: string
 }): Promise<{ monthLabel: string; sessions: Session[] }> {
   const effectiveStaffId = await resolveEffectiveStaffId(
     params.staffId,
     params.viewRole,
     params.isOwnerPreview,
+    params.practiceId,
   )
 
   if (!effectiveStaffId) {
