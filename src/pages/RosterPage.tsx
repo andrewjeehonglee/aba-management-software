@@ -5,7 +5,7 @@
  * 3. Progressive disclosure — multi-BCBA org view lives here, not on the owner dashboard (3 cards only).
  */
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { AlertCircle, ArrowLeft, ArrowUpDown, CheckCircle2 } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import {
   Card,
@@ -22,6 +22,65 @@ import {
 import { toSlug } from "@/lib/slug"
 
 type BcbaFilter = "all" | string
+type SortKey = "client" | "bcba" | "supervisor" | "bt"
+
+function compareRosterRows(
+  a: RosterRow,
+  b: RosterRow,
+  key: SortKey,
+  dir: "asc" | "desc",
+): number {
+  if (key === "bt") {
+    if (a.btUnassigned && !b.btUnassigned) return 1
+    if (!a.btUnassigned && b.btUnassigned) return -1
+  }
+
+  const value = (row: RosterRow): string => {
+    switch (key) {
+      case "client":
+        return row.clientCode
+      case "bcba":
+        return row.bcbaName ?? ""
+      case "supervisor":
+        return row.supervisorName ?? ""
+      case "bt":
+        return row.btUnassigned ? "Unassigned" : (row.btName ?? "")
+    }
+  }
+
+  const cmp = value(a).localeCompare(value(b), undefined, { sensitivity: "base" })
+  return dir === "asc" ? cmp : -cmp
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  sortDir,
+  onSort,
+  className = "",
+}: {
+  label: string
+  sortKey: SortKey
+  activeKey: SortKey
+  sortDir: "asc" | "desc"
+  onSort: (key: SortKey) => void
+  className?: string
+}) {
+  const isActive = activeKey === sortKey
+  return (
+    <th className={`py-3 pr-4 font-medium ${className}`} aria-sort={isActive ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+      >
+        {label}
+        <ArrowUpDown className={`size-3 ${isActive ? "text-[#0D7377]" : "opacity-40"}`} aria-hidden="true" />
+      </button>
+    </th>
+  )
+}
 
 function UnassignedChip() {
   return (
@@ -159,6 +218,17 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [bcbaFilter, setBcbaFilter] = useState<BcbaFilter>("all")
+  const [sortKey, setSortKey] = useState<SortKey>("client")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
+
+  function handleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortKey(key)
+      setSortDir("asc")
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -190,6 +260,12 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
     if (bcbaFilter === "all") return allRows
     return allRows.filter((r) => r.bcbaId === bcbaFilter)
   }, [allRows, bcbaFilter])
+
+  const sortedRows = useMemo(() => {
+    const rows = [...filteredRows]
+    rows.sort((a, b) => compareRosterRows(a, b, sortKey, sortDir))
+    return rows
+  }, [filteredRows, sortKey, sortDir])
 
   const footerStats = useMemo(() => {
     const btIds = new Set(
@@ -331,14 +407,14 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
                   <table className="w-full text-left px-4">
                     <thead>
                       <tr className="border-b border-border text-xs text-muted-foreground">
-                        <th className="py-3 pr-4 pl-4 font-medium">Client</th>
-                        <th className="py-3 pr-4 font-medium">BCBA</th>
-                        <th className="py-3 pr-4 font-medium">Clinical Supervisor</th>
-                        <th className="py-3 pr-4 font-medium">BT</th>
+                        <SortableHeader label="Client" sortKey="client" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} className="pl-4" />
+                        <SortableHeader label="BCBA" sortKey="bcba" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="Clinical Supervisor" sortKey="supervisor" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                        <SortableHeader label="BT" sortKey="bt" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                       </tr>
                     </thead>
                     <tbody className="px-4">
-                      {filteredRows.map((row) => (
+                      {sortedRows.map((row) => (
                         <RosterTableRow key={row.clientId} row={row} />
                       ))}
                     </tbody>
@@ -346,7 +422,7 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
                 </div>
 
                 <div className="sm:hidden space-y-3">
-                  {filteredRows.map((row) => (
+                  {sortedRows.map((row) => (
                     <RosterMobileCard key={row.clientId} row={row} />
                   ))}
                 </div>

@@ -18,6 +18,7 @@ interface DashboardCalendarTileProps {
   viewRole: CalendarViewRole
   isOwnerPreview: boolean
   currentStaffId: string | null
+  previewStaffId?: string | null
   staffDisplayName?: string
   practiceId?: string
   className?: string
@@ -27,6 +28,7 @@ export function DashboardCalendarTile({
   viewRole,
   isOwnerPreview,
   currentStaffId,
+  previewStaffId,
   staffDisplayName,
   practiceId,
   className,
@@ -55,6 +57,7 @@ export function DashboardCalendarTile({
       includeSupervisees,
       monthDate,
       practiceId,
+      previewStaffId,
     })
       .then((result) => {
         setMonthLabel(result.monthLabel)
@@ -65,7 +68,7 @@ export function DashboardCalendarTile({
       })
       .catch((err) => setError(err.message ?? "Failed to load schedule"))
       .finally(() => setLoading(false))
-  }, [currentStaffId, viewRole, isOwnerPreview, includeSupervisees, monthDate, practiceId])
+  }, [currentStaffId, previewStaffId, viewRole, isOwnerPreview, includeSupervisees, monthDate, practiceId])
 
   const needsStaffLink = !loading && !error && !isOwnerPreview && !currentStaffId
 

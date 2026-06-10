@@ -28,6 +28,7 @@ const EMPTY_FORM = {
   firstName:   "",
   lastName:    "",
   dateOfBirth: "",
+  homeAddress: "",
   insurance:   "",
   team:        "" as string,
   status:      "active",
@@ -101,6 +102,7 @@ function NewClientModal({ open, practiceId, onClose, onSuccess }: NewClientModal
         firstName:   form.firstName.trim(),
         lastName:    form.lastName.trim(),
         dateOfBirth: form.dateOfBirth,
+        homeAddress: form.homeAddress.trim() || undefined,
         insurance:   form.insurance.trim() || undefined,
         team:        `Team ${form.team}`,
         status:      form.status,
@@ -157,6 +159,19 @@ function NewClientModal({ open, practiceId, onClose, onSuccess }: NewClientModal
               type="date"
               value={form.dateOfBirth}
               onChange={e => set("dateOfBirth", e.target.value)}
+              disabled={loading}
+            />
+          </div>
+
+          {/* Home address */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">
+              Home address <span className="text-muted-foreground font-normal">(optional)</span>
+            </label>
+            <Input
+              value={form.homeAddress}
+              onChange={e => set("homeAddress", e.target.value)}
+              placeholder="e.g. 123 Main St, City, ST"
               disabled={loading}
             />
           </div>

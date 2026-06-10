@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { getCurrentCalendarMonthDateBounds } from '@/lib/payPeriod'
+import { getCurrentCalendarMonth, getCurrentCalendarMonthDateBounds } from '@/lib/payPeriod'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -49,6 +49,7 @@ export interface ClientDetail {
   first_name: string
   last_name: string
   date_of_birth: string | null
+  home_address: string | null
   status: string | null
   team: string | null
   insurance: string | null
@@ -82,7 +83,7 @@ export async function getPrimaryStaffForClient(clientId: string): Promise<{ full
 export async function getClientById(id: string): Promise<ClientDetail | null> {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, first_name, last_name, date_of_birth, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff!assigned_staff_id(full_name)')
+    .select('id, first_name, last_name, date_of_birth, home_address, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff!assigned_staff_id(full_name)')
     .eq('id', id)
     .maybeSingle()
   if (error) throw error
@@ -100,6 +101,7 @@ export interface NewClient {
   firstName:    string
   lastName:     string
   dateOfBirth:  string
+  homeAddress?: string
   insurance?:   string
   team:         string
   status:       string
@@ -113,6 +115,7 @@ export async function createNewClient(client: NewClient): Promise<void> {
       first_name:    client.firstName,
       last_name:     client.lastName,
       date_of_birth: client.dateOfBirth,
+      home_address:  client.homeAddress?.trim() || null,
       insurance:     client.insurance ?? null,
       team:          client.team,
       status:        client.status,
@@ -206,7 +209,7 @@ interface SessionRow {
   session_type: string
   status: string
   client_id: string
-  clients: { first_name: string; last_name: string }
+  clients: { first_name: string; last_name: string; external_code: string | null }
   staff: { full_name: string; team: string }
 }
 
@@ -215,6 +218,7 @@ export interface SessionRecord {
   time: string
   clientId: string
   clientName: string
+  clientCode: string | null
   staffName: string
   staffTeam: string
   sessionType: string
@@ -236,7 +240,8 @@ function mapSessionRows(data: SessionRow[]): SessionRecord[] {
     id:          row.id,
     time:        row.scheduled_at,
     clientId:    row.client_id,
-    clientName:  `${row.clients.first_name} ${row.clients.last_name}`,
+    clientName:  `${row.clients.first_name} ${row.clients.last_name}`.trim() || (row.clients.external_code ?? "Unknown"),
+    clientCode:  row.clients.external_code ?? null,
     staffName:   row.staff?.full_name ?? 'Unknown',
     staffTeam:   teamLabel(row.staff?.team),
     sessionType: row.session_type,
@@ -247,9 +252,9 @@ function mapSessionRows(data: SessionRow[]): SessionRecord[] {
 async function querySessionsInRange(start: string, end: string, staffId?: string): Promise<SessionRecord[]> {
   let query = supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)')
     .gte('scheduled_at', start)
-    .lt('scheduled_at', end)
+    .lte('scheduled_at', end)
     .order('scheduled_at', { ascending: true })
 
   if (staffId) query = query.eq('staff_id', staffId)
@@ -578,12 +583,26 @@ export async function getSupervisionByStaffId(staffId: string): Promise<Supervis
 export async function getSessionsByStaffId(staffId: string): Promise<SessionRecord[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)')
     .eq('staff_id', staffId)
     .order('scheduled_at', { ascending: true })
   if (error) throw error
 
   return mapSessionRows(data as unknown as SessionRow[])
+}
+
+/** Sessions for one staff member within the current calendar month (practice TZ). */
+export async function getSessionsByStaffIdForMonth(
+  staffId: string,
+  monthDate: Date = new Date(),
+): Promise<{ label: string; sessions: SessionRecord[] }> {
+  const month = getCurrentCalendarMonth(monthDate)
+  const sessions = await querySessionsInRange(
+    month.start.toISOString(),
+    month.end.toISOString(),
+    staffId,
+  )
+  return { label: month.label, sessions }
 }
 
 interface OverdueNoteRow {

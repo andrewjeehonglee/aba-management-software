@@ -33,7 +33,7 @@ export async function getStaffSessionsForMonth(
 
   let query = supabase
     .from("sessions")
-    .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)")
+    .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)")
     .in("staff_id", staffIds)
     .gte("scheduled_at", monthWindow.start.toISOString())
     .lte("scheduled_at", monthWindow.end.toISOString())
@@ -53,7 +53,7 @@ export async function getStaffSessionsForMonth(
     session_type: string
     status: string
     client_id: string
-    clients: { first_name: string; last_name: string }
+    clients: { first_name: string; last_name: string; external_code: string | null }
     staff: { full_name: string; team: string } | null
   }
 
@@ -61,7 +61,8 @@ export async function getStaffSessionsForMonth(
     id: row.id,
     time: row.scheduled_at,
     clientId: row.client_id,
-    clientName: `${row.clients.first_name} ${row.clients.last_name}`,
+    clientName: `${row.clients.first_name} ${row.clients.last_name}`.trim() || (row.clients.external_code ?? "Unknown"),
+    clientCode: row.clients.external_code ?? null,
     staffName: row.staff?.full_name ?? "Unknown",
     staffTeam: row.staff?.team ? (row.staff.team.startsWith("Team") ? row.staff.team : `Team ${row.staff.team}`) : "",
     sessionType: row.session_type,
@@ -80,13 +81,15 @@ export async function loadDashboardCalendarSessions(params: {
   includeSupervisees: boolean
   monthDate: Date
   practiceId?: string
+  previewStaffId?: string | null
 }): Promise<{ monthLabel: string; sessions: Session[] }> {
-  const effectiveStaffId = await resolveEffectiveStaffId(
-    params.staffId,
-    params.viewRole,
-    params.isOwnerPreview,
-    params.practiceId,
-  )
+  const effectiveStaffId = params.previewStaffId
+    ?? await resolveEffectiveStaffId(
+      params.staffId,
+      params.viewRole,
+      params.isOwnerPreview,
+      params.practiceId,
+    )
 
   if (!effectiveStaffId) {
     const month = monthWindowForDate(params.monthDate)

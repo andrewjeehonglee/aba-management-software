@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSearchParams, Link } from "react-router-dom"
+import { Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -186,6 +187,10 @@ export function DashboardPage({
       .finally(() => setScopeLoading(false))
   }, [currentStaffId, viewRole, isOwnerView, isOwnerPreview, isTechnician, practiceId, previewBcbaStaffId])
 
+  const selectedBcba = bcbaPreviewOptions.find(
+    (b) => b.staffId === previewBcbaStaffId,
+  )
+
   return (
     <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
 
@@ -197,11 +202,14 @@ export function DashboardPage({
 
         <div className="flex items-center gap-3 shrink-0">
           {role === "Owner" && (
+            // Users = care-team roster (distinct from dashboard role tabs)
             <Link
               to="/roster"
-              className="hidden sm:inline text-xs text-[#0D7377] hover:underline underline-offset-2"
+              aria-label="Caseload roster"
+              title="Caseload roster"
+              className="inline-flex items-center justify-center rounded-md p-2 text-[#0D7377] hover:bg-[#E8F7F7] transition-colors"
             >
-              Caseload roster →
+              <Users className="size-4" />
             </Link>
           )}
           {role === "Owner" ? (
@@ -266,7 +274,9 @@ export function DashboardPage({
                 onValueChange={(v) => setPreviewBcbaStaffId(v ?? null)}
               >
                 <SelectTrigger className="h-8 w-[180px] text-xs">
-                  <SelectValue placeholder="Select BCBA" />
+                  <SelectValue placeholder="Select BCBA">
+                    {selectedBcba?.fullName ?? "Select BCBA"}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {bcbaPreviewOptions.map((bcba) => (
@@ -282,7 +292,8 @@ export function DashboardPage({
           <DashboardCalendarTile
             viewRole={viewRole as CalendarRole}
             isOwnerPreview={isOwnerPreview}
-            currentStaffId={isOwnerPreview ? null : (currentStaffId ?? null)}
+            currentStaffId={isOwnerPreview ? effectiveStaffId : (currentStaffId ?? null)}
+            previewStaffId={isOwnerPreview ? effectiveStaffId : null}
             staffDisplayName={staffDisplayName}
             practiceId={practiceId}
           />

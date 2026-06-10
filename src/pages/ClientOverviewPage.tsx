@@ -1239,6 +1239,9 @@ function LiveClientDetailGrid({
       <dt className="text-muted-foreground">Date of birth</dt>
       <dd>{client.date_of_birth ? formatDate(client.date_of_birth) : "—"}</dd>
 
+      <dt className="text-muted-foreground">Home address</dt>
+      <dd>{client.home_address?.trim() ? client.home_address : "—"}</dd>
+
       <dt className="text-muted-foreground">Insurance</dt>
       <dd>{client.insurance ?? "—"}</dd>
 
