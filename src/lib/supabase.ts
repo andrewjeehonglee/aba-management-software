@@ -124,6 +124,7 @@ export async function getClients(): Promise<Client[]> {
   const { data, error } = await supabase
     .from('clients')
     .select('id, first_name, last_name, date_of_birth, status')
+    .eq('status', 'active')
     .order('last_name', { ascending: true })
   if (error) throw error
   return data as Client[]
