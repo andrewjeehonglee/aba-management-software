@@ -1,7 +1,9 @@
 import { supabase } from "@/lib/supabase"
+import { markUserSignOut } from "@/lib/authDiagnostics"
 
 export function DemoBanner() {
   async function handleCreateAccount() {
+    markUserSignOut()
     await supabase.auth.signOut()
     window.location.href = "/signup"
   }

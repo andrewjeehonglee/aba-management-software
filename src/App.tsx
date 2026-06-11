@@ -15,6 +15,11 @@ import { DemoBanner } from "@/components/DemoBanner"
 import { DemoContext } from "@/context/DemoContext"
 import { supabase, getUserPractice, getUserRole, getStaffByUserId } from "@/lib/supabase"
 import type { PracticeMembership } from "@/lib/supabase"
+import {
+  initAuthDiagnostics,
+  logAuthGate,
+  setAuthDiagnosticPracticeError,
+} from "@/lib/authDiagnostics"
 
 const DEMO_EMAIL = "demo@pulseaba.app"
 
@@ -55,6 +60,20 @@ function App() {
       setPracticeError(err instanceof Error ? err.message : 'Could not load your practice. Please try again.')
     }
   }
+
+  useEffect(() => {
+    initAuthDiagnostics(supabase)
+  }, [])
+
+  useEffect(() => {
+    setAuthDiagnosticPracticeError(practiceError)
+  }, [practiceError])
+
+  useEffect(() => {
+    if (!loading && !session) {
+      logAuthGate("session_null_after_load")
+    }
+  }, [loading, session])
 
   useEffect(() => {
     let initialised = false

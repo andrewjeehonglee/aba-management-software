@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { supabase } from "@/lib/supabase"
+import { markUserSignOut } from "@/lib/authDiagnostics"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { BcbaCaseloadPanel } from "@/components/BcbaCaseloadPanel"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
@@ -326,7 +327,10 @@ export function DashboardPage({
             variant="ghost"
             size="sm"
             className="text-pulse-muted hover:text-pulse-text"
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => {
+              markUserSignOut()
+              void supabase.auth.signOut()
+            }}
           >
             Sign out
           </Button>
