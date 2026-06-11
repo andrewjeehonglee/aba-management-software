@@ -13,37 +13,71 @@ const PROBLEMS = [
   {
     icon: Layers,
     title: "Data lives in too many places",
-    body: "Sessions, notes, and hours sit in different spreadsheets. You cannot see what happened without opening three files.",
+    bodyLines: [
+      "Sessions, notes, and hours sit in different spreadsheets.",
+      "You cannot see what happened without opening three files.",
+    ],
   },
   {
     icon: ClipboardList,
     title: "Notes slip after session end",
-    body: "Staff move on before SOAP is done. You find the gaps at payroll or audit time.",
+    bodyLines: [
+      "Staff move on before SOAP is done.",
+      "You find the gaps at payroll or audit time.",
+    ],
   },
   {
     icon: Scale,
     title: "The calendar is not the truth",
-    body: "Scheduled blocks and payable hours are different numbers. Pay and audits need completed sessions with complete notes.",
+    bodyLines: [
+      "Scheduled blocks and payable hours are different numbers.",
+      "Pay and audits need completed sessions with complete notes.",
+    ],
   },
-]
+] as const
 
 const FEATURES = [
   {
     icon: ClipboardList,
     title: "See missing and overdue notes",
-    body: "One screen for what still needs documentation this pay period.",
+    bodyLines: [
+      "One screen for what still needs documentation",
+      "this pay period.",
+    ],
   },
   {
     icon: LayoutDashboard,
     title: "Pull audit docs in minutes",
-    body: "Bundle session notes by client and date range. Export when the auditor calls.",
+    bodyLines: [
+      "Bundle session notes by client and date range.",
+      "Export when the auditor calls.",
+    ],
   },
   {
     icon: FileDown,
     title: "Hours that match reality",
-    body: "Count completed sessions with complete notes — not calendar blocks.",
+    bodyLines: [
+      "Count completed sessions with complete notes",
+      "not calendar blocks.",
+    ],
   },
-]
+] as const
+
+function SplitBody({
+  lines,
+  className,
+}: {
+  lines: readonly [string, string]
+  className?: string
+}) {
+  return (
+    <p className={className}>
+      {lines[0]}
+      <br className="hidden md:block" />
+      {lines[1]}
+    </p>
+  )
+}
 
 export function LandingPage() {
   const [demoLoading, setDemoLoading] = useState(false)
@@ -87,9 +121,9 @@ export function LandingPage() {
             <span className="text-pulse-primary">in sync</span>.
           </h1>
           <p className="mx-auto mt-8 max-w-2xl text-xl text-pulse-text/80 leading-relaxed text-balance">
-            <span className="block md:inline">One dashboard for sessions, notes, and hours.</span>
+            One dashboard for sessions, notes, and hours.
             <br className="hidden md:block" />
-            <span className="block md:inline">So your team can focus on clients, not spreadsheets.</span>
+            So your team can focus on clients, not spreadsheets.
           </p>
           <div className="mt-10">
             <Link
@@ -108,13 +142,16 @@ export function LandingPage() {
               Running an ABA practice means tracking three things at once.
             </h2>
             <div className="grid gap-8 md:grid-cols-3">
-              {PROBLEMS.map(({ icon: Icon, title, body }) => (
+              {PROBLEMS.map(({ icon: Icon, title, bodyLines }) => (
                 <div key={title} className="flex flex-col items-start gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pulse-light">
                     <Icon className="h-8 w-8 text-pulse-primary" strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-lg font-semibold text-pulse-text">{title}</h3>
-                  <p className="text-sm text-pulse-muted leading-relaxed">{body}</p>
+                  <h3 className="max-w-xs text-balance text-lg font-semibold text-pulse-text">{title}</h3>
+                  <SplitBody
+                    lines={bodyLines}
+                    className="text-sm text-pulse-muted leading-relaxed"
+                  />
                 </div>
               ))}
             </div>
@@ -127,7 +164,11 @@ export function LandingPage() {
             Pulse puts all three{" "}
             <span className="text-pulse-primary">in one place</span>
           </p>
-          <p className="text-lg text-pulse-muted mt-3">Ready means in sync.</p>
+          <p className="mt-3">
+            <span className="inline-block rounded-full bg-pulse-light px-4 py-1.5 text-base text-pulse-primary">
+              Ready means in sync.
+            </span>
+          </p>
         </section>
 
         {/* ── What Pulse does ── */}
@@ -138,14 +179,17 @@ export function LandingPage() {
             </h2>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, body }) => (
+            {FEATURES.map(({ icon: Icon, title, bodyLines }) => (
               <Card key={title} className="border-pulse-light border-l-4 border-l-pulse-primary shadow-sm">
                 <CardContent className="p-8 space-y-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pulse-light">
                     <Icon className="h-5 w-5 text-pulse-primary" strokeWidth={1.75} />
                   </div>
-                  <h3 className="text-xl font-semibold text-pulse-text leading-snug">{title}</h3>
-                  <p className="text-base text-pulse-muted leading-snug">{body}</p>
+                  <h3 className="text-balance text-xl font-semibold text-pulse-text leading-snug">{title}</h3>
+                  <SplitBody
+                    lines={bodyLines}
+                    className="text-base text-pulse-muted leading-snug"
+                  />
                 </CardContent>
               </Card>
             ))}
