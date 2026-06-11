@@ -165,6 +165,8 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
     return items.filter((item) => item.status === "completed" && !item.note).length
   }, [items])
 
+  const selectedClientCode = clients.find((c) => c.id === clientId)?.externalCode ?? ""
+
   async function handlePull() {
     setFormError(null)
     setPullError(null)
@@ -280,8 +282,11 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
                     Client
                   </label>
                   <Select
-                    value={clientId}
-                    onValueChange={(value) => setClientId(value ?? "")}
+                    value={selectedClientCode}
+                    onValueChange={(code) => {
+                      const client = clients.find((c) => c.externalCode === code)
+                      setClientId(client?.id ?? "")
+                    }}
                     disabled={pulling}
                   >
                     <SelectTrigger id="audit-client" className="w-full">
@@ -289,7 +294,7 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
                     </SelectTrigger>
                     <SelectContent>
                       {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
+                        <SelectItem key={client.id} value={client.externalCode}>
                           {clientOptionLabel(client)}
                         </SelectItem>
                       ))}
