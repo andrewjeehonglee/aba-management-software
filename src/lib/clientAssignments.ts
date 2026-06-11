@@ -129,6 +129,79 @@ function mapRosterStaff(row: StaffCareRow): CareTeamMember | null {
   }
 }
 
+const ASSIGNMENT_ROLE_LABEL: Record<ClientAssignmentRole, string> = {
+  primary_bcba: "BCBA",
+  clinical_supervisor: "Supervisor",
+  primary_bt: "BT",
+  secondary_bt: "BT",
+}
+
+export interface StaffCareTeamLink {
+  staffId: string
+  fullName: string
+  externalCode: string
+  roleLabel: string
+  sharedClientCount: number
+}
+
+/** Colleagues on shared client caseloads (excludes self). Roster staff only. */
+export async function getStaffCareTeamLinks(
+  staffId: string,
+): Promise<StaffCareTeamLink[]> {
+  const myAssignments = await getAssignmentsForStaff(staffId)
+  if (myAssignments.length === 0) return []
+
+  const clientIds = [...new Set(myAssignments.map((a) => a.clientId))]
+  if (clientIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("client_assignments")
+    .select(
+      "client_id, staff_id, assignment_role, staff(id, full_name, external_code, status, role)",
+    )
+    .in("client_id", clientIds)
+    .eq("is_active", true)
+    .neq("staff_id", staffId)
+
+  if (error) throw error
+
+  type Row = {
+    client_id: string
+    staff_id: string
+    assignment_role: ClientAssignmentRole
+    staff: StaffCareRow | StaffCareRow[] | null
+  }
+
+  const byStaffId = new Map<string, StaffCareTeamLink & { roles: Set<string> }>()
+
+  for (const row of (data ?? []) as Row[]) {
+    const staffRow = Array.isArray(row.staff) ? row.staff[0] : row.staff
+    const member = staffRow ? mapRosterStaff(staffRow) : null
+    if (!member) continue
+
+    const roleLabel = ASSIGNMENT_ROLE_LABEL[row.assignment_role]
+    const existing = byStaffId.get(member.staffId)
+    if (existing) {
+      existing.sharedClientCount += 1
+      existing.roles.add(roleLabel)
+    } else {
+      byStaffId.set(member.staffId, {
+        ...member,
+        roleLabel,
+        sharedClientCount: 1,
+        roles: new Set([roleLabel]),
+      })
+    }
+  }
+
+  return [...byStaffId.values()]
+    .map(({ roles, ...link }) => ({
+      ...link,
+      roleLabel: [...roles].sort().join(" · "),
+    }))
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
+}
+
 /** Care team from active client_assignments + roster staff only. */
 export async function getCareTeamDetailsForClient(
   clientId: string,

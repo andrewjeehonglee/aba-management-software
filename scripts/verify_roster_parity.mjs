@@ -26,6 +26,23 @@ const EXPECTED_CLIENT_CODES = [
   "ViReMo", "LaGu", "SuAz", "LuMa", "EzHe", "GrMa", "YaNu", "ZiTr",
 ]
 
+const EXPECTED_STAFF_EXTERNAL_CODES = [
+  "SPG-BCBA-jennifer",
+  "SPG-BCBA-blair",
+  "SPG-BCBA-annie",
+  "SPG-SUP-hilary",
+  "SPG-SUP-aj",
+  "SPG-SUP-bryanna",
+  "SPG-SUP-madeline",
+  "SPG-SUP-carmen",
+  "SPG-BT-jazmine",
+  "SPG-BT-enny",
+  "SPG-BT-emaya",
+  "SPG-BT-daniel",
+  "SPG-BT-lisa",
+  "SPG-BT-valerie",
+]
+
 function loadEnv() {
   const env = {}
   try {
@@ -143,6 +160,13 @@ async function verifyPractice(supabase, practiceId, label, csvStaff, csvClients)
     errors.push(`${label}: expected 14 roster staff, got ${totalStaff}`)
   }
 
+  const dbExternalCodes = staffRows.map((s) => s.external_code).sort()
+  for (const code of EXPECTED_STAFF_EXTERNAL_CODES) {
+    if (!dbExternalCodes.includes(code)) {
+      errors.push(`${label}: missing staff external_code ${code} (route /staff/${code})`)
+    }
+  }
+
   if (clientRows.length !== 16) {
     errors.push(`${label}: expected 16 roster clients, got ${clientRows.length}`)
   }
@@ -186,6 +210,7 @@ async function verifyPractice(supabase, practiceId, label, csvStaff, csvClients)
   console.log(`  Clients: ${clientRows.length}`)
   console.log(`  Assignments: bcba=${assignCounts.primary_bcba ?? 0}, sup=${assignCounts.clinical_supervisor ?? 0}, bt=${assignCounts.primary_bt ?? 0}`)
   console.log(`  Legacy active: staff=${legacyStaff ?? 0}, clients=${legacyClients ?? 0}`)
+  console.log(`  Staff routes: ${EXPECTED_STAFF_EXTERNAL_CODES.length} external codes checked`)
   if (jazmine) console.log(`  Route /staff/SPG-BT-jazmine → ${jazmine.id}`)
   if (pele) console.log(`  Route /clients/PeLe → ${pele.id}`)
 

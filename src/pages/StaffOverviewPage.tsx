@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react"
-import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import {
@@ -10,7 +9,7 @@ import {
 } from "@/components/ui/card"
 import { formatTime } from "@/lib/sessions"
 import { unslug } from "@/lib/slug"
-import { resolveStaffByRouteKey } from "@/lib/rosterScope"
+import { resolveStaffByRouteKey, staffProfilePath } from "@/lib/rosterScope"
 import {
   getSessionsByStaffIdForMonth,
   getSupervisionByStaffId,
@@ -19,8 +18,15 @@ import {
   type StaffRecord,
   type SupervisionRecord,
 } from "@/lib/supabase"
-import { getAssignmentsForStaff, type ClientAssignmentRole } from "@/lib/clientAssignments"
+import {
+  getAssignmentsForStaff,
+  getStaffCareTeamLinks,
+  type ClientAssignmentRole,
+  type StaffCareTeamLink,
+} from "@/lib/clientAssignments"
 import { getClientCaseloadLabels, type ClientCaseloadLabel } from "@/lib/rosterTable"
+import { getNotesStatus, type NotesStatusSummary } from "@/lib/notesStatus"
+import { getStaffHoursByMonth, type StaffHoursSummary } from "@/lib/staffHours"
 import {
   CERT_URGENT_DAYS,
   CERT_WARNING_DAYS,
@@ -36,7 +42,6 @@ import {
   type ComplianceStatus,
 } from "@/lib/supervision"
 import type { SessionStatus } from "@/types/session"
-import type { Staff } from "@/types/staff"
 
 // Compliance status display config — color + label per status. Mirrors the
 // shape of STATUS_CONFIG in src/lib/sessions.ts but for the supervision
@@ -53,10 +58,42 @@ const COMPLIANCE_CONFIG: Record<
 // Formal role title for the detail grid. The single-word enum value is fine
 // in chips and short labels, but the formal "this is who they are on paper"
 // reads better with the full credential name.
-const ROLE_TITLE: Record<Staff["role"], string> = {
+const ROLE_TITLE: Record<string, string> = {
+  bcba:       "Board Certified Behavior Analyst (BCBA)",
+  supervisor: "Clinical Supervisor",
+  technician: "Behavior Technician (RBT)",
   BCBA:       "Board Certified Behavior Analyst (BCBA)",
   Supervisor: "Clinical Supervisor",
   Technician: "Behavior Technician (RBT)",
+}
+
+const ROLE_PAGE_LABEL: Record<string, string> = {
+  bcba: "BCBA",
+  supervisor: "Clinical Supervisor",
+  technician: "Behavior Technician",
+}
+
+function isTechnicianRole(role: string): boolean {
+  return role.toLowerCase() === "technician"
+}
+
+function StaffBreadcrumb({ name }: { name: string }) {
+  return (
+    <nav
+      aria-label="Breadcrumb"
+      className="flex w-full max-w-3xl flex-wrap items-center gap-1 text-sm text-muted-foreground"
+    >
+      <Link to="/" className="hover:text-foreground transition-colors">
+        Dashboard
+      </Link>
+      <span aria-hidden="true">·</span>
+      <Link to="/roster" className="hover:text-foreground transition-colors">
+        Roster
+      </Link>
+      <span aria-hidden="true">·</span>
+      <span className="text-foreground font-medium">{name}</span>
+    </nav>
+  )
 }
 
 function Chip({ children }: { children: React.ReactNode }) {
@@ -125,6 +162,9 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const [supervision, setSupervision] = useState<SupervisionRecord | null>(null)
   const [monthSessions, setMonthSessions] = useState<SessionRecord[]>([])
   const [monthLabel, setMonthLabel] = useState("")
+  const [hoursSummary, setHoursSummary] = useState<StaffHoursSummary | null>(null)
+  const [notesSummary, setNotesSummary] = useState<NotesStatusSummary | null>(null)
+  const [careTeamLinks, setCareTeamLinks] = useState<StaffCareTeamLink[]>([])
   const [assignmentCaseloadTotal, setAssignmentCaseloadTotal] = useState(0)
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(false)
@@ -186,14 +226,21 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           totalHours: row.direct_hours + row.indirect_hours + row.cancellation_hours,
         })
 
-        const [supervisionRow, monthResult] = await Promise.all([
-          getSupervisionByStaffId(entry.id),
-          getSessionsByStaffIdForMonth(entry.id),
-        ])
+        const [supervisionRow, monthResult, hoursResult, notesResult, careTeam] =
+          await Promise.all([
+            getSupervisionByStaffId(entry.id),
+            getSessionsByStaffIdForMonth(entry.id),
+            getStaffHoursByMonth(undefined, { staffIds: [entry.id] }),
+            getNotesStatus(undefined, { staffIds: [entry.id] }),
+            getStaffCareTeamLinks(entry.id),
+          ])
         if (cancelled) return
         setSupervision(supervisionRow)
         setMonthLabel(monthResult.label)
         setMonthSessions(monthResult.sessions)
+        setHoursSummary(hoursResult)
+        setNotesSummary(notesResult)
+        setCareTeamLinks(careTeam)
       })
       .catch(() => { if (!cancelled) setDataError(true) })
       .finally(() => { if (!cancelled) setDataLoading(false) })
@@ -210,7 +257,11 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
 
   const subtitle = derivedRole
     ? `${derivedRole} · this month`
-    : staff?.role ?? null
+    : (staff?.role ? ROLE_PAGE_LABEL[staff.role] ?? staff.role : null)
+
+  const staffHoursRow = hoursSummary?.byStaff[0]
+  const staffNotesRow = notesSummary?.byStaff.find((row) => row.staffId === staff?.id)
+  const showSupervision = staff ? isTechnicianRole(staff.role) : false
 
   const sortedMonthSessions = [...monthSessions].sort((a, b) =>
     a.time.localeCompare(b.time),
@@ -218,9 +269,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
 
   const monthClientCount = new Set(monthSessions.map((s) => s.clientId)).size
 
-  const hasNoActivity = monthSessions.length === 0 && !supervision
   const hasAssignments = assignmentCaseloadTotal > 0
-  const showCollapsedEmpty = hasNoActivity && !hasAssignments
 
   if (dataLoading) {
     return (
@@ -240,14 +289,8 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
 
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
-      <header className="flex w-full max-w-3xl items-center py-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          Back to dashboard
-        </Link>
+      <header className="flex w-full max-w-3xl flex-col gap-4 py-6">
+        <StaffBreadcrumb name={displayName} />
       </header>
 
       {/* Section 1 — Staff header */}
@@ -273,6 +316,24 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           {staff && <StaffDetailGrid staff={staff} />}
         </CardContent>
       </Card>
+
+      <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2">
+        <HoursSummaryCard
+          monthLabel={hoursSummary?.monthLabel ?? monthLabel}
+          directHours={staffHoursRow?.directHours ?? 0}
+          indirectHours={staffHoursRow?.indirectHours ?? 0}
+          totalHours={staffHoursRow?.totalHours ?? 0}
+        />
+        <NotesSummaryCard
+          payPeriodLabel={notesSummary?.payPeriodLabel ?? "—"}
+          missingCount={staffNotesRow?.missingCount ?? 0}
+          overdueCount={staffNotesRow?.overdueCount ?? 0}
+        />
+      </div>
+
+      {staff && (
+        <CareTeamCard links={careTeamLinks} loading={dataLoading} />
+      )}
 
       {staff && (
         <AssignmentCaseloadCard
@@ -347,18 +408,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         </CardContent>
       </Card>
 
-      {showCollapsedEmpty ? (
-        <Card className="w-full max-w-3xl">
-          <CardContent className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">
-              No session activity for {displayName} this month.
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              When sessions are scheduled, supervision compliance will appear here.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+      {showSupervision ? (
         <Card className="w-full max-w-3xl">
           <CardHeader>
             <CardTitle>Supervision compliance</CardTitle>
@@ -373,8 +423,124 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
             )}
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
+  )
+}
+
+function HoursSummaryCard({
+  monthLabel,
+  directHours,
+  indirectHours,
+  totalHours,
+}: {
+  monthLabel: string
+  directHours: number
+  indirectHours: number
+  totalHours: number
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Hours</CardTitle>
+        {monthLabel && (
+          <p className="text-xs text-muted-foreground">{monthLabel}</p>
+        )}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-3xl font-semibold tabular-nums">{totalHours}</span>
+          <span className="text-xs text-muted-foreground">billable hrs</span>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <dt className="text-muted-foreground">Direct</dt>
+          <dd className="text-right tabular-nums font-medium">{directHours}</dd>
+          <dt className="text-muted-foreground">Indirect</dt>
+          <dd className="text-right tabular-nums font-medium">{indirectHours}</dd>
+        </dl>
+      </CardContent>
+    </Card>
+  )
+}
+
+function NotesSummaryCard({
+  payPeriodLabel,
+  missingCount,
+  overdueCount,
+}: {
+  payPeriodLabel: string
+  missingCount: number
+  overdueCount: number
+}) {
+  const total = missingCount + overdueCount
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Notes</CardTitle>
+        <p className="text-xs text-muted-foreground">Pay period {payPeriodLabel}</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-3xl font-semibold tabular-nums">{total}</span>
+          <span className="text-xs text-muted-foreground">open items</span>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <dt className="text-muted-foreground">Missing</dt>
+          <dd className="text-right tabular-nums font-medium">{missingCount}</dd>
+          <dt className="text-muted-foreground">Overdue</dt>
+          <dd className="text-right tabular-nums font-medium">{overdueCount}</dd>
+        </dl>
+      </CardContent>
+    </Card>
+  )
+}
+
+function CareTeamCard({
+  links,
+  loading,
+}: {
+  links: StaffCareTeamLink[]
+  loading: boolean
+}) {
+  return (
+    <Card className="w-full max-w-3xl">
+      <CardHeader>
+        <CardTitle>Care team</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <p className="text-sm text-muted-foreground animate-pulse py-4">Loading care team…</p>
+        ) : links.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            No shared caseload colleagues yet
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {links.map((link) => (
+              <li
+                key={link.staffId}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <Link
+                    to={staffProfilePath(link.externalCode)}
+                    className="font-medium hover:underline underline-offset-2"
+                  >
+                    {link.fullName}
+                  </Link>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {link.roleLabel}
+                    {link.sharedClientCount > 1
+                      ? ` · ${link.sharedClientCount} shared clients`
+                      : ""}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -580,19 +746,17 @@ function CertificationsDetail({ staff }: { staff: StaffRecord }) {
 // reader-friendly definition list semantics. Same pattern as
 // ClientDetailGrid in ClientOverviewPage.
 function StaffDetailGrid({ staff }: { staff: StaffRecord }) {
+  const roleKey = staff.role.toLowerCase()
   return (
     <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
       <dt className="text-muted-foreground">Role title</dt>
-      <dd>{ROLE_TITLE[staff.role as Staff["role"]]}</dd>
+      <dd>{ROLE_TITLE[roleKey] ?? ROLE_TITLE[staff.role] ?? staff.role}</dd>
 
       <dt className="text-muted-foreground">Hire date</dt>
       <dd>{formatDate(staff.hireDate)}</dd>
 
       <dt className="text-muted-foreground">Certification</dt>
       <dd>{staff.certification}</dd>
-
-      <dt className="text-muted-foreground">Assigned team</dt>
-      <dd>{staff.team}</dd>
     </dl>
   )
 }
