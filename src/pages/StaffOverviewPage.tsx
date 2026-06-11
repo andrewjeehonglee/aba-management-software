@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
-import { HoursByStaffTile } from "@/components/HoursByStaffTile"
-import { NotesOverdueTile } from "@/components/NotesOverdueTile"
+import { StaffMonthMetrics } from "@/components/staff/StaffMonthMetrics"
+import { StaffSupervisionPanel } from "@/components/staff/StaffSupervisionPanel"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -27,11 +27,9 @@ import {
   getCaseloadBtStaffIds,
   getStaffClientTableForBcba,
   getStaffClientTableForSupervisor,
-  getStaffPeopleGroups,
   type BtClientAssignment,
   type RosterStaffLink,
   type StaffClientTableRow,
-  type StaffPeopleGroups,
 } from "@/lib/clientAssignments"
 import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import { getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
@@ -47,33 +45,17 @@ import {
   isTechnicianRole,
   resolveRosterStaffRole,
   staffRoleHeaderLabel,
-  staffRoleTitle,
   type RosterStaffRole,
 } from "@/lib/staffRole"
-import {
-  SUPERVISION_THRESHOLD,
-  actualSupervisionHours,
-  complianceClasses,
-  complianceStatus,
-  requiredHours,
-  type ComplianceStatus,
-} from "@/lib/supervision"
 import type { SessionStatus } from "@/types/session"
 
-const COMPLIANCE_CONFIG: Record<
-  ComplianceStatus,
-  { label: string; className: string }
-> = {
-  compliant:       { label: "Compliant",     className: "bg-emerald-100 text-emerald-800" },
-  "at-risk":       { label: "At risk",       className: "bg-amber-100 text-amber-800" },
-  "non-compliant": { label: "Non-compliant", className: "bg-red-100 text-red-800" },
-}
+const PAGE_SHELL = "w-full max-w-[min(100%,1680px)] px-4 sm:px-6"
 
 function StaffBreadcrumb({ name }: { name: string }) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex w-full max-w-3xl flex-wrap items-center gap-1 text-sm text-muted-foreground"
+      className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground"
     >
       <Link to="/" className="hover:text-foreground transition-colors">
         Dashboard
@@ -96,17 +78,6 @@ function Chip({ children }: { children: React.ReactNode }) {
   )
 }
 
-function ComplianceBadge({ status }: { status: ComplianceStatus }) {
-  const { label, className } = COMPLIANCE_CONFIG[status]
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
-    >
-      {label}
-    </span>
-  )
-}
-
 function formatDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
     year: "numeric",
@@ -115,15 +86,15 @@ function formatDate(iso: string) {
   })
 }
 
-function formatCertInline(cert: string): string {
+function formatCertExpiryShort(cert: string): string | null {
   const parsed = parseCertification(cert)
-  if (!parsed) return cert
+  if (!parsed) return null
   const formattedExpiry = parsed.expiryDate.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
   })
-  return `${parsed.type} — expires ${formattedExpiry}`
+  return `Cert expires ${formattedExpiry}`
 }
 
 function sessionClientLabel(session: SessionRecord): string {
@@ -187,7 +158,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const [monthSessions, setMonthSessions] = useState<SessionRecord[]>([])
   const [monthLabel, setMonthLabel] = useState("")
   const [btClients, setBtClients] = useState<BtClientAssignment[]>([])
-  const [peopleGroups, setPeopleGroups] = useState<StaffPeopleGroups | null>(null)
   const [clientTable, setClientTable] = useState<StaffClientTableRow[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(false)
@@ -268,13 +238,11 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           setSupervision(supervisionRow)
           setBtClients(assignments)
           setCaseloadSupervision([])
-          setPeopleGroups(null)
           setClientTable([])
         } else if (isLeadershipRole(role)) {
           const viewerRole = isBcbaRole(role) ? "bcba" : "supervisor"
-          const [btIds, people, table] = await Promise.all([
+          const [btIds, table] = await Promise.all([
             getCaseloadBtStaffIds(entry.id, viewerRole),
-            getStaffPeopleGroups(entry.id, viewerRole),
             isBcbaRole(role)
               ? getStaffClientTableForBcba(entry.id)
               : getStaffClientTableForSupervisor(entry.id),
@@ -287,7 +255,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           if (cancelled) return
           setSupervision(null)
           setBtClients([])
-          setPeopleGroups(people)
           setClientTable(table)
           setCaseloadSupervision(
             [...records].sort(
@@ -327,6 +294,19 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
     [monthSessions],
   )
 
+  const identityMeta = useMemo(() => {
+    if (!staff) return ""
+    const parsed = staff.certification ? parseCertification(staff.certification) : null
+    const parts = [
+      parsed?.type ?? null,
+      `Hired ${formatDate(staff.hireDate)}`,
+      staff.certification ? formatCertExpiryShort(staff.certification) : null,
+      demoStaffPhone(staff.externalCode),
+      demoStaffEmail(staff.externalCode),
+    ].filter(Boolean)
+    return parts.join(" · ")
+  }, [staff])
+
   async function handleExportSessions() {
     if (!staff) return
     setExporting(true)
@@ -362,314 +342,109 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
     )
   }
 
+  const supervisionPanelMonth = supervisionMonthLabel || monthLabel
+
   return (
-    <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
-      <header className="flex w-full max-w-3xl flex-col gap-4 py-6">
+    <div className="min-h-svh bg-background text-foreground">
+      <div className={`${PAGE_SHELL} py-4`}>
         <StaffBreadcrumb name={displayName} />
-      </header>
-
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
-          <CardTitle className="text-3xl font-semibold tracking-tight">
-            {displayName}
-          </CardTitle>
-          {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Chip>
-              {monthSessions.length} session{monthSessions.length === 1 ? "" : "s"} this month
-            </Chip>
-            <Chip>
-              {monthClientCount} client{monthClientCount === 1 ? "" : "s"} served
-            </Chip>
-          </div>
-          <StaffDetailGrid staff={staff} role={resolvedRole} />
-        </CardContent>
-      </Card>
-
-      <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2">
-        <HoursByStaffTile staffIds={[staff.id]} />
-        <NotesOverdueTile staffIds={[staff.id]} selfMode />
       </div>
 
-      {isTechnicianRole(resolvedRole) && (
-        <Card className="w-full max-w-3xl">
-          <CardHeader>
-            <CardTitle>Supervision compliance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {supervision ? (
-              <SupervisionDetail
-                supervision={supervision}
-                staff={staff}
-                monthLabel={monthLabel}
-              />
-            ) : (
-              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No supervision data available for this staff member.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      <section className="border-b bg-slate-50/80">
+        <div className={`${PAGE_SHELL} py-5`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 space-y-1">
+              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                {displayName}
+              </h1>
+              {subtitle && (
+                <p className="text-sm text-muted-foreground">{subtitle}</p>
+              )}
+              {identityMeta && (
+                <p className="text-sm text-muted-foreground">{identityMeta}</p>
+              )}
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Chip>
+                {monthSessions.length} session{monthSessions.length === 1 ? "" : "s"} this month
+              </Chip>
+              <Chip>
+                {monthClientCount} client{monthClientCount === 1 ? "" : "s"} served
+              </Chip>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {isLeadershipRole(resolvedRole) && (
-        <StaffSupervisionTable
-          records={caseloadSupervision}
-          monthLabel={supervisionMonthLabel || monthLabel}
-        />
-      )}
+      <div className={`${PAGE_SHELL} space-y-4 py-4`}>
+        <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+          <StaffMonthMetrics staffId={staff.id} />
+          <StaffSupervisionPanel
+            mode={isTechnicianRole(resolvedRole) ? "technician" : "leadership"}
+            monthLabel={supervisionPanelMonth}
+            supervision={supervision}
+            staff={staff}
+            caseloadRecords={caseloadSupervision}
+          />
+        </div>
 
-      {isTechnicianRole(resolvedRole) && (
-        <BtClientsSection clients={btClients} />
-      )}
-
-      {isLeadershipRole(resolvedRole) && peopleGroups && (
-        <StaffPeopleSection role={resolvedRole} groups={peopleGroups} />
-      )}
-
-      {isLeadershipRole(resolvedRole) && (
-        <StaffClientTableSection rows={clientTable} />
-      )}
-
-      <SessionsSection
-        monthLabel={monthLabel}
-        sessions={recentSessions}
-        exporting={exporting}
-        onExport={handleExportSessions}
-      />
+        <div className="grid gap-4 lg:grid-cols-[11fr_9fr]">
+          <StaffClientsPanel
+            role={resolvedRole}
+            btClients={btClients}
+            clientTable={clientTable}
+          />
+          <StaffRecentSessions
+            monthLabel={monthLabel}
+            sessions={recentSessions}
+            exporting={exporting}
+            onExport={handleExportSessions}
+          />
+        </div>
+      </div>
     </div>
   )
 }
 
-function StaffDetailGrid({
-  staff,
+function StaffClientsPanel({
   role,
-}: {
-  staff: StaffRecord
-  role: RosterStaffRole
-}) {
-  return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
-      <dt className="text-muted-foreground">Role title</dt>
-      <dd>{staffRoleTitle(role)}</dd>
-
-      <dt className="text-muted-foreground">Hire date</dt>
-      <dd>{formatDate(staff.hireDate)}</dd>
-
-      <dt className="text-muted-foreground">Certification</dt>
-      <dd>{staff.certification ? formatCertInline(staff.certification) : "—"}</dd>
-
-      <dt className="text-muted-foreground">Phone</dt>
-      <dd>{demoStaffPhone(staff.externalCode)}</dd>
-
-      <dt className="text-muted-foreground">Email</dt>
-      <dd>{demoStaffEmail(staff.externalCode)}</dd>
-    </dl>
-  )
-}
-
-function SupervisionDetail({
-  supervision,
-  staff,
-  monthLabel,
-}: {
-  supervision: SupervisionRecord
-  staff: StaffRecord
-  monthLabel: string
-}) {
-  const { bar, text } = complianceClasses(supervision.supervisionPct)
-  const status = complianceStatus(supervision.supervisionPct)
-  const actual = actualSupervisionHours(supervision.supervisionPct, staff.totalHours)
-  const required = requiredHours(staff.totalHours)
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <span className={`text-3xl font-semibold tabular-nums ${text}`}>
-          {supervision.supervisionPct.toFixed(1)}%
-        </span>
-        <ComplianceBadge status={status} />
-      </div>
-
-      <div className="relative h-3 w-full overflow-hidden rounded-full bg-slate-200">
-        <div
-          className={`h-full ${bar}`}
-          style={{ width: `${Math.min(supervision.supervisionPct, 100)}%` }}
-        />
-        <div
-          className="absolute inset-y-0 w-px bg-slate-500/70"
-          style={{ left: `${SUPERVISION_THRESHOLD}%` }}
-          aria-hidden="true"
-        />
-      </div>
-
-      <p className="text-sm">
-        <span className="font-medium tabular-nums">{actual}</span>
-        <span className="text-muted-foreground"> of </span>
-        <span className="font-medium tabular-nums">{required}</span>
-        <span className="text-muted-foreground"> required supervision hours in {monthLabel}</span>
-      </p>
-    </div>
-  )
-}
-
-function StaffSupervisionTable({
-  records,
-  monthLabel,
-}: {
-  records: SupervisionRecord[]
-  monthLabel: string
-}) {
-  return (
-    <Card className="w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle>Staff supervision compliance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {records.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            No BTs on shared caseload yet.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="pb-2 pr-4 font-medium">Staff</th>
-                  <th className="pb-2 font-medium">Compliance ({monthLabel.split(" ")[0]})</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((row) => {
-                  const status = complianceStatus(row.supervisionPct)
-                  return (
-                    <tr key={row.staffId} className="border-b border-border/60 last:border-0">
-                      <td className="py-2.5 pr-4">
-                        {row.staffExternalCode ? (
-                          <Link
-                            to={staffProfilePath(row.staffExternalCode)}
-                            className="font-medium hover:underline underline-offset-2"
-                          >
-                            {row.staffName}
-                          </Link>
-                        ) : (
-                          row.staffName
-                        )}
-                      </td>
-                      <td className="py-2.5">
-                        <span className="inline-flex items-center gap-2">
-                          <span className="tabular-nums font-medium">
-                            {row.supervisionPct.toFixed(1)}%
-                          </span>
-                          <ComplianceBadge status={status} />
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function BtClientsSection({ clients }: { clients: BtClientAssignment[] }) {
-  return (
-    <Card className="w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle>Clients this person is working with</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {clients.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            Not assigned to any clients yet
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {clients.map((client) => (
-              <Link
-                key={client.clientId}
-                to={`/clients/${client.clientCode}`}
-                className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-              >
-                {client.clientCode}
-              </Link>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function StaffPeopleSection({
-  role,
-  groups,
+  btClients,
+  clientTable,
 }: {
   role: RosterStaffRole
-  groups: StaffPeopleGroups
+  btClients: BtClientAssignment[]
+  clientTable: StaffClientTableRow[]
 }) {
-  const sections = isBcbaRole(role)
-    ? [
-        { title: "Clinical supervisors", links: groups.supervisors },
-        { title: "Technicians", links: groups.technicians },
-      ]
-    : [
-        { title: "BCBAs", links: groups.bcbas },
-        { title: "Technicians", links: groups.technicians },
-      ]
-
-  const hasAny = sections.some((s) => s.links.length > 0)
+  const isBt = isTechnicianRole(role)
 
   return (
-    <Card className="w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle>People this person works with</CardTitle>
+    <Card size="sm" className="h-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">
+          {isBt ? "Clients this person is working with" : "Clients"}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        {!hasAny ? (
-          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            No colleagues on shared caseload yet
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {sections.map(({ title, links }) =>
-              links.length === 0 ? null : (
-                <div key={title}>
-                  <p className="text-xs font-medium text-muted-foreground mb-2">{title}</p>
-                  <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
-                    {links.map((link) => (
-                      <li key={link.staffId}>
-                        <StaffLink link={link} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ),
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function StaffClientTableSection({ rows }: { rows: StaffClientTableRow[] }) {
-  return (
-    <Card className="w-full max-w-3xl">
-      <CardHeader>
-        <CardTitle>Clients</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {rows.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+        {isBt ? (
+          btClients.length === 0 ? (
+            <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+              Not assigned to any clients yet
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {btClients.map((client) => (
+                <Link
+                  key={client.clientId}
+                  to={`/clients/${client.clientCode}`}
+                  className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
+                >
+                  {client.clientCode}
+                </Link>
+              ))}
+            </div>
+          )
+        ) : clientTable.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
             Not assigned to any client caseload yet
           </div>
         ) : (
@@ -683,9 +458,9 @@ function StaffClientTableSection({ rows }: { rows: StaffClientTableRow[] }) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.clientId} className="border-b border-border/60 last:border-0">
-                    <td className="py-2.5 pr-4">
+                {clientTable.map((row) => (
+                  <tr key={row.clientId} className="border-b border-border/50 last:border-0">
+                    <td className="py-1.5 pr-4">
                       <Link
                         to={`/clients/${row.clientCode}`}
                         className="font-medium hover:underline underline-offset-2"
@@ -693,10 +468,10 @@ function StaffClientTableSection({ rows }: { rows: StaffClientTableRow[] }) {
                         {row.clientCode}
                       </Link>
                     </td>
-                    <td className="py-2.5 pr-4">
+                    <td className="py-1.5 pr-4">
                       {row.technician ? <StaffLink link={row.technician} /> : "—"}
                     </td>
-                    <td className="py-2.5">
+                    <td className="py-1.5">
                       {row.supervisor ? <StaffLink link={row.supervisor} /> : "—"}
                     </td>
                   </tr>
@@ -710,7 +485,7 @@ function StaffClientTableSection({ rows }: { rows: StaffClientTableRow[] }) {
   )
 }
 
-function SessionsSection({
+function StaffRecentSessions({
   monthLabel,
   sessions,
   exporting,
@@ -722,36 +497,37 @@ function SessionsSection({
   onExport: () => void
 }) {
   return (
-    <Card className="w-full max-w-3xl">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-        <CardTitle>Sessions — {monthLabel}</CardTitle>
+    <Card size="sm" className="h-full">
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
+        <CardTitle className="text-base">Recent sessions · {monthLabel}</CardTitle>
         <Button
           size="sm"
           variant="outline"
+          className="h-7 shrink-0 px-2.5 text-xs"
           onClick={onExport}
           disabled={exporting}
         >
-          {exporting ? "Exporting…" : "Export all sessions"}
+          {exporting ? "Exporting…" : "Export all"}
         </Button>
       </CardHeader>
       <CardContent>
         {sessions.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-            <p>No sessions logged this month.</p>
+          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
+            No sessions logged this month.
           </div>
         ) : (
-          <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
-            <div className="text-muted-foreground pb-2 border-b">Time</div>
-            <div className="text-muted-foreground pb-2 border-b">Client</div>
-            <div className="text-muted-foreground pb-2 border-b">Type</div>
-            <div className="text-muted-foreground pb-2 border-b text-right">Status</div>
+          <div className="grid grid-cols-[3rem_minmax(0,1fr)_5.5rem_5rem] items-center gap-x-2 gap-y-0 text-xs">
+            <div className="text-muted-foreground pb-1.5 border-b">Time</div>
+            <div className="text-muted-foreground pb-1.5 border-b">Client</div>
+            <div className="text-muted-foreground pb-1.5 border-b">Type</div>
+            <div className="text-muted-foreground pb-1.5 border-b text-right">Status</div>
 
             {sessions.map((s) => (
               <div key={s.id} className="contents">
-                <div className="font-mono text-muted-foreground tabular-nums py-1.5">
+                <div className="font-mono text-muted-foreground tabular-nums py-1">
                   {formatTime(s.time)}
                 </div>
-                <div className="truncate min-w-0 py-1.5 text-sm">
+                <div className="truncate min-w-0 py-1">
                   <Link
                     to={s.clientCode ? `/clients/${s.clientCode}` : `/clients/${s.clientId}`}
                     className="hover:underline underline-offset-2"
@@ -759,10 +535,10 @@ function SessionsSection({
                     {sessionClientLabel(s)}
                   </Link>
                 </div>
-                <div className="truncate min-w-0 py-1.5 text-muted-foreground">
+                <div className="truncate min-w-0 py-1 text-muted-foreground">
                   {s.sessionType}
                 </div>
-                <div className="flex items-center justify-end py-1.5">
+                <div className="flex items-center justify-end py-1">
                   <SessionStatusBadge status={s.status as SessionStatus} />
                 </div>
               </div>
