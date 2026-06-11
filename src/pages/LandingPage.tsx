@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { LayoutDashboard, ClipboardList, Clock } from "lucide-react"
+import { ClipboardList, FileDown, Layers, LayoutDashboard, Scale } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -11,40 +11,37 @@ const DEMO_PASSWORD = "PulseDemo2026!"
 
 const PROBLEMS = [
   {
-    icon: LayoutDashboard,
-    title: "Session data is scattered",
-    punch: "You cannot see what happened without opening three places.",
-    detail: "Sessions, notes, and hours live in different spreadsheets and folders.",
+    icon: Layers,
+    title: "Data lives in too many places",
+    body: "Sessions, notes, and hours sit in different spreadsheets. You cannot see what happened without opening three files.",
   },
   {
     icon: ClipboardList,
-    title: "Notes finish late",
-    punch: "Completed sessions without notes pile up fast.",
-    detail: "Staff move on before SOAP is done, and you only find the gap at payroll or audit time.",
+    title: "Notes slip after session end",
+    body: "Staff move on before SOAP is done. You find the gaps at payroll or audit time.",
   },
   {
-    icon: Clock,
-    title: "Payroll and audits do not match the calendar",
-    punch: "Calendar hours and payable hours are not the same number.",
-    detail: "Bi-weekly pay and insurance audits need completed sessions with complete notes — not scheduled blocks.",
+    icon: Scale,
+    title: "The calendar is not the truth",
+    body: "Scheduled blocks and payable hours are different numbers. Pay and audits need completed sessions with complete notes.",
   },
 ]
 
 const FEATURES = [
   {
     icon: ClipboardList,
-    title: "See sessions and notes at a glance",
-    body: "Owner dashboard shows which notes are missing or overdue this pay period — before payroll runs.",
+    title: "See missing and overdue notes",
+    body: "One screen for what still needs documentation this pay period.",
   },
   {
     icon: LayoutDashboard,
-    title: "Pull audit documentation in minutes",
-    body: "Pick a client and date range, bundle session notes, and export for an insurance audit.",
+    title: "Pull audit docs in minutes",
+    body: "Bundle session notes by client and date range. Export when the auditor calls.",
   },
   {
-    icon: Clock,
-    title: "Hours that match what actually happened",
-    body: "Staff hours count completed sessions with complete notes — not calendar assumptions.",
+    icon: FileDown,
+    title: "Hours that match reality",
+    body: "Count completed sessions with complete notes — not calendar blocks.",
   },
 ]
 
@@ -90,7 +87,9 @@ export function LandingPage() {
             <span className="text-pulse-primary">in sync</span>.
           </h1>
           <p className="mx-auto mt-8 max-w-2xl text-xl text-pulse-text/80 leading-relaxed text-balance">
-            One dashboard for sessions, notes, and hours — so your team can focus on clients, not spreadsheets.
+            <span className="block md:inline">One dashboard for sessions, notes, and hours.</span>
+            <br className="hidden md:block" />
+            <span className="block md:inline">So your team can focus on clients, not spreadsheets.</span>
           </p>
           <div className="mt-10">
             <Link
@@ -109,14 +108,13 @@ export function LandingPage() {
               Running an ABA practice means tracking three things at once.
             </h2>
             <div className="grid gap-8 md:grid-cols-3">
-              {PROBLEMS.map(({ icon: Icon, title, punch, detail }) => (
+              {PROBLEMS.map(({ icon: Icon, title, body }) => (
                 <div key={title} className="flex flex-col items-start gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-pulse-light">
                     <Icon className="h-8 w-8 text-pulse-primary" strokeWidth={1.5} />
                   </div>
                   <h3 className="text-lg font-semibold text-pulse-text">{title}</h3>
-                  <p className="font-semibold text-pulse-text leading-snug">{punch}</p>
-                  <p className="text-sm text-pulse-muted leading-relaxed">{detail}</p>
+                  <p className="text-sm text-pulse-muted leading-relaxed">{body}</p>
                 </div>
               ))}
             </div>
@@ -124,15 +122,16 @@ export function LandingPage() {
         </section>
 
         {/* ── Bridge ── */}
-        <section className="py-10 text-center">
+        <section className="py-6 text-center">
           <p className="text-4xl font-bold text-pulse-text leading-tight px-4 md:whitespace-nowrap">
             Pulse puts all three{" "}
             <span className="text-pulse-primary">in one place</span>
           </p>
+          <p className="text-lg text-pulse-muted mt-3">Ready means in sync.</p>
         </section>
 
         {/* ── What Pulse does ── */}
-        <section className="mx-auto max-w-5xl px-4 py-12 md:px-6">
+        <section className="mx-auto max-w-5xl px-4 pt-6 pb-12 md:px-6">
           <div className="mb-8 text-center space-y-2">
             <h2 className="text-2xl font-semibold tracking-tight text-pulse-text">
               How Pulse keeps your practice ready
