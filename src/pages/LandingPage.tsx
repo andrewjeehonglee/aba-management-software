@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { LayoutDashboard, ClipboardList, BellRing, Clock } from "lucide-react"
+import { LayoutDashboard, ClipboardList, Clock } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -11,40 +11,40 @@ const DEMO_PASSWORD = "PulseDemo2026!"
 
 const PROBLEMS = [
   {
-    icon: BellRing,
-    title: "An authorization lapsed",
-    punch: "You already delivered the hours. Now they are unbillable.",
-    detail: "A renewal slipped past its date, and every session logged against it gets denied the moment you submit.",
+    icon: LayoutDashboard,
+    title: "Session data is scattered",
+    punch: "You cannot see what happened without opening three places.",
+    detail: "Sessions, notes, and hours live in different spreadsheets and folders.",
   },
   {
     icon: ClipboardList,
-    title: "A note was incomplete",
-    punch: "One missing signature voids the whole claim.",
-    detail: "Payers reject any note missing a signature, a timestamp, or a code that matches the session delivered.",
+    title: "Notes finish late",
+    punch: "Completed sessions without notes pile up fast.",
+    detail: "Staff move on before SOAP is done, and you only find the gap at payroll or audit time.",
   },
   {
     icon: Clock,
-    title: "Nobody caught it in time",
-    punch: "You find out weeks later, when the denial lands.",
-    detail: "By then the appeal window is closing and the revenue is already written off.",
+    title: "Payroll and audits do not match the calendar",
+    punch: "Calendar hours and payable hours are not the same number.",
+    detail: "Bi-weekly pay and insurance audits need completed sessions with complete notes — not scheduled blocks.",
   },
 ]
 
 const FEATURES = [
   {
-    icon: BellRing,
-    title: "Authorization tracking, always current",
-    body: "Expiring auths surface on your dashboard before lapsed hours get booked.",
-  },
-  {
     icon: ClipboardList,
-    title: "Documentation that closes before you leave",
-    body: "Notes, behavior data, and billing code in one flow, before the session closes.",
+    title: "See sessions and notes at a glance",
+    body: "Owner dashboard shows which notes are missing or overdue this pay period — before payroll runs.",
   },
   {
     icon: LayoutDashboard,
-    title: "Everyone sees what they need to act on",
-    body: "Every role sees their open items at login, never buried in a spreadsheet.",
+    title: "Pull audit documentation in minutes",
+    body: "Pick a client and date range, bundle session notes, and export for an insurance audit.",
+  },
+  {
+    icon: Clock,
+    title: "Hours that match what actually happened",
+    body: "Staff hours count completed sessions with complete notes — not calendar assumptions.",
   },
 ]
 
@@ -86,11 +86,11 @@ export function LandingPage() {
         {/* ── Hero ── */}
         <section className="mx-auto max-w-5xl px-4 py-12 text-center md:px-6 md:py-16">
           <h1 className="text-5xl font-bold tracking-tight text-pulse-text md:whitespace-nowrap text-balance">
-            Keep your ABA practice{" "}
-            <span className="text-pulse-primary">connected</span>.
+            Keep your practice{" "}
+            <span className="text-pulse-primary">in sync</span>.
           </h1>
           <p className="mx-auto mt-8 max-w-2xl text-xl text-pulse-text/80 leading-relaxed text-balance">
-            One platform for your whole team, so you can focus on your clients.
+            One dashboard for sessions, notes, and hours — so your team can focus on clients, not spreadsheets.
           </p>
           <div className="mt-10">
             <Link
@@ -106,7 +106,7 @@ export function LandingPage() {
         <section className="bg-pulse-surface">
           <div className="mx-auto max-w-5xl px-4 py-12 md:px-6">
             <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-pulse-text">
-              In ABA, up to 1 in 3 claims gets denied.
+              Running an ABA practice means tracking three things at once.
             </h2>
             <div className="grid gap-8 md:grid-cols-3">
               {PROBLEMS.map(({ icon: Icon, title, punch, detail }) => (
@@ -126,8 +126,8 @@ export function LandingPage() {
         {/* ── Bridge ── */}
         <section className="py-10 text-center">
           <p className="text-4xl font-bold text-pulse-text leading-tight px-4 md:whitespace-nowrap">
-            Pulse catches all three{" "}
-            <span className="text-pulse-primary">before the claim does</span>
+            Pulse puts all three{" "}
+            <span className="text-pulse-primary">in one place</span>
           </p>
         </section>
 
@@ -135,7 +135,7 @@ export function LandingPage() {
         <section className="mx-auto max-w-5xl px-4 py-12 md:px-6">
           <div className="mb-8 text-center space-y-2">
             <h2 className="text-2xl font-semibold tracking-tight text-pulse-text">
-              How Pulse catches each one
+              How Pulse keeps your practice ready
             </h2>
           </div>
           <div className="grid gap-5 md:grid-cols-3">
