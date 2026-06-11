@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "sonner"
 import type { Session } from "@supabase/supabase-js"
+import { AuditPullPage } from "@/pages/AuditPullPage"
 import { ClientOverviewPage } from "@/pages/ClientOverviewPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { RosterPage } from "@/pages/RosterPage"
@@ -185,6 +186,14 @@ function App() {
           element={
             userRole.toLowerCase() === "owner"
               ? <RosterPage practiceId={practice.practice_id} />
+              : <Navigate to="/" replace />
+          }
+        />
+        <Route
+          path="/audit"
+          element={
+            userRole.toLowerCase() === "owner"
+              ? <AuditPullPage practiceId={practice.practice_id} />
               : <Navigate to="/" replace />
           }
         />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSearchParams, Link } from "react-router-dom"
-import { Users } from "lucide-react"
+import { ClipboardList, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -289,6 +289,16 @@ export function DashboardPage({
               className="inline-flex items-center justify-center rounded-md p-2 text-[#0D7377] hover:bg-[#E8F7F7] transition-colors"
             >
               <Users className="size-4" />
+            </Link>
+          )}
+          {role === "Owner" && (
+            <Link
+              to="/audit"
+              aria-label="Audit pull"
+              title="Audit pull"
+              className="inline-flex items-center justify-center rounded-md p-2 text-[#0D7377] hover:bg-[#E8F7F7] transition-colors"
+            >
+              <ClipboardList className="size-4" />
             </Link>
           )}
           {role === "Owner" ? (
