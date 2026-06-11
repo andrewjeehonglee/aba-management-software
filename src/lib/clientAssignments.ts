@@ -105,6 +105,30 @@ export interface CareTeamMember {
   externalCode: string
 }
 
+export interface RosterStaffLink {
+  staffId: string
+  fullName: string
+  externalCode: string
+}
+
+export interface StaffClientTableRow {
+  clientId: string
+  clientCode: string
+  technician: RosterStaffLink | null
+  supervisor: RosterStaffLink | null
+}
+
+export interface StaffPeopleGroups {
+  bcbas: RosterStaffLink[]
+  supervisors: RosterStaffLink[]
+  technicians: RosterStaffLink[]
+}
+
+export interface BtClientAssignment {
+  clientId: string
+  clientCode: string
+}
+
 export interface CareTeamDetails {
   bcba: CareTeamMember | null
   supervisor: CareTeamMember | null
@@ -127,6 +151,182 @@ function mapRosterStaff(row: StaffCareRow): CareTeamMember | null {
     fullName: row.full_name,
     externalCode: row.external_code,
   }
+}
+
+function mapRosterStaffLink(row: StaffCareRow): RosterStaffLink | null {
+  const member = mapRosterStaff(row)
+  return member
+}
+
+async function fetchStaffLinks(staffIds: string[]): Promise<Map<string, RosterStaffLink>> {
+  if (staffIds.length === 0) return new Map()
+
+  const { data, error } = await supabase
+    .from("staff")
+    .select("id, full_name, external_code, status")
+    .in("id", staffIds)
+
+  if (error) throw error
+
+  const map = new Map<string, RosterStaffLink>()
+  for (const row of (data ?? []) as StaffCareRow[]) {
+    const link = mapRosterStaffLink(row)
+    if (link) map.set(link.staffId, link)
+  }
+  return map
+}
+
+async function getClientCodesById(clientIds: string[]): Promise<Map<string, string>> {
+  if (clientIds.length === 0) return new Map()
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, external_code")
+    .in("id", clientIds)
+
+  if (error) throw error
+
+  return new Map(
+    ((data ?? []) as { id: string; external_code: string | null }[])
+      .filter((c) => c.external_code)
+      .map((c) => [c.id, c.external_code as string]),
+  )
+}
+
+async function buildClientTableRows(clientIds: string[]): Promise<StaffClientTableRow[]> {
+  if (clientIds.length === 0) return []
+
+  const clientCodes = await getClientCodesById(clientIds)
+  const { data, error } = await supabase
+    .from("client_assignments")
+    .select("client_id, staff_id, assignment_role")
+    .in("client_id", clientIds)
+    .eq("is_active", true)
+
+  if (error) throw error
+
+  const staffIds = [...new Set(((data ?? []) as { staff_id: string }[]).map((r) => r.staff_id))]
+  const staffById = await fetchStaffLinks(staffIds)
+
+  const rowsByClient = new Map<string, StaffClientTableRow>()
+  for (const clientId of clientIds) {
+    rowsByClient.set(clientId, {
+      clientId,
+      clientCode: clientCodes.get(clientId) ?? clientId,
+      technician: null,
+      supervisor: null,
+    })
+  }
+
+  for (const row of (data ?? []) as {
+    client_id: string
+    staff_id: string
+    assignment_role: ClientAssignmentRole
+  }[]) {
+    const entry = rowsByClient.get(row.client_id)
+    const link = staffById.get(row.staff_id)
+    if (!entry || !link) continue
+    if (row.assignment_role === "primary_bt" || row.assignment_role === "secondary_bt") {
+      entry.technician = link
+    }
+    if (row.assignment_role === "clinical_supervisor") {
+      entry.supervisor = link
+    }
+  }
+
+  return [...rowsByClient.values()].sort((a, b) => a.clientCode.localeCompare(b.clientCode))
+}
+
+/** Full caseload table for a BCBA (Client | Technician | Supervisor). */
+export async function getStaffClientTableForBcba(bcbaStaffId: string): Promise<StaffClientTableRow[]> {
+  const clientIds = await getClientIdsForStaffByRoles(bcbaStaffId, ["primary_bcba"])
+  return buildClientTableRows(clientIds)
+}
+
+/** Full caseload table for a clinical supervisor. */
+export async function getStaffClientTableForSupervisor(
+  supervisorStaffId: string,
+): Promise<StaffClientTableRow[]> {
+  const clientIds = await getClientIdsForStaffByRoles(supervisorStaffId, ["clinical_supervisor"])
+  return buildClientTableRows(clientIds)
+}
+
+/** BT primary assignments — client chips for technician pages. */
+export async function getBtClientAssignments(staffId: string): Promise<BtClientAssignment[]> {
+  const clientIds = await getClientIdsForStaffByRoles(staffId, ["primary_bt", "secondary_bt"])
+  const codes = await getClientCodesById(clientIds)
+  return clientIds
+    .map((clientId) => ({
+      clientId,
+      clientCode: codes.get(clientId) ?? clientId,
+    }))
+    .sort((a, b) => a.clientCode.localeCompare(b.clientCode))
+}
+
+/** Colleagues on shared caseloads, grouped by roster role. */
+export async function getStaffPeopleGroups(
+  staffId: string,
+  viewerRole: "bcba" | "supervisor",
+): Promise<StaffPeopleGroups> {
+  const assignmentRole: ClientAssignmentRole =
+    viewerRole === "bcba" ? "primary_bcba" : "clinical_supervisor"
+  const clientIds = await getClientIdsForStaffByRoles(staffId, [assignmentRole])
+  if (clientIds.length === 0) {
+    return { bcbas: [], supervisors: [], technicians: [] }
+  }
+
+  const { data, error } = await supabase
+    .from("client_assignments")
+    .select("staff_id, assignment_role")
+    .in("client_id", clientIds)
+    .eq("is_active", true)
+    .neq("staff_id", staffId)
+
+  if (error) throw error
+
+  const roleBuckets: Record<"bcba" | "supervisor" | "technician", Set<string>> = {
+    bcba: new Set(),
+    supervisor: new Set(),
+    technician: new Set(),
+  }
+
+  for (const row of (data ?? []) as { staff_id: string; assignment_role: ClientAssignmentRole }[]) {
+    if (row.assignment_role === "primary_bcba") roleBuckets.bcba.add(row.staff_id)
+    if (row.assignment_role === "clinical_supervisor") roleBuckets.supervisor.add(row.staff_id)
+    if (row.assignment_role === "primary_bt" || row.assignment_role === "secondary_bt") {
+      roleBuckets.technician.add(row.staff_id)
+    }
+  }
+
+  const allIds = [
+    ...roleBuckets.bcba,
+    ...roleBuckets.supervisor,
+    ...roleBuckets.technician,
+  ]
+  const staffById = await fetchStaffLinks(allIds)
+
+  const pick = (ids: Set<string>): RosterStaffLink[] =>
+    [...ids]
+      .map((id) => staffById.get(id))
+      .filter((link): link is RosterStaffLink => Boolean(link))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName))
+
+  return {
+    bcbas: pick(roleBuckets.bcba),
+    supervisors: pick(roleBuckets.supervisor),
+    technicians: pick(roleBuckets.technician),
+  }
+}
+
+/** BT staff IDs on this leader's caseload (for supervision compliance table). */
+export async function getCaseloadBtStaffIds(
+  staffId: string,
+  viewerRole: "bcba" | "supervisor",
+): Promise<string[]> {
+  const assignmentRole: ClientAssignmentRole =
+    viewerRole === "bcba" ? "primary_bcba" : "clinical_supervisor"
+  const clientIds = await getClientIdsForStaffByRoles(staffId, [assignmentRole])
+  return getStaffIdsForClientsByRoles(clientIds, ["primary_bt", "secondary_bt"])
 }
 
 const ASSIGNMENT_ROLE_LABEL: Record<ClientAssignmentRole, string> = {
