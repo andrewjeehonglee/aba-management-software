@@ -10,13 +10,16 @@ export interface OwnerAttentionItem {
 export interface OwnerAttentionSummary {
   attentionCount: number
   items: OwnerAttentionItem[]
+  /** True while fetching; does not clear visible status once resolved. */
   loading: boolean
+  /** True after the first successful fetch — prevents greeting/status flicker. */
+  resolved: boolean
 }
 
 export async function getOwnerAttentionSummary(options?: {
   staffIds?: string[]
   clientIds?: string[]
-}): Promise<Omit<OwnerAttentionSummary, "loading">> {
+}): Promise<Omit<OwnerAttentionSummary, "loading" | "resolved">> {
   const scope = {
     staffIds: options?.staffIds?.length ? options.staffIds : undefined,
     clientIds: options?.clientIds?.length ? options.clientIds : undefined,

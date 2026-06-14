@@ -21,18 +21,23 @@ export function DashboardTopBar({
   onViewRoleChange: (role: Role) => void
   isDemo?: boolean
 }) {
+  const displayPractice =
+    practiceName && isDemo ? `${practiceName} (demo)` : practiceName
+
   return (
     <header
-      className={`sticky top-0 z-10 flex h-14 w-full items-center justify-between gap-4 border-b border-border bg-surface px-4 sm:px-6 ${
+      className={`sticky top-0 z-10 flex h-16 w-full items-center justify-between gap-6 border-b border-border bg-surface px-5 sm:px-8 ${
         isDemo ? "bg-warn-bg/40" : ""
       }`}
     >
-      <div className="flex min-w-0 items-center gap-4">
-        <span className="shrink-0 text-[15px] font-semibold tracking-tight text-brand">
+      <div className="flex min-w-0 items-center gap-5">
+        <span className="shrink-0 text-xl font-semibold tracking-tight text-brand">
           Pulse
         </span>
-        {practiceName && (
-          <span className="hidden truncate text-sm text-muted sm:block">{practiceName}</span>
+        {displayPractice && (
+          <span className="hidden truncate text-base font-medium text-ink sm:block">
+            {displayPractice}
+          </span>
         )}
       </div>
 
@@ -43,29 +48,29 @@ export function DashboardTopBar({
               to="/roster"
               aria-label="Caseload roster"
               title="Caseload roster"
-              className="inline-flex items-center justify-center rounded-control p-2 text-brand transition-colors hover:bg-brand-weak"
+              className="inline-flex items-center justify-center rounded-control p-2.5 text-brand transition-colors hover:bg-brand-weak"
             >
-              <Users className="size-4" />
+              <Users className="size-5" />
             </Link>
             <Link
               to="/audit"
               aria-label="Audit pull"
               title="Audit pull"
-              className="inline-flex items-center justify-center rounded-control p-2 text-brand transition-colors hover:bg-brand-weak"
+              className="inline-flex items-center justify-center rounded-control p-2.5 text-brand transition-colors hover:bg-brand-weak"
             >
-              <ClipboardList className="size-4" />
+              <ClipboardList className="size-5" />
             </Link>
           </>
         )}
 
         {role === "Owner" ? (
-          <div className="hidden items-center gap-px rounded-full border border-border bg-bg p-0.5 sm:flex">
+          <div className="hidden items-center gap-0.5 rounded-full border border-border bg-bg p-1 sm:flex">
             {ROLES.map((r) => (
               <button
                 key={r}
                 type="button"
                 onClick={() => onViewRoleChange(r)}
-                className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
                   viewRole === r
                     ? "bg-surface text-brand shadow-card"
                     : "text-muted hover:text-ink"
@@ -76,15 +81,14 @@ export function DashboardTopBar({
             ))}
           </div>
         ) : (
-          <span className="hidden items-center rounded-full bg-brand-weak px-2.5 py-1 text-xs font-medium text-brand sm:inline-flex">
+          <span className="hidden items-center rounded-full bg-brand-weak px-3.5 py-1.5 text-sm font-medium text-brand sm:inline-flex">
             {role}
           </span>
         )}
 
         <Button
           variant="ghost"
-          size="sm"
-          className="text-muted hover:text-ink"
+          className="text-base text-muted hover:text-ink"
           onClick={() => {
             markUserSignOut()
             void supabase.auth.signOut()

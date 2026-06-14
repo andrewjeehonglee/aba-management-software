@@ -105,7 +105,11 @@ export function DashboardPage({
     attentionCount: 0,
     items: [],
     loading: true,
+    resolved: false,
   })
+
+  const rosterReady = rosterTechnicianIds.length > 0
+  const rosterScopeKey = `${rosterTechnicianIds.join(",")}|${rosterClientIds.join(",")}`
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -165,13 +169,21 @@ export function DashboardPage({
   }, [practiceId])
 
   useEffect(() => {
-    if (!currentStaffId) {
-      setOwnerDisplayName(null)
-      return
-    }
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      const metaName = session?.user?.user_metadata?.full_name as string | undefined
+      if (metaName?.trim()) {
+        setOwnerDisplayName((prev) => prev ?? metaName.trim())
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!currentStaffId) return
     getStaffFullName(currentStaffId)
-      .then(setOwnerDisplayName)
-      .catch(() => setOwnerDisplayName(null))
+      .then((name) => {
+        if (name) setOwnerDisplayName(name)
+      })
+      .catch(() => {})
   }, [currentStaffId])
 
   useEffect(() => {
@@ -250,19 +262,33 @@ export function DashboardPage({
       : null
 
   useEffect(() => {
-    if (!isOwnerView || !rosterScope) {
-      setAttention({ attentionCount: 0, items: [], loading: false })
-      return
-    }
+    if (!isOwnerView || !rosterReady) return
 
+    let cancelled = false
     setAttention((prev) => ({ ...prev, loading: true }))
+
     getOwnerAttentionSummary({
-      staffIds: rosterScope.staffIds,
-      clientIds: rosterScope.clientIds,
+      staffIds: rosterTechnicianIds,
+      clientIds: rosterClientIds,
     })
-      .then((summary) => setAttention({ ...summary, loading: false }))
-      .catch(() => setAttention({ attentionCount: 0, items: [], loading: false }))
-  }, [isOwnerView, rosterScope, notesRefreshKey, staffRefreshKey])
+      .then((summary) => {
+        if (cancelled) return
+        setAttention({ ...summary, loading: false, resolved: true })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setAttention((prev) => ({
+          attentionCount: 0,
+          items: [],
+          loading: false,
+          resolved: prev.resolved,
+        }))
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOwnerView, rosterReady, rosterScopeKey, notesRefreshKey, staffRefreshKey])
 
   useEffect(() => {
     if (isOwnerView) {
@@ -331,12 +357,16 @@ export function DashboardPage({
       />
 
       {isOwnerView ? (
-        <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-6">
+        <main className="mx-auto w-full max-w-[min(100%,1680px)] flex-1 px-4 py-8 sm:px-6 lg:px-8">
           <div className="mb-8">
-            <FocalStatusArea userName={ownerDisplayName} attention={attention} />
+            <FocalStatusArea
+              userName={ownerDisplayName}
+              attention={attention}
+              rosterReady={rosterReady}
+            />
           </div>
 
-          <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
             <div id="notes-overdue" className="h-full">
               <NotesOverdueTile
                 variant="pulse"
