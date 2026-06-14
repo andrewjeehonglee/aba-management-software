@@ -30,7 +30,7 @@ function WorklistRow({ item }: { item: OwnerWorklistItem }) {
         aria-hidden
       />
       <span className="min-w-0 flex-1 truncate font-medium text-ink">{item.name}</span>
-      <span className={cn("shrink-0 tabular-nums text-sm font-semibold", severityTextClass(item.severity))}>
+      <span className={cn("shrink-0 tabular-nums text-[15px] font-semibold", severityTextClass(item.severity))}>
         {item.displayValue}
       </span>
       <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden />
@@ -38,7 +38,7 @@ function WorklistRow({ item }: { item: OwnerWorklistItem }) {
   )
 
   const className =
-    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors hover:bg-bg"
+    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] transition-colors hover:bg-bg"
 
   if (item.href) {
     return (
@@ -58,18 +58,20 @@ function WorklistRow({ item }: { item: OwnerWorklistItem }) {
 export function WorklistRail({
   items,
   loading,
+  className,
 }: {
   items: OwnerWorklistItem[]
   loading: boolean
+  className?: string
 }) {
   const grouped = groupItems(items)
 
   return (
-    <aside className="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-surface shadow-card">
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3.5">
-        <h2 className="text-base font-semibold text-ink">Needs your attention</h2>
+    <aside className={cn("flex min-h-0 flex-col overflow-hidden rounded-2xl bg-surface shadow-card", className)}>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <h2 className="text-lg font-semibold text-ink">Needs your attention</h2>
         {!loading && (
-          <span className="rounded-full bg-bg px-2.5 py-0.5 text-xs tabular-nums text-muted">
+          <span className="rounded-full bg-bg px-3 py-0.5 text-sm tabular-nums text-muted">
             {items.length} {items.length === 1 ? "item" : "items"}
           </span>
         )}
@@ -79,11 +81,11 @@ export function WorklistRail({
         {loading ? (
           <div className="space-y-3 px-2 py-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-9 animate-pulse rounded-lg bg-line" />
+              <div key={i} className="h-10 animate-pulse rounded-lg bg-line" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="px-3 py-6 text-sm text-subtle">Nothing needs your attention right now.</p>
+          <p className="px-3 py-6 text-[15px] text-subtle">Nothing needs your attention right now.</p>
         ) : (
           <div className="space-y-4">
             {GROUP_ORDER.map((groupKey) => {
@@ -91,7 +93,7 @@ export function WorklistRail({
               if (!groupItemsList?.length) return null
               return (
                 <section key={groupKey}>
-                  <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-subtle">
+                  <p className="px-2.5 pb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
                     {GROUP_LABELS[groupKey] ?? groupItemsList[0]!.groupLabel}
                   </p>
                   <div className="space-y-0.5">

@@ -28,35 +28,35 @@ export function PulsePillarCard({
     <div
       id={id}
       className={cn(
-        "flex min-h-0 flex-col rounded-2xl bg-surface p-5 shadow-card",
+        "flex flex-col rounded-2xl bg-surface p-6 shadow-card",
         className,
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
           <span
-            className={cn("size-2.5 shrink-0 rounded-full", severityDotClass(status))}
+            className={cn("size-3 shrink-0 rounded-full", severityDotClass(status))}
             aria-hidden
           />
-          <h3 className="text-base font-semibold text-ink">{title}</h3>
+          <h3 className="text-lg font-semibold text-ink">{title}</h3>
         </div>
-        <p className="shrink-0 text-right text-xs leading-snug text-subtle">{period}</p>
+        <p className="max-w-[11rem] shrink-0 text-right text-sm leading-snug text-subtle">{period}</p>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+      <div className="mt-5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span
           className={cn(
-            "text-[52px] font-bold tabular-nums tracking-[-0.03em]",
+            "text-[56px] font-bold leading-none tabular-nums tracking-[-0.03em]",
             severityTextClass(metricSeverity),
           )}
         >
           {metric}
         </span>
-        <span className="text-sm font-medium text-muted">{unit}</span>
+        <span className="text-base font-medium text-muted">{unit}</span>
       </div>
 
-      <div className="mt-auto border-t border-line pt-3.5">
-        <div className="text-[13.5px] leading-snug text-muted">{support}</div>
+      <div className="mt-5 border-t border-line pt-4">
+        <div className="text-[15px] leading-relaxed text-muted">{support}</div>
       </div>
     </div>
   )
@@ -64,14 +64,14 @@ export function PulsePillarCard({
 
 export function PulseTileSkeleton() {
   return (
-    <div className="flex min-h-0 flex-col rounded-2xl bg-surface p-5 shadow-card">
+    <div className="flex flex-col rounded-2xl bg-surface p-6 shadow-card">
       <div className="flex items-start justify-between">
-        <div className="h-5 w-40 animate-pulse rounded bg-line" />
-        <div className="h-8 w-24 animate-pulse rounded bg-line" />
+        <div className="h-6 w-44 animate-pulse rounded bg-line" />
+        <div className="h-10 w-28 animate-pulse rounded bg-line" />
       </div>
-      <div className="mt-4 h-14 w-28 animate-pulse rounded bg-line" />
-      <div className="mt-auto border-t border-line pt-3.5">
-        <div className="h-4 w-full animate-pulse rounded bg-line" />
+      <div className="mt-5 h-14 w-32 animate-pulse rounded bg-line" />
+      <div className="mt-5 border-t border-line pt-4">
+        <div className="h-5 w-full animate-pulse rounded bg-line" />
       </div>
     </div>
   )

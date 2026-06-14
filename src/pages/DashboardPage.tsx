@@ -367,15 +367,20 @@ export function DashboardPage({
       />
 
       {isOwnerView ? (
-        <main className="mx-auto flex h-[calc(100svh-3.5rem)] w-full max-w-[min(100%,1480px)] min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6">
+        <main
+          className={cn(
+            "mx-auto flex w-full max-w-[min(100%,1080px)] min-h-0 flex-col overflow-hidden px-4 sm:px-6",
+            isDemo ? "h-[calc(100svh-3.5rem-2.5rem)] py-3" : "h-[calc(100svh-3.5rem)] py-4",
+          )}
+        >
           <FocalStatusArea
             userName={ownerPersonaName}
             attention={attention}
             rosterReady={rosterReady}
           />
 
-          <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 gap-[18px] lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="grid min-h-0 grid-rows-3 gap-[18px]">
+          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-center lg:gap-5">
+            <div className="flex min-h-0 w-full flex-1 flex-col justify-between gap-4 lg:max-w-[500px] lg:flex-none">
               <NotesOverdueTile
                 variant="pulse"
                 refreshKey={notesRefreshKey}
@@ -398,7 +403,11 @@ export function DashboardPage({
               />
             </div>
 
-            <WorklistRail items={attention.worklist} loading={attention.loading && !attention.resolved} />
+            <WorklistRail
+              className="min-h-0 w-full lg:max-w-[400px] lg:flex-none"
+              items={attention.worklist}
+              loading={attention.loading && !attention.resolved}
+            />
           </div>
         </main>
       ) : (
