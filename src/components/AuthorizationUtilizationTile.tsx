@@ -15,17 +15,9 @@ import { clientProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 import {
-  PulseBaseline,
-  PulseDrillSection,
-  PulseDrillRow,
-  PulseDrillExpand,
-  PulseHealthyLine,
-  PulseMetric,
+  PulsePillarCard,
   PulseTileError,
-  PulseTileHeader,
-  PulseTileShell,
   PulseTileSkeleton,
-  trendGlyph,
 } from "@/components/dashboard/PulseTile"
 
 function MiniBar({ pct }: { pct: number }) {
@@ -101,16 +93,12 @@ function sortByUtilizationDesc(a: ClientAuthUtilRow, b: ClientAuthUtilRow): numb
   return b.utilizationPct - a.utilizationPct || a.clientName.localeCompare(b.clientName)
 }
 
-const PULSE_DRILL_LIMIT = 6
-
 function PulseAuthTile({
   className,
   summary,
   loading,
   error,
   onRetry,
-  expanded,
-  onExpand,
   clientIds,
 }: {
   className?: string
@@ -118,26 +106,21 @@ function PulseAuthTile({
   loading: boolean
   error: string | null
   onRetry: () => void
-  expanded: boolean
-  onExpand: () => void
   clientIds?: string[]
 }) {
   if (loading) return <PulseTileSkeleton />
 
   const monthLabel = summary?.monthLabel ?? ""
-  const allClients = summary?.byClient ?? []
-  const flaggedCount = allClients.filter((row) => row.flagged).length
-  const lastMonthFlagged = summary?.lastMonthFlaggedCount ?? 0
-  const hasOverAuthorized = allClients.some((row) => row.overAuthorized)
-
-  const drillClients = [...allClients].sort(sortByUtilizationDesc)
-  const visibleClients = expanded ? drillClients : drillClients.slice(0, PULSE_DRILL_LIMIT)
-  const hiddenClients = drillClients.length - PULSE_DRILL_LIMIT
+  const overCount = summary?.overCount ?? 0
+  const approachingCount = summary?.approachingCount ?? 0
+  const withinCount = summary?.withinCount ?? 0
+  const totalClients = summary?.totalClients ?? 0
+  const totalOverHours = summary?.totalOverHours ?? 0
 
   if (error) {
     return (
       <PulseTileError
-        title="Auth Utilization"
+        title="Authorization utilization"
         message="Couldn't load authorizations."
         onRetry={onRetry}
         className={className}
@@ -145,70 +128,67 @@ function PulseAuthTile({
     )
   }
 
-  if (allClients.length === 0) {
+  if (totalClients === 0) {
     return (
-      <PulseTileShell flagged={false} className={className}>
-        <PulseTileHeader title="Auth Utilization" periodPrefix="This month" periodLabel={monthLabel} />
-        <div className="mt-6 flex flex-1 flex-col items-start gap-2">
-          <BadgeCheck className="size-5 text-subtle" aria-hidden />
-          <p className="text-base text-ink">
-            {clientIds?.length
-              ? "No authorization records for this caseload yet."
-              : "No utilization logged yet this month."}
-          </p>
-          <p className="text-sm text-muted">Utilization updates as documented sessions are completed.</p>
-        </div>
-      </PulseTileShell>
+      <PulsePillarCard
+        id="auth-utilization"
+        className={className}
+        status="ok"
+        title="Authorization utilization"
+        period={`This month · ${monthLabel}`}
+        metric="0"
+        unit="clients over authorized limit"
+        support={
+          clientIds?.length
+            ? "No authorization records for this caseload yet."
+            : "No utilization logged yet — delivery against auth limits appears as sessions are documented."
+        }
+      />
     )
   }
 
-  return (
-    <PulseTileShell
-      flagged={flaggedCount > 0}
-      severity={hasOverAuthorized ? "crit" : "warn"}
-      className={className}
-    >
-      <PulseTileHeader title="Auth Utilization" periodPrefix="This month" periodLabel={monthLabel} />
+  const status = overCount > 0 ? "crit" : approachingCount > 0 ? "warn" : "ok"
+  const metricSeverity = overCount > 0 ? "crit" : "ok"
 
-      <div className="mt-4">
-        <PulseMetric
-          value={flaggedCount}
-          unit="at or above 80%"
-          flagged={flaggedCount > 0}
-          severity="warn"
-        />
-        {flaggedCount > 0 ? (
-          <PulseBaseline>
-            {trendGlyph(flaggedCount, lastMonthFlagged)} was {lastMonthFlagged} last month ·{" "}
-            {allClients.length} clients authorized
-          </PulseBaseline>
-        ) : (
-          <PulseHealthyLine>
-            All clients below 80% · {allClients.length} authorized.
-          </PulseHealthyLine>
+  const support =
+    overCount > 0 || approachingCount > 0 ? (
+      <>
+        {totalOverHours > 0 && (
+          <>
+            <span className="font-semibold text-crit">{totalOverHours} hrs delivered past auth — unreimbursed.</span>{" "}
+          </>
         )}
-      </div>
+        {withinCount} of {totalClients} within limits
+        {overCount > 0 && (
+          <>
+            {" · "}
+            <span className="font-semibold text-crit">{overCount} over</span>
+          </>
+        )}
+        {approachingCount > 0 && (
+          <>
+            {" · "}
+            <span className="font-semibold text-warn">{approachingCount} approaching</span>
+          </>
+        )}
+        .
+      </>
+    ) : (
+      `All ${totalClients} clients within authorized limits — no unreimbursed delivery this month.`
+    )
 
-      {drillClients.length > 0 && (
-        <PulseDrillSection eyebrow="Per client">
-          <ul className="space-y-2.5">
-            {visibleClients.map((row) => (
-              <PulseDrillRow
-                key={row.authId}
-                name={row.clientName}
-                to={row.clientCode ? clientProfilePath(row.clientCode) : undefined}
-                flagged={row.flagged}
-                severity={row.overAuthorized ? "crit" : "warn"}
-                value={`${row.utilizationPct}%`}
-              />
-            ))}
-          </ul>
-          {!expanded && (
-            <PulseDrillExpand hiddenCount={hiddenClients} noun="clients" onClick={onExpand} />
-          )}
-        </PulseDrillSection>
-      )}
-    </PulseTileShell>
+  return (
+    <PulsePillarCard
+      id="auth-utilization"
+      className={className}
+      status={status}
+      title="Authorization utilization"
+      period={`This month · ${monthLabel}`}
+      metric={overCount}
+      unit="clients over authorized limit"
+      metricSeverity={metricSeverity}
+      support={support}
+    />
   )
 }
 
@@ -226,7 +206,6 @@ export function AuthorizationUtilizationTile({
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(false)
   const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
@@ -245,8 +224,6 @@ export function AuthorizationUtilizationTile({
         summary={summary}
         loading={loading}
         error={error}
-        expanded={expanded}
-        onExpand={() => setExpanded(true)}
         onRetry={() => setRetryTick((k) => k + 1)}
         clientIds={clientIds}
       />

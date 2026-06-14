@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { AlertCircle, AlertTriangle, CheckCircle2, FileText, Info } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -13,18 +13,9 @@ import { getNotesStatus, type StaffNotesStatus } from "@/lib/notesStatus"
 import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 import {
-  PulseBaseline,
-  PulseCompletionBar,
-  PulseDrillSection,
-  PulseDrillRow,
-  PulseDrillExpand,
-  PulseHealthyLine,
-  PulseMetric,
+  PulsePillarCard,
   PulseTileError,
-  PulseTileHeader,
-  PulseTileShell,
   PulseTileSkeleton,
-  trendGlyph,
 } from "@/components/dashboard/PulseTile"
 
 const CRITICAL_THRESHOLD = 10
@@ -71,37 +62,24 @@ function PulseNotesTile({
   loading,
   error,
   onRetry,
-  expanded,
-  onExpand,
 }: {
   className?: string
   summary: Awaited<ReturnType<typeof getNotesStatus>> | null
   loading: boolean
   error: string | null
   onRetry: () => void
-  expanded: boolean
-  onExpand: () => void
 }) {
   if (loading) return <PulseTileSkeleton />
 
   const overdue = summary?.totalOverdue ?? 0
   const periodLabel = summary?.payPeriodLabel ?? ""
-  const lastPeriodOverdue = summary?.lastPeriodOverdue ?? 0
   const pctDocumented = summary?.pctDocumented ?? 0
   const totalCompleted = summary?.totalCompleted ?? 0
-
-  const staffWithOverdue = (summary?.byStaff ?? [])
-    .filter((row) => row.overdueCount > 0)
-    .sort(sortByOverdueDesc)
-  const staffCount = summary?.byStaff.length ?? 0
-
-  const visibleStaff = expanded ? staffWithOverdue : staffWithOverdue.slice(0, 3)
-  const hiddenCount = staffWithOverdue.length - 3
 
   if (error) {
     return (
       <PulseTileError
-        title="Session Notes"
+        title="Session notes"
         message="Couldn't load notes."
         onRetry={onRetry}
         className={className}
@@ -111,64 +89,42 @@ function PulseNotesTile({
 
   if (totalCompleted === 0) {
     return (
-      <PulseTileShell flagged={false} className={className}>
-        <PulseTileHeader title="Session Notes" periodPrefix="This period" periodLabel={periodLabel} />
-        <div className="mt-6 flex flex-1 flex-col items-start gap-2">
-          <FileText className="size-5 text-subtle" aria-hidden />
-          <p className="text-base text-ink">No sessions logged yet this period.</p>
-          <p className="text-sm text-muted">
-            Notes will appear here as your team documents sessions.
-          </p>
-        </div>
-      </PulseTileShell>
+      <PulsePillarCard
+        id="notes-overdue"
+        className={className}
+        status="ok"
+        title="Session notes"
+        period={`This pay period · ${periodLabel}`}
+        metric="—"
+        unit="documented"
+        support="No sessions logged yet this period — nothing to document or pay."
+      />
     )
   }
 
+  const status = overdue > 0 ? "warn" : "ok"
+
+  const support =
+    overdue > 0 ? (
+      <>
+        <span className="font-semibold text-warn">{overdue} overdue</span>
+        {" — not payable until submitted, and the first thing an audit pulls."}
+      </>
+    ) : (
+      "All sessions documented and payable — no audit exposure this period."
+    )
+
   return (
-    <PulseTileShell flagged={overdue > 0} severity="crit" className={className}>
-      <PulseTileHeader title="Session Notes" periodPrefix="This period" periodLabel={periodLabel} />
-
-      <div className="mt-4">
-        <PulseMetric value={overdue} unit="overdue" flagged={overdue > 0} severity="crit" />
-        {overdue > 0 ? (
-          <PulseBaseline>
-            {trendGlyph(overdue, lastPeriodOverdue)} was {lastPeriodOverdue} last period
-          </PulseBaseline>
-        ) : (
-          <PulseHealthyLine>All notes in for this period.</PulseHealthyLine>
-        )}
-      </div>
-
-      {totalCompleted > 0 && (
-        <PulseCompletionBar pct={pctDocumented} label={`${pctDocumented}% documented`} />
-      )}
-
-      {staffWithOverdue.length > 0 ? (
-        <PulseDrillSection eyebrow="Per staff">
-          <ul className="space-y-2.5">
-            {visibleStaff.map((row) => (
-              <PulseDrillRow
-                key={row.staffId}
-                name={row.staffName}
-                to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined}
-                flagged
-                severity="crit"
-                value={row.overdueCount}
-              />
-            ))}
-          </ul>
-          {!expanded && (
-            <PulseDrillExpand hiddenCount={hiddenCount} noun="staff" onClick={onExpand} />
-          )}
-        </PulseDrillSection>
-      ) : (
-        staffCount > 0 && (
-          <p className="mt-auto border-t border-border pt-4 text-base text-subtle">
-            All {staffCount} staff current.
-          </p>
-        )
-      )}
-    </PulseTileShell>
+    <PulsePillarCard
+      id="notes-overdue"
+      className={className}
+      status={status}
+      title="Session notes"
+      period={`This pay period · ${periodLabel}`}
+      metric={`${pctDocumented}%`}
+      unit="documented"
+      support={support}
+    />
   )
 }
 
@@ -193,7 +149,6 @@ export function NotesOverdueTile({
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expanded, setExpanded] = useState(false)
   const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
@@ -221,8 +176,6 @@ export function NotesOverdueTile({
         summary={summary}
         loading={loading}
         error={error}
-        expanded={expanded}
-        onExpand={() => setExpanded(true)}
         onRetry={() => setRetryTick((k) => k + 1)}
       />
     )

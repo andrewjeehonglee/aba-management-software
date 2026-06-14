@@ -27,22 +27,21 @@ import {
 } from "@/components/ui/select"
 import { createStaff } from "@/lib/supabase"
 import { getStaffHoursByMonth, type StaffHoursRow } from "@/lib/staffHours"
+import { getNotesStatus, type NotesStatusSummary } from "@/lib/notesStatus"
+import {
+  daysUntilPeriodEnd,
+  formatPayPeriodCloseDate,
+} from "@/lib/payPeriod"
+import { PAYROLL_ESCALATION_DAYS } from "@/lib/pulseSeverity"
 import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
 import {
-  PulseBaseline,
-  PulseDrillSection,
-  PulseDrillRow,
-  PulseDrillExpand,
-  PulseHealthyLine,
-  PulseMetric,
+  PulsePillarCard,
   PulseTileError,
-  PulseTileHeader,
-  PulseTileShell,
   PulseTileSkeleton,
-  trendGlyph,
 } from "@/components/dashboard/PulseTile"
+import { Clock } from "lucide-react"
 
 const HOURS_COLORS = {
   direct: "#10b981",
@@ -290,45 +289,38 @@ function sortByTotalHoursDesc(a: StaffHoursRow, b: StaffHoursRow): number {
   return b.totalHours - a.totalHours
 }
 
-function sortByDirectPctAsc(a: StaffHoursRow, b: StaffHoursRow): number {
-  return a.directPct - b.directPct || b.totalHours - a.totalHours
-}
-
-const PULSE_DRILL_LIMIT = 6
-
 function PulseHoursTile({
   className,
   summary,
+  notesSummary,
   loading,
   error,
   onRetry,
-  expanded,
-  onExpand,
 }: {
   className?: string
   summary: Awaited<ReturnType<typeof getStaffHoursByMonth>> | null
+  notesSummary: NotesStatusSummary | null
   loading: boolean
   error: string | null
   onRetry: () => void
-  expanded: boolean
-  onExpand: () => void
 }) {
   if (loading) return <PulseTileSkeleton />
 
   const monthLabel = summary?.monthLabel ?? ""
   const allStaff = summary?.byStaff ?? []
   const flaggedCount = allStaff.filter((row) => row.flagged).length
-  const lastMonthFlagged = summary?.lastMonthFlaggedCount ?? 0
-  const totalBillable = allStaff.reduce((sum, row) => sum + row.totalHours, 0)
+  const staffCount = allStaff.length
 
-  const drillStaff = [...allStaff].sort(sortByDirectPctAsc)
-  const visibleStaff = expanded ? drillStaff : drillStaff.slice(0, PULSE_DRILL_LIMIT)
-  const hiddenStaff = drillStaff.length - PULSE_DRILL_LIMIT
+  const payableHoursPending = notesSummary?.payableHoursPending ?? 0
+  const daysUntilClose = daysUntilPeriodEnd()
+  const payrollEscalates =
+    daysUntilClose <= PAYROLL_ESCALATION_DAYS && payableHoursPending > 0
+  const closeDate = formatPayPeriodCloseDate()
 
   if (error) {
     return (
       <PulseTileError
-        title="Hours by Staff"
+        title="Hours by staff"
         message="Couldn't load hours."
         onRetry={onRetry}
         className={className}
@@ -338,60 +330,60 @@ function PulseHoursTile({
 
   if (allStaff.length === 0) {
     return (
-      <PulseTileShell flagged={false} className={className}>
-        <PulseTileHeader title="Hours by Staff" periodPrefix="This month" periodLabel={monthLabel} />
-        <div className="mt-6 flex flex-1 flex-col items-start gap-2">
-          <Users className="size-5 text-subtle" aria-hidden />
-          <p className="text-base text-ink">No billable hours logged yet this month.</p>
-          <p className="text-sm text-muted">Hours appear here as your team completes documented sessions.</p>
-        </div>
-      </PulseTileShell>
+      <PulsePillarCard
+        id="hours-by-staff"
+        className={className}
+        status="ok"
+        title="Hours by staff"
+        period={`This month · ${monthLabel}`}
+        metric="0"
+        unit="staff below 50% direct"
+        support="No billable hours logged yet — payroll and compliance tracking starts when sessions are documented."
+      />
     )
   }
 
-  return (
-    <PulseTileShell flagged={flaggedCount > 0} severity="warn" className={className}>
-      <PulseTileHeader title="Hours by Staff" periodPrefix="This month" periodLabel={monthLabel} />
+  const status = payrollEscalates ? "warn" : "ok"
 
-      <div className="mt-4">
-        <PulseMetric
-          value={flaggedCount}
-          unit="below direct mix"
-          flagged={flaggedCount > 0}
-          severity="warn"
-        />
+  const support = (
+    <div className="space-y-1">
+      <p>
         {flaggedCount > 0 ? (
-          <PulseBaseline>
-            {trendGlyph(flaggedCount, lastMonthFlagged)} was {lastMonthFlagged} last month ·{" "}
-            {allStaff.length} staff · {Math.round(totalBillable)} billable hrs
-          </PulseBaseline>
+          <>
+            <span className="font-semibold text-warn">{flaggedCount} staff</span>
+            {" below 50% direct mix — compliance and overpay risk."}
+          </>
         ) : (
-          <PulseHealthyLine>
-            All staff above 50% direct mix · {Math.round(totalBillable)} billable hrs.
-          </PulseHealthyLine>
+          `All ${staffCount} staff billing healthy — no overpay or compliance risk.`
         )}
-      </div>
-
-      {drillStaff.length > 0 && (
-        <PulseDrillSection eyebrow="Per staff">
-          <ul className="space-y-2.5">
-            {visibleStaff.map((row) => (
-              <PulseDrillRow
-                key={row.staffId}
-                name={row.staffName}
-                to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined}
-                flagged={row.flagged}
-                severity="warn"
-                value={`${Math.round(row.directPct * 100)}% direct`}
-              />
-            ))}
-          </ul>
-          {!expanded && (
-            <PulseDrillExpand hiddenCount={hiddenStaff} noun="staff" onClick={onExpand} />
-          )}
-        </PulseDrillSection>
+      </p>
+      {payrollEscalates ? (
+        <p className="inline-flex items-center gap-1.5 text-warn">
+          <Clock className="size-3.5 shrink-0" aria-hidden />
+          <span>
+            Closes in {daysUntilClose} {daysUntilClose === 1 ? "day" : "days"} ·{" "}
+            <span className="font-semibold">{payableHoursPending} hrs</span> not yet payable — notes overdue.
+          </span>
+        </p>
+      ) : (
+        <p className="text-subtle">
+          Payroll on track · pay period closes {closeDate}
+        </p>
       )}
-    </PulseTileShell>
+    </div>
+  )
+
+  return (
+    <PulsePillarCard
+      id="hours-by-staff"
+      className={className}
+      status={status}
+      title="Hours by staff"
+      period={`This month · ${monthLabel}`}
+      metric={flaggedCount}
+      unit="staff below 50% direct"
+      support={support}
+    />
   )
 }
 
@@ -419,29 +411,45 @@ export function HoursByStaffTile({
   variant = "default",
 }: HoursByStaffTileProps) {
   const [summary, setSummary]     = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
+  const [notesSummary, setNotesSummary] = useState<NotesStatusSummary | null>(null)
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
-  const [expanded, setExpanded]   = useState(false)
   const [retryTick, setRetryTick] = useState(0)
 
+  const scopeOptions =
+    staffIds?.length || clientIds?.length || includeZeroHourStaff
+      ? {
+          staffIds: staffIds?.length ? staffIds : undefined,
+          clientIds: clientIds?.length ? clientIds : undefined,
+          includeZeroHourStaff,
+        }
+      : undefined
+
   useEffect(() => {
+    if (variant !== "pulse") {
+      setLoading(true)
+      setError(null)
+      getStaffHoursByMonth(undefined, scopeOptions)
+        .then(setSummary)
+        .catch((err) => setError(err.message ?? "Failed to load staff hours"))
+        .finally(() => setLoading(false))
+      return
+    }
+
     setLoading(true)
     setError(null)
-    getStaffHoursByMonth(
-      undefined,
-      staffIds?.length || clientIds?.length || includeZeroHourStaff
-        ? {
-            staffIds: staffIds?.length ? staffIds : undefined,
-            clientIds: clientIds?.length ? clientIds : undefined,
-            includeZeroHourStaff,
-          }
-        : undefined,
-    )
-      .then(setSummary)
+    Promise.all([
+      getStaffHoursByMonth(undefined, scopeOptions),
+      getNotesStatus(undefined, scopeOptions),
+    ])
+      .then(([hours, notes]) => {
+        setSummary(hours)
+        setNotesSummary(notes)
+      })
       .catch((err) => setError(err.message ?? "Failed to load staff hours"))
       .finally(() => setLoading(false))
-  }, [refreshKey, staffIds, clientIds, includeZeroHourStaff, retryTick])
+  }, [refreshKey, staffIds, clientIds, includeZeroHourStaff, retryTick, variant])
 
   if (variant === "pulse") {
     return (
@@ -449,10 +457,9 @@ export function HoursByStaffTile({
         <PulseHoursTile
           className={className}
           summary={summary}
+          notesSummary={notesSummary}
           loading={loading}
           error={error}
-          expanded={expanded}
-          onExpand={() => setExpanded(true)}
           onRetry={() => setRetryTick((k) => k + 1)}
         />
         {practiceId && (
