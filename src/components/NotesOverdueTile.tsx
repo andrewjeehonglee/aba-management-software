@@ -113,8 +113,8 @@ function PulseNotesTile({
         <PulseTileHeader title="Session Notes" periodPrefix="This period" periodLabel={periodLabel} />
         <div className="mt-6 flex flex-1 flex-col items-start gap-2">
           <FileText className="size-5 text-subtle" aria-hidden />
-          <p className="text-sm text-ink">No sessions logged yet this period.</p>
-          <p className="text-xs text-muted">
+          <p className="text-base text-ink">No sessions logged yet this period.</p>
+          <p className="text-sm text-muted">
             Notes will appear here as your team documents sessions.
           </p>
         </div>
@@ -143,7 +143,7 @@ function PulseNotesTile({
 
       {staffWithOverdue.length > 0 && (
         <PulseDrillSection eyebrow="Per staff">
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {visibleStaff.map((row) => (
               <PulseDrillRow
                 key={row.staffId}
@@ -158,7 +158,7 @@ function PulseNotesTile({
             <button
               type="button"
               onClick={onExpand}
-              className="mt-3 text-left text-xs text-brand hover:underline"
+              className="mt-3 text-left text-sm font-medium text-brand hover:underline"
             >
               + {hiddenCount} more staff
             </button>

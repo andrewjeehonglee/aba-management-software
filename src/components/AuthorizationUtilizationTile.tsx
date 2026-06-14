@@ -147,12 +147,12 @@ function PulseAuthTile({
         <PulseTileHeader title="Auth Utilization" periodPrefix="This month" periodLabel={monthLabel} />
         <div className="mt-6 flex flex-1 flex-col items-start gap-2">
           <BadgeCheck className="size-5 text-subtle" aria-hidden />
-          <p className="text-sm text-ink">
+          <p className="text-base text-ink">
             {clientIds?.length
               ? "No authorization records for this caseload yet."
               : "No utilization logged yet this month."}
           </p>
-          <p className="text-xs text-muted">Utilization updates as documented sessions are completed.</p>
+          <p className="text-sm text-muted">Utilization updates as documented sessions are completed.</p>
         </div>
       </PulseTileShell>
     )
@@ -183,7 +183,7 @@ function PulseAuthTile({
 
       {flaggedClients.length > 0 && (
         <PulseDrillSection eyebrow="Per client">
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {visibleFlagged.map((row) => (
               <PulseDrillRow
                 key={row.authId}
@@ -198,7 +198,7 @@ function PulseAuthTile({
             <button
               type="button"
               onClick={onExpand}
-              className="mt-3 text-left text-xs text-brand hover:underline"
+              className="mt-3 text-left text-sm font-medium text-brand hover:underline"
             >
               + {hiddenFlagged} more clients
             </button>

@@ -335,8 +335,8 @@ function PulseHoursTile({
         <PulseTileHeader title="Hours by Staff" periodPrefix="This month" periodLabel={monthLabel} />
         <div className="mt-6 flex flex-1 flex-col items-start gap-2">
           <Users className="size-5 text-subtle" aria-hidden />
-          <p className="text-sm text-ink">No billable hours logged yet this month.</p>
-          <p className="text-xs text-muted">Hours appear here as your team completes documented sessions.</p>
+          <p className="text-base text-ink">No billable hours logged yet this month.</p>
+          <p className="text-sm text-muted">Hours appear here as your team completes documented sessions.</p>
         </div>
       </PulseTileShell>
     )
@@ -367,7 +367,7 @@ function PulseHoursTile({
 
       {flaggedStaff.length > 0 && (
         <PulseDrillSection eyebrow="Per staff">
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {visibleFlagged.map((row) => (
               <PulseDrillRow
                 key={row.staffId}
@@ -382,7 +382,7 @@ function PulseHoursTile({
             <button
               type="button"
               onClick={onExpand}
-              className="mt-3 text-left text-xs text-brand hover:underline"
+              className="mt-3 text-left text-sm font-medium text-brand hover:underline"
             >
               + {hiddenFlagged} more staff
             </button>

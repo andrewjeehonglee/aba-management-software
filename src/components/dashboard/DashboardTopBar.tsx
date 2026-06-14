@@ -22,7 +22,9 @@ export function DashboardTopBar({
   isDemo?: boolean
 }) {
   const displayPractice =
-    practiceName && isDemo ? `${practiceName} (demo)` : practiceName
+    practiceName && isDemo && !/\(demo\)/i.test(practiceName)
+      ? `${practiceName} (demo)`
+      : practiceName
 
   return (
     <header
