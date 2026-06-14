@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react"
-import { useSearchParams, Link } from "react-router-dom"
-import { ClipboardList, Users } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useSearchParams } from "react-router-dom"
 import {
   Select,
   SelectContent,
@@ -9,8 +7,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar"
+import { FocalStatusArea } from "@/components/dashboard/FocalStatusArea"
 import { supabase } from "@/lib/supabase"
-import { markUserSignOut } from "@/lib/authDiagnostics"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { BcbaCaseloadPanel } from "@/components/BcbaCaseloadPanel"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
@@ -32,11 +31,13 @@ import {
 } from "@/lib/rosterScope"
 import { getCaseloadStaffForBcba } from "@/lib/rosterTable"
 import { setRolePreview } from "@/lib/rolePreview"
+import {
+  getOwnerAttentionSummary,
+  type OwnerAttentionSummary,
+} from "@/lib/ownerDashboardStatus"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
 type CalendarRole = "Technician" | "Supervisor" | "BCBA"
-
-const ROLES: Role[] = ["Owner", "BCBA", "Supervisor", "Technician"]
 
 const PREVIEW_DEFAULTS: Record<CalendarRole, string> = {
   BCBA: "Jennifer",
@@ -98,6 +99,13 @@ export function DashboardPage({
   const [previewStaffId, setPreviewStaffId] = useState<string | null>(null)
   /** BCBA selected on BCBA tab — scopes supervisor/BT preview dropdowns to that caseload. */
   const [anchorBcbaId, setAnchorBcbaId] = useState<string | null>(null)
+  const [practiceName, setPracticeName] = useState<string | null>(null)
+  const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null)
+  const [attention, setAttention] = useState<OwnerAttentionSummary>({
+    attentionCount: 0,
+    items: [],
+    loading: true,
+  })
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -139,6 +147,32 @@ export function DashboardPage({
       })
       .catch(() => {})
   }, [practiceId, role])
+
+  useEffect(() => {
+    if (!practiceId) {
+      setPracticeName(null)
+      return
+    }
+    void supabase
+      .from("practices")
+      .select("name")
+      .eq("id", practiceId)
+      .maybeSingle()
+      .then(
+        ({ data }) => setPracticeName((data as { name: string } | null)?.name ?? null),
+        () => setPracticeName(null),
+      )
+  }, [practiceId])
+
+  useEffect(() => {
+    if (!currentStaffId) {
+      setOwnerDisplayName(null)
+      return
+    }
+    getStaffFullName(currentStaffId)
+      .then(setOwnerDisplayName)
+      .catch(() => setOwnerDisplayName(null))
+  }, [currentStaffId])
 
   useEffect(() => {
     if (!practiceId || role !== "Owner" || isOwnerView) {
@@ -216,6 +250,21 @@ export function DashboardPage({
       : null
 
   useEffect(() => {
+    if (!isOwnerView || !rosterScope) {
+      setAttention({ attentionCount: 0, items: [], loading: false })
+      return
+    }
+
+    setAttention((prev) => ({ ...prev, loading: true }))
+    getOwnerAttentionSummary({
+      staffIds: rosterScope.staffIds,
+      clientIds: rosterScope.clientIds,
+    })
+      .then((summary) => setAttention({ ...summary, loading: false }))
+      .catch(() => setAttention({ attentionCount: 0, items: [], loading: false }))
+  }, [isOwnerView, rosterScope, notesRefreshKey, staffRefreshKey])
+
+  useEffect(() => {
     if (isOwnerView) {
       setEffectiveStaffId(null)
       setStaffDisplayName("")
@@ -272,94 +321,46 @@ export function DashboardPage({
     viewRole === "BCBA" ? "BCBA" : viewRole === "Supervisor" ? "Supervisor" : "Technician"
 
   return (
-    <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-4 p-4">
-
-      <header className={`-mx-4 -mt-4 mb-0 flex w-[calc(100%+2rem)] items-center justify-between gap-4 border-b border-slate-200 px-6 py-4 shadow-sm ${isDemo ? "bg-amber-50/60" : "bg-white"}`}>
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-xl font-bold tracking-tight text-[#0D7377] shrink-0">Pulse</span>
-          <span className="hidden sm:block text-sm text-slate-400 truncate">ABA Management</span>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          {role === "Owner" && (
-            // Users = care-team roster (distinct from dashboard role tabs)
-            <Link
-              to="/roster"
-              aria-label="Caseload roster"
-              title="Caseload roster"
-              className="inline-flex items-center justify-center rounded-md p-2 text-[#0D7377] hover:bg-[#E8F7F7] transition-colors"
-            >
-              <Users className="size-4" />
-            </Link>
-          )}
-          {role === "Owner" && (
-            <Link
-              to="/audit"
-              aria-label="Audit pull"
-              title="Audit pull"
-              className="inline-flex items-center justify-center rounded-md p-2 text-[#0D7377] hover:bg-[#E8F7F7] transition-colors"
-            >
-              <ClipboardList className="size-4" />
-            </Link>
-          )}
-          {role === "Owner" ? (
-            <div className="hidden sm:flex items-center rounded-full border border-[#D0DCDC] bg-[#E8F7F7] p-0.5 gap-px">
-              {ROLES.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setViewRole(r)}
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                    viewRole === r
-                      ? "bg-white text-[#0D7377] shadow-sm"
-                      : "text-[#4A5C5C] hover:text-[#0D7377]"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <span className="hidden sm:inline-flex items-center rounded-full bg-[#E8F7F7] px-2.5 py-1 text-xs font-medium text-[#0D7377]">
-              {role}
-            </span>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-pulse-muted hover:text-pulse-text"
-            onClick={() => {
-              markUserSignOut()
-              void supabase.auth.signOut()
-            }}
-          >
-            Sign out
-          </Button>
-        </div>
-      </header>
+    <div className="flex min-h-svh flex-col bg-bg text-foreground">
+      <DashboardTopBar
+        practiceName={practiceName}
+        role={role}
+        viewRole={viewRole}
+        onViewRoleChange={setViewRole}
+        isDemo={isDemo}
+      />
 
       {isOwnerView ? (
-        <div className="grid w-full max-w-[min(100%,1680px)] gap-4 px-4 sm:px-6 lg:grid-cols-3">
-          <div id="notes-overdue">
-            <NotesOverdueTile
-              refreshKey={notesRefreshKey}
-              staffIds={rosterScope?.staffIds}
-              clientIds={rosterScope?.clientIds}
-            />
+        <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-6">
+          <div className="mb-8">
+            <FocalStatusArea userName={ownerDisplayName} attention={attention} />
           </div>
-          <HoursByStaffTile
-            refreshKey={staffRefreshKey}
-            practiceId={practiceId}
-            staffIds={rosterScope?.staffIds}
-            clientIds={rosterScope?.clientIds}
-            includeZeroHourStaff
-            onStaffCreated={() => setStaffRefreshKey((k) => k + 1)}
-          />
-          <AuthorizationUtilizationTile
-            clientIds={rosterScope?.clientIds}
-          />
-        </div>
+
+          <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3">
+            <div id="notes-overdue" className="h-full">
+              <NotesOverdueTile
+                refreshKey={notesRefreshKey}
+                staffIds={rosterScope?.staffIds}
+                clientIds={rosterScope?.clientIds}
+              />
+            </div>
+            <div id="hours-by-staff" className="h-full">
+              <HoursByStaffTile
+                refreshKey={staffRefreshKey}
+                practiceId={practiceId}
+                staffIds={rosterScope?.staffIds}
+                clientIds={rosterScope?.clientIds}
+                includeZeroHourStaff
+                onStaffCreated={() => setStaffRefreshKey((k) => k + 1)}
+              />
+            </div>
+            <div id="auth-utilization" className="h-full">
+              <AuthorizationUtilizationTile clientIds={rosterScope?.clientIds} />
+            </div>
+          </div>
+        </main>
       ) : (
-        <div className="w-full max-w-[min(100%,1680px)] space-y-4 px-4 sm:px-6">
+        <div className="mx-auto w-full max-w-[min(100%,1680px)] space-y-4 px-4 py-6 sm:px-6">
           {isOwnerPreview && previewOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted-foreground">View as {previewRoleLabel}:</span>
@@ -442,7 +443,7 @@ export function DashboardPage({
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">Built by Andrew Lee · 2026</p>
+      <p className="px-4 pb-6 text-center text-xs text-subtle sm:px-6">Built by Andrew Lee · 2026</p>
     </div>
   )
 }

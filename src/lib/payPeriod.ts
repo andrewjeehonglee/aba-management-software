@@ -74,6 +74,13 @@ export function getCurrentPayPeriod(referenceDate: Date = new Date()): PayPeriod
   }
 }
 
+/** Prior semi-monthly window — used for period-over-period baselines. */
+export function getPreviousPayPeriod(referenceDate: Date = new Date()): PayPeriod {
+  const current = getCurrentPayPeriod(referenceDate)
+  const anchor = new Date(current.start.getTime() - 24 * 60 * 60 * 1000)
+  return getCurrentPayPeriod(anchor)
+}
+
 function formatCalendarMonthLabel(year: number, month: number): string {
   const anchor = new Date(year, month - 1, 1)
   return anchor.toLocaleDateString("en-US", { month: "long", year: "numeric" })
