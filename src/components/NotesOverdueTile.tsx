@@ -158,7 +158,7 @@ function PulseNotesTile({
             <button
               type="button"
               onClick={onExpand}
-              className="mt-3 text-left text-sm font-medium text-brand hover:underline"
+              className="mt-3 text-left text-base font-medium text-brand hover:underline"
             >
               + {hiddenCount} more staff
             </button>

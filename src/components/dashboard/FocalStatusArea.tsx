@@ -21,41 +21,38 @@ export function FocalStatusArea({
   const { attentionCount, items } = attention
 
   return (
-    <div className="min-h-[6.5rem] space-y-4">
-      <p className="text-lg text-muted">
+    <div className="space-y-1.5">
+      <p className="text-[15px] text-muted">
         {greeting}, {name}.
       </p>
 
       {showStatusPlaceholder ? (
-        <div className="space-y-3">
-          <div className="h-8 max-w-xl animate-pulse rounded bg-border" aria-hidden />
-          <div className="h-5 w-72 animate-pulse rounded bg-border" aria-hidden />
-        </div>
+        <div className="h-6 max-w-lg animate-pulse rounded bg-border" aria-hidden />
       ) : attentionCount === 0 ? (
-        <p className="inline-flex items-center gap-2.5 text-[26px] font-semibold leading-snug tracking-tight text-ink sm:text-[28px]">
-          <Check className="size-6 shrink-0 text-ok" aria-hidden />
+        <p className="inline-flex items-center gap-2 text-xl font-semibold tracking-tight text-ink">
+          <Check className="size-4 shrink-0 text-ok" aria-hidden />
           Your practice is on track today.
         </p>
       ) : (
-        <div className="space-y-3">
-          <p className="text-[26px] font-semibold leading-snug tracking-tight text-ink sm:text-[28px]">
+        <div className="space-y-1">
+          <p className="text-xl font-semibold leading-snug tracking-tight text-ink">
             Your practice is mostly on track —{" "}
             <span className="text-crit">
               {attentionCount === 1 ? "1 thing needs attention:" : `${attentionCount} things need attention:`}
             </span>
           </p>
-          <ul className="space-y-2">
+          <ul className="flex flex-wrap gap-x-4 gap-y-0.5">
             {items.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
                   onClick={() => scrollToAttention(item.scrollTargetId)}
-                  className="group inline-flex flex-wrap items-baseline gap-x-2 text-left text-lg text-ink"
+                  className="group inline-flex items-baseline gap-1.5 text-left text-[15px] text-ink"
                 >
                   <span className="font-semibold text-brand group-hover:underline underline-offset-2">
                     {item.label}
                   </span>
-                  <span className="font-medium text-muted">— {item.detail}</span>
+                  <span className="text-muted">— {item.detail}</span>
                 </button>
               </li>
             ))}
