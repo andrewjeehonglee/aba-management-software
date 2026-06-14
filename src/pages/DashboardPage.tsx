@@ -34,6 +34,7 @@ import { getCaseloadStaffForBcba } from "@/lib/rosterTable"
 import { setRolePreview } from "@/lib/rolePreview"
 import {
   getOwnerAttentionSummary,
+  resolveOwnerDisplayName,
   type OwnerAttentionSummary,
 } from "@/lib/ownerDashboardStatus"
 import { cn } from "@/lib/utils"
@@ -352,6 +353,8 @@ export function DashboardPage({
   const previewRoleLabel =
     viewRole === "BCBA" ? "BCBA" : viewRole === "Supervisor" ? "Supervisor" : "Technician"
 
+  const ownerPersonaName = resolveOwnerDisplayName(userRole, ownerDisplayName)
+
   return (
     <div className={cn("flex min-h-svh flex-col bg-bg text-foreground", isOwnerView && "h-svh overflow-hidden")}>
       <DashboardTopBar
@@ -360,13 +363,13 @@ export function DashboardPage({
         viewRole={viewRole}
         onViewRoleChange={setViewRole}
         isDemo={isDemo}
-        ownerName={ownerDisplayName}
+        ownerName={ownerPersonaName}
       />
 
       {isOwnerView ? (
         <main className="mx-auto flex h-[calc(100svh-3.5rem)] w-full max-w-[min(100%,1480px)] min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6">
           <FocalStatusArea
-            userName={ownerDisplayName}
+            userName={ownerPersonaName}
             attention={attention}
             rosterReady={rosterReady}
           />

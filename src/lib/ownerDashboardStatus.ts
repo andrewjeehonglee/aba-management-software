@@ -185,6 +185,16 @@ export async function getOwnerAttentionSummary(options?: {
   }
 }
 
+export const OWNER_PERSONA_NAME = "Jenny Lee"
+
+export function resolveOwnerDisplayName(
+  role: string | undefined,
+  linkedStaffName: string | null | undefined,
+): string {
+  if (role?.toLowerCase() === "owner") return OWNER_PERSONA_NAME
+  return linkedStaffName?.trim() || OWNER_PERSONA_NAME
+}
+
 export function timeGreeting(date: Date = new Date()): string {
   const hour = date.getHours()
   if (hour < 12) return "Good morning"

@@ -3,7 +3,7 @@ import { ClipboardList, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import { markUserSignOut } from "@/lib/authDiagnostics"
-import { ownerInitials } from "@/lib/ownerDashboardStatus"
+import { ownerInitials, OWNER_PERSONA_NAME } from "@/lib/ownerDashboardStatus"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
 
@@ -29,7 +29,7 @@ export function DashboardTopBar({
       ? `${practiceName} (demo)`
       : practiceName
 
-  const accountName = ownerName?.trim() || "Jenny Lee"
+  const accountName = ownerName?.trim() || OWNER_PERSONA_NAME
   const initials = ownerInitials(accountName)
 
   return (
