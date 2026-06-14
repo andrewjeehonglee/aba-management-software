@@ -357,7 +357,7 @@ export function DashboardPage({
       />
 
       {isOwnerView ? (
-        <main className="mx-auto w-full max-w-[min(100%,1680px)] flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full max-w-[min(100%,1360px)] flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <div className="mb-5">
             <FocalStatusArea
               userName={ownerDisplayName}
@@ -395,7 +395,7 @@ export function DashboardPage({
           </div>
         </main>
       ) : (
-        <div className="mx-auto w-full max-w-[min(100%,1680px)] space-y-4 px-4 py-6 sm:px-6">
+        <div className="mx-auto w-full max-w-[min(100%,1360px)] space-y-4 px-4 py-6 sm:px-6">
           {isOwnerPreview && previewOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted-foreground">View as {previewRoleLabel}:</span>
