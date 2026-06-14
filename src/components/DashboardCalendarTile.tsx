@@ -91,8 +91,8 @@ export function DashboardCalendarTile({
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                 !includeSupervisees
-                  ? "border-[#0D7377] bg-[#0D7377] text-white"
-                  : "border-[#D0DCDC] text-[#4A5C5C] hover:border-[#14A0A5] hover:text-[#0D7377]",
+                  ? "border-brand bg-brand text-white"
+                  : "border-border text-muted hover:border-brand hover:text-brand",
               )}
             >
               My schedule
@@ -103,8 +103,8 @@ export function DashboardCalendarTile({
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
                 includeSupervisees
-                  ? "border-[#0D7377] bg-[#0D7377] text-white"
-                  : "border-[#D0DCDC] text-[#4A5C5C] hover:border-[#14A0A5] hover:text-[#0D7377]",
+                  ? "border-brand bg-brand text-white"
+                  : "border-border text-muted hover:border-brand hover:text-brand",
               )}
             >
               Include supervisees
@@ -121,7 +121,7 @@ export function DashboardCalendarTile({
         )}
         {needsStaffLink && (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
-            <CalendarDays className="w-8 h-8 text-[#14A0A5]" />
+            <CalendarDays className="w-8 h-8 text-brand" />
             <p className="text-sm text-muted-foreground max-w-xs">
               Link your staff profile to see your schedule.
             </p>
@@ -129,7 +129,7 @@ export function DashboardCalendarTile({
         )}
         {!loading && !error && !needsStaffLink && resolvedStaff && sessions.length === 0 && (
           <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
-            <CalendarDays className="w-8 h-8 text-[#14A0A5]" />
+            <CalendarDays className="w-8 h-8 text-brand" />
             <p className="text-sm text-muted-foreground">No sessions scheduled this month.</p>
           </div>
         )}

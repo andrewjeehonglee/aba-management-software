@@ -756,7 +756,7 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
 
   return (
-    <div className="min-h-svh bg-background text-foreground flex flex-col items-center gap-6 p-4">
+    <div className="min-h-svh bg-bg text-foreground flex flex-col items-center gap-6 p-4">
       <header className="flex w-full max-w-3xl items-center justify-between py-6">
         <Link
           to="/"
@@ -939,7 +939,7 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
               </div>
               {canAddGoal && resolvedClientId && (
                 <button
-                  className="mt-1 inline-flex items-center rounded-md bg-[#0D7377] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#0a5f63] transition-colors"
+                  className="mt-1 inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand/90 transition-colors"
                   onClick={() => setGoalModalOpen(true)}
                 >
                   Add a goal →

@@ -62,7 +62,7 @@ export async function getOwnerAttentionSummary(options?: {
     items.push({
       id: "auth",
       scrollTargetId: "auth-utilization",
-      label: "Authorization utilization",
+      label: "Auth utilization",
       detail: `${flaggedClients.length} at or above 80%`,
     })
   }

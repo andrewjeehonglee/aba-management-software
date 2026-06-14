@@ -232,7 +232,7 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
   }
 
   return (
-    <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-6 p-4 pb-10">
+    <div className="min-h-svh bg-bg text-foreground flex flex-col items-center gap-6 p-4 pb-10">
       <header className="flex w-full max-w-3xl items-center justify-between gap-4 pt-2">
         <Link
           to="/"
@@ -245,7 +245,7 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
 
       <div className="w-full max-w-3xl space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1E2A2A]">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
             Audit pull
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">

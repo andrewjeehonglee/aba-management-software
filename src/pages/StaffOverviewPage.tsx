@@ -345,7 +345,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const supervisionPanelMonth = supervisionMonthLabel || monthLabel
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-bg text-foreground">
       <div className={`${PAGE_SHELL} py-4`}>
         <StaffBreadcrumb name={displayName} />
       </div>

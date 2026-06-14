@@ -11,7 +11,7 @@ function StaffChip({ name, code }: { name: string; code: string }) {
   return (
     <Link
       to={staffProfilePath(code)}
-      className="inline-flex rounded-md border border-border bg-white px-2.5 py-1 text-sm hover:border-[#0D7377]/40 hover:bg-[#E8F7F7] transition-colors"
+      className="inline-flex rounded-md border border-border bg-surface px-2.5 py-1 text-sm hover:border-brand/40 hover:bg-brand-weak transition-colors"
     >
       {name}
     </Link>
@@ -104,7 +104,7 @@ export function BcbaCaseloadPanel({
               <Link
                 key={c.clientId}
                 to={clientProfilePath(c.clientCode)}
-                className="rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold hover:border-[#0D7377]/40 hover:bg-[#E8F7F7] transition-colors text-center"
+                className="rounded-md border border-border bg-surface px-3 py-2 text-sm font-semibold hover:border-brand/40 hover:bg-brand-weak transition-colors text-center"
               >
                 {c.clientCode}
               </Link>

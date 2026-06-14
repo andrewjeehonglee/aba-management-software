@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Plus, TriangleAlert, Users, Check } from "lucide-react"
+import { Plus, TriangleAlert, Users } from "lucide-react"
 import { Link } from "react-router-dom"
 import {
   Card,
@@ -30,6 +30,18 @@ import { getStaffHoursByMonth, type StaffHoursRow } from "@/lib/staffHours"
 import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 import type { TeamFilter } from "@/types/team"
+import {
+  PulseBaseline,
+  PulseDrillSection,
+  PulseDrillRow,
+  PulseHealthyLine,
+  PulseMetric,
+  PulseTileError,
+  PulseTileHeader,
+  PulseTileShell,
+  PulseTileSkeleton,
+  trendGlyph,
+} from "@/components/dashboard/PulseTile"
 
 const HOURS_COLORS = {
   direct: "#10b981",
@@ -277,26 +289,6 @@ function sortByTotalHoursDesc(a: StaffHoursRow, b: StaffHoursRow): number {
   return b.totalHours - a.totalHours
 }
 
-function PulseHoursSkeleton() {
-  return (
-    <div className="flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card">
-      <div className="flex items-start justify-between">
-        <div className="h-4 w-28 animate-pulse rounded bg-border" />
-        <div className="h-8 w-16 animate-pulse rounded bg-border" />
-      </div>
-      <div className="mt-4 space-y-2">
-        <div className="h-8 w-12 animate-pulse rounded bg-border" />
-        <div className="h-3 w-40 animate-pulse rounded bg-border" />
-      </div>
-      <div className="mt-5 space-y-2 border-t border-border pt-4">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-4 w-full animate-pulse rounded bg-border" />
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function PulseHoursTile({
   className,
   summary,
@@ -314,12 +306,13 @@ function PulseHoursTile({
   expanded: boolean
   onExpand: () => void
 }) {
-  if (loading) return <PulseHoursSkeleton />
+  if (loading) return <PulseTileSkeleton />
 
   const monthLabel = summary?.monthLabel ?? ""
   const allStaff = summary?.byStaff ?? []
   const flaggedStaff = allStaff.filter((row) => row.flagged).sort(sortByTotalHoursDesc)
   const flaggedCount = flaggedStaff.length
+  const lastMonthFlagged = summary?.lastMonthFlaggedCount ?? 0
   const totalBillable = allStaff.reduce((sum, row) => sum + row.totalHours, 0)
 
   const visibleFlagged = expanded ? flaggedStaff : flaggedStaff.slice(0, 3)
@@ -327,96 +320,62 @@ function PulseHoursTile({
 
   if (error) {
     return (
-      <div className={cn("flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card", className)}>
-        <h3 className="text-[15px] font-semibold text-ink">Hours by Staff</h3>
-        <p className="mt-4 text-sm text-muted">Couldn&apos;t load hours.</p>
-        <button type="button" onClick={onRetry} className="mt-2 w-fit text-xs text-brand hover:underline">
-          Retry
-        </button>
-      </div>
+      <PulseTileError
+        title="Hours by Staff"
+        message="Couldn't load hours."
+        onRetry={onRetry}
+        className={className}
+      />
     )
   }
 
   if (allStaff.length === 0) {
     return (
-      <div className={cn("flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card", className)}>
-        <div className="flex items-start justify-between">
-          <h3 className="text-[15px] font-semibold text-ink">Hours by Staff</h3>
-          {monthLabel && (
-            <span className="text-right text-xs leading-tight text-subtle">
-              This month
-              <br />
-              {monthLabel}
-            </span>
-          )}
-        </div>
+      <PulseTileShell flagged={false} className={className}>
+        <PulseTileHeader title="Hours by Staff" periodPrefix="This month" periodLabel={monthLabel} />
         <div className="mt-6 flex flex-1 flex-col items-start gap-2">
           <Users className="size-5 text-subtle" aria-hidden />
           <p className="text-sm text-ink">No billable hours logged yet this month.</p>
+          <p className="text-xs text-muted">Hours appear here as your team completes documented sessions.</p>
         </div>
-      </div>
+      </PulseTileShell>
     )
   }
 
   return (
-    <div
-      data-flagged={flaggedCount > 0}
-      className={cn(
-        "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
-        "data-[flagged=true]:border-l-4 data-[flagged=true]:border-l-warn data-[flagged=true]:shadow-card-flagged",
-        className,
-      )}
-    >
-      <div className="flex items-start justify-between">
-        <h3 className="text-[15px] font-semibold text-ink">Hours by Staff</h3>
-        <span className="text-right text-xs leading-tight text-subtle">
-          This month
-          <br />
-          {monthLabel}
-        </span>
-      </div>
+    <PulseTileShell flagged={flaggedCount > 0} severity="warn" className={className}>
+      <PulseTileHeader title="Hours by Staff" periodPrefix="This month" periodLabel={monthLabel} />
 
       <div className="mt-4">
-        <div className="flex items-baseline gap-2">
-          <span
-            className={cn(
-              "text-[30px] font-semibold tabular-nums tracking-tight",
-              flaggedCount > 0 ? "text-warn" : "text-ink",
-            )}
-          >
-            {flaggedCount}
-          </span>
-          <span className="text-sm text-muted">below direct mix</span>
-        </div>
+        <PulseMetric
+          value={flaggedCount}
+          unit="below direct mix"
+          flagged={flaggedCount > 0}
+          severity="warn"
+        />
         {flaggedCount > 0 ? (
-          <p className="mt-1 text-xs text-subtle">
-            {allStaff.length} staff · {Math.round(totalBillable)} billable hrs this month
-          </p>
+          <PulseBaseline>
+            {trendGlyph(flaggedCount, lastMonthFlagged)} was {lastMonthFlagged} last month ·{" "}
+            {allStaff.length} staff · {Math.round(totalBillable)} billable hrs
+          </PulseBaseline>
         ) : (
-          <p className="mt-1 inline-flex items-center gap-1 text-xs text-ok">
-            <Check size={13} aria-hidden />
+          <PulseHealthyLine>
             All staff above 50% direct mix · {Math.round(totalBillable)} billable hrs.
-          </p>
+          </PulseHealthyLine>
         )}
       </div>
 
       {flaggedStaff.length > 0 && (
-        <div className="mt-5 flex flex-1 flex-col border-t border-border pt-4">
-          <p className="mb-2 text-xs text-subtle">Per staff</p>
+        <PulseDrillSection eyebrow="Per staff">
           <ul className="space-y-2">
             {visibleFlagged.map((row) => (
-              <li key={row.staffId} className="flex items-center justify-between gap-2 text-sm text-ink">
-                <Link
-                  to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : "#"}
-                  className="truncate hover:underline underline-offset-2"
-                >
-                  {row.staffName}
-                </Link>
-                <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums text-muted">
-                  <span className="size-1.5 rounded-full bg-warn" aria-hidden />
-                  {Math.round(row.directPct * 100)}% direct
-                </span>
-              </li>
+              <PulseDrillRow
+                key={row.staffId}
+                name={row.staffName}
+                to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined}
+                dotColor="warn"
+                value={`${Math.round(row.directPct * 100)}% direct`}
+              />
             ))}
           </ul>
           {!expanded && hiddenFlagged > 0 && (
@@ -428,9 +387,9 @@ function PulseHoursTile({
               + {hiddenFlagged} more staff
             </button>
           )}
-        </div>
+        </PulseDrillSection>
       )}
-    </div>
+    </PulseTileShell>
   )
 }
 

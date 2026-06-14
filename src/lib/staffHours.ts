@@ -1,4 +1,4 @@
-import { getCurrentCalendarMonth } from "@/lib/payPeriod"
+import { getCurrentCalendarMonth, getPreviousCalendarMonth } from "@/lib/payPeriod"
 import { isCompleteSessionNote } from "@/lib/notesStatus"
 import { isStaffFlagged } from "@/lib/staff"
 import { supabase } from "@/lib/supabase"
@@ -79,6 +79,7 @@ export interface StaffHoursRow {
 
 export interface StaffHoursSummary {
   monthLabel: string
+  lastMonthFlaggedCount: number
   byStaff: StaffHoursRow[]
 }
 
@@ -107,7 +108,13 @@ function finalizeRow(row: MutableStaffHoursRow): StaffHoursRow {
 
 export async function getStaffHoursByMonth(
   now: Date = new Date(),
-  options?: { staffIds?: string[]; clientIds?: string[]; includeZeroHourStaff?: boolean },
+  options?: {
+    staffIds?: string[]
+    clientIds?: string[]
+    includeZeroHourStaff?: boolean
+    /** When false, skips the extra prior-month query (internal). */
+    includeBaseline?: boolean
+  },
 ): Promise<StaffHoursSummary> {
   const month = getCurrentCalendarMonth(now)
 
@@ -230,8 +237,21 @@ export async function getStaffHoursByMonth(
     )
     .sort((a, b) => b.totalHours - a.totalHours || a.staffName.localeCompare(b.staffName))
 
+  let lastMonthFlaggedCount = 0
+  if (options?.includeBaseline !== false) {
+    try {
+      const prevMonth = getPreviousCalendarMonth(now)
+      const prevMid = new Date(prevMonth.start.getTime() + 15 * 24 * 60 * 60 * 1000)
+      const prev = await getStaffHoursByMonth(prevMid, { ...options, includeBaseline: false })
+      lastMonthFlaggedCount = prev.byStaff.filter((row) => row.flagged).length
+    } catch {
+      lastMonthFlaggedCount = 0
+    }
+  }
+
   return {
     monthLabel: month.label,
+    lastMonthFlaggedCount,
     byStaff,
   }
 }

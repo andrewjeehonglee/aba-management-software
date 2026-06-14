@@ -1,6 +1,6 @@
 import { FLAGGED_THRESHOLD } from "@/lib/authorization"
 import { isCompleteSessionNote } from "@/lib/notesStatus"
-import { getCurrentCalendarMonth } from "@/lib/payPeriod"
+import { getCurrentCalendarMonth, getPreviousCalendarMonth } from "@/lib/payPeriod"
 import { classifySessionHours, DEFAULT_SESSION_HOURS } from "@/lib/staffHours"
 import { supabase } from "@/lib/supabase"
 
@@ -51,12 +51,13 @@ export interface ClientAuthUtilRow {
 
 export interface AuthUtilizationSummary {
   monthLabel: string
+  lastMonthFlaggedCount: number
   byClient: ClientAuthUtilRow[]
 }
 
 export async function getAuthUtilizationByMonth(
   now: Date = new Date(),
-  options?: { clientIds?: string[] },
+  options?: { clientIds?: string[]; includeBaseline?: boolean },
 ): Promise<AuthUtilizationSummary> {
   const month = getCurrentCalendarMonth(now)
 
@@ -79,7 +80,7 @@ export async function getAuthUtilizationByMonth(
   }
 
   if (activeAuths.length === 0) {
-    return { monthLabel: month.label, byClient: [] }
+    return { monthLabel: month.label, lastMonthFlaggedCount: 0, byClient: [] }
   }
 
   const clientIds = activeAuths.map((a) => a.client_id)
@@ -162,8 +163,21 @@ export async function getAuthUtilizationByMonth(
         a.clientName.localeCompare(b.clientName),
     )
 
+  let lastMonthFlaggedCount = 0
+  if (options?.includeBaseline !== false) {
+    try {
+      const prevMonth = getPreviousCalendarMonth(now)
+      const prevMid = new Date(prevMonth.start.getTime() + 15 * 24 * 60 * 60 * 1000)
+      const prev = await getAuthUtilizationByMonth(prevMid, { ...options, includeBaseline: false })
+      lastMonthFlaggedCount = prev.byClient.filter((row) => row.flagged).length
+    } catch {
+      lastMonthFlaggedCount = 0
+    }
+  }
+
   return {
     monthLabel: month.label,
+    lastMonthFlaggedCount,
     byClient,
   }
 }

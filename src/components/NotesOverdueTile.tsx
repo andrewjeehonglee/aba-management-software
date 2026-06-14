@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { AlertCircle, AlertTriangle, Check, CheckCircle2, FileText, Info } from "lucide-react"
+import { AlertCircle, AlertTriangle, CheckCircle2, FileText, Info } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -12,6 +12,19 @@ import {
 import { getNotesStatus, type StaffNotesStatus } from "@/lib/notesStatus"
 import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
+import {
+  PulseBaseline,
+  PulseCompletionBar,
+  PulseDrillSection,
+  PulseDrillRow,
+  PulseHealthyLine,
+  PulseMetric,
+  PulseTileError,
+  PulseTileHeader,
+  PulseTileShell,
+  PulseTileSkeleton,
+  trendGlyph,
+} from "@/components/dashboard/PulseTile"
 
 const CRITICAL_THRESHOLD = 10
 const WARNING_THRESHOLD = 1
@@ -33,12 +46,6 @@ function sortByOverdueDesc(a: StaffNotesStatus, b: StaffNotesStatus): number {
   )
 }
 
-function trendGlyph(current: number, previous: number): string {
-  if (current > previous) return "▲"
-  if (current < previous) return "▼"
-  return "▸"
-}
-
 function MissingPill({ count }: { count: number }) {
   if (count === 0) return null
   return (
@@ -54,27 +61,6 @@ function OverduePill({ count }: { count: number }) {
     <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium tabular-nums text-red-700">
       {count} overdue
     </span>
-  )
-}
-
-function PulseNotesSkeleton() {
-  return (
-    <div className="flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card">
-      <div className="flex items-start justify-between">
-        <div className="h-4 w-28 animate-pulse rounded bg-border" />
-        <div className="h-8 w-16 animate-pulse rounded bg-border" />
-      </div>
-      <div className="mt-4 space-y-2">
-        <div className="h-8 w-16 animate-pulse rounded bg-border" />
-        <div className="h-3 w-32 animate-pulse rounded bg-border" />
-      </div>
-      <div className="mt-5 space-y-2 border-t border-border pt-4">
-        <div className="h-3 w-16 animate-pulse rounded bg-border" />
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-4 w-full animate-pulse rounded bg-border" />
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -95,7 +81,7 @@ function PulseNotesTile({
   expanded: boolean
   onExpand: () => void
 }) {
-  if (loading) return <PulseNotesSkeleton />
+  if (loading) return <PulseTileSkeleton />
 
   const overdue = summary?.totalOverdue ?? 0
   const periodLabel = summary?.payPeriodLabel ?? ""
@@ -112,43 +98,19 @@ function PulseNotesTile({
 
   if (error) {
     return (
-      <div
-        className={cn(
-          "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
-          className,
-        )}
-      >
-        <h3 className="text-[15px] font-semibold text-ink">Session Notes</h3>
-        <p className="mt-4 text-sm text-muted">Couldn&apos;t load notes.</p>
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-2 w-fit text-xs text-brand hover:underline"
-        >
-          Retry
-        </button>
-      </div>
+      <PulseTileError
+        title="Session Notes"
+        message="Couldn't load notes."
+        onRetry={onRetry}
+        className={className}
+      />
     )
   }
 
   if (totalCompleted === 0) {
     return (
-      <div
-        className={cn(
-          "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
-          className,
-        )}
-      >
-        <div className="flex items-start justify-between">
-          <h3 className="text-[15px] font-semibold text-ink">Session Notes</h3>
-          {periodLabel && (
-            <span className="text-right text-xs leading-tight text-subtle">
-              This period
-              <br />
-              {periodLabel}
-            </span>
-          )}
-        </div>
+      <PulseTileShell flagged={false} className={className}>
+        <PulseTileHeader title="Session Notes" periodPrefix="This period" periodLabel={periodLabel} />
         <div className="mt-6 flex flex-1 flex-col items-start gap-2">
           <FileText className="size-5 text-subtle" aria-hidden />
           <p className="text-sm text-ink">No sessions logged yet this period.</p>
@@ -156,71 +118,40 @@ function PulseNotesTile({
             Notes will appear here as your team documents sessions.
           </p>
         </div>
-      </div>
+      </PulseTileShell>
     )
   }
 
   return (
-    <div
-      data-flagged={overdue > 0}
-      className={cn(
-        "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
-        "data-[flagged=true]:border-l-4 data-[flagged=true]:border-l-crit data-[flagged=true]:shadow-card-flagged",
-        className,
-      )}
-    >
-      <div className="flex items-start justify-between">
-        <h3 className="text-[15px] font-semibold text-ink">Session Notes</h3>
-        <span className="text-right text-xs leading-tight text-subtle">
-          This period
-          <br />
-          {periodLabel}
-        </span>
-      </div>
+    <PulseTileShell flagged={overdue > 0} severity="crit" className={className}>
+      <PulseTileHeader title="Session Notes" periodPrefix="This period" periodLabel={periodLabel} />
 
       <div className="mt-4">
-        <div className="flex items-baseline gap-2">
-          <span
-            className={cn(
-              "text-[30px] font-semibold tabular-nums tracking-tight",
-              overdue > 0 ? "text-crit" : "text-ink",
-            )}
-          >
-            {overdue}
-          </span>
-          <span className="text-sm text-muted">overdue</span>
-        </div>
+        <PulseMetric value={overdue} unit="overdue" flagged={overdue > 0} severity="crit" />
         {overdue > 0 ? (
-          <p className="mt-1 text-xs text-subtle">
+          <PulseBaseline>
             {trendGlyph(overdue, lastPeriodOverdue)} was {lastPeriodOverdue} last period
-            {pctDocumented > 0 && pctDocumented < 100 ? ` · ${pctDocumented}% documented` : ""}
-          </p>
+          </PulseBaseline>
         ) : (
-          <p className="mt-1 inline-flex items-center gap-1 text-xs text-ok">
-            <Check size={13} aria-hidden />
-            All notes in for this period
-            {pctDocumented > 0 ? ` · ${pctDocumented}% documented` : ""}.
-          </p>
+          <PulseHealthyLine>All notes in for this period.</PulseHealthyLine>
         )}
       </div>
 
+      {totalCompleted > 0 && (
+        <PulseCompletionBar pct={pctDocumented} label={`${pctDocumented}% documented`} />
+      )}
+
       {staffWithOverdue.length > 0 && (
-        <div className="mt-5 flex flex-1 flex-col border-t border-border pt-4">
-          <p className="mb-2 text-xs text-subtle">Per staff</p>
+        <PulseDrillSection eyebrow="Per staff">
           <ul className="space-y-2">
             {visibleStaff.map((row) => (
-              <li key={row.staffId} className="flex items-center justify-between text-sm text-ink">
-                <Link
-                  to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : "#"}
-                  className="truncate hover:underline underline-offset-2"
-                >
-                  {row.staffName}
-                </Link>
-                <span className="inline-flex items-center gap-1.5 tabular-nums">
-                  <span className="size-1.5 rounded-full bg-crit" aria-hidden />
-                  {row.overdueCount}
-                </span>
-              </li>
+              <PulseDrillRow
+                key={row.staffId}
+                name={row.staffName}
+                to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined}
+                dotColor="crit"
+                value={row.overdueCount}
+              />
             ))}
           </ul>
           {!expanded && hiddenCount > 0 && (
@@ -232,9 +163,9 @@ function PulseNotesTile({
               + {hiddenCount} more staff
             </button>
           )}
-        </div>
+        </PulseDrillSection>
       )}
-    </div>
+    </PulseTileShell>
   )
 }
 

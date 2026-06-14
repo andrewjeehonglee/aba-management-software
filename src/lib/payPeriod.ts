@@ -114,3 +114,10 @@ export function getCurrentCalendarMonth(referenceDate: Date = new Date()): PayPe
     label: formatCalendarMonthLabel(year, month),
   }
 }
+
+/** Prior calendar month — used for period-over-period baselines on dashboard tiles. */
+export function getPreviousCalendarMonth(referenceDate: Date = new Date()): PayPeriod {
+  const current = getCurrentCalendarMonth(referenceDate)
+  const anchor = new Date(current.start.getTime() - 24 * 60 * 60 * 1000)
+  return getCurrentCalendarMonth(anchor)
+}

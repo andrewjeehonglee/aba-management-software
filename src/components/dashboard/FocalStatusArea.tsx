@@ -18,7 +18,6 @@ export function FocalStatusArea({
   const greeting = timeGreeting()
   const name = firstName(userName)
   const showStatusPlaceholder = !attention.resolved && (!rosterReady || attention.loading)
-
   const { attentionCount, items } = attention
 
   return (
@@ -29,17 +28,17 @@ export function FocalStatusArea({
 
       {showStatusPlaceholder ? (
         <div className="space-y-2">
-          <div className="h-8 max-w-xl animate-pulse rounded bg-border sm:h-9" aria-hidden />
+          <div className="h-7 max-w-xl animate-pulse rounded bg-border" aria-hidden />
           <div className="h-4 w-64 animate-pulse rounded bg-border" aria-hidden />
         </div>
       ) : attentionCount === 0 ? (
-        <p className="inline-flex items-center gap-2 text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+        <p className="inline-flex items-center gap-2 text-[22px] font-semibold tracking-tight text-ink sm:text-[24px]">
           <Check className="size-5 shrink-0 text-ok" aria-hidden />
           Your practice is on track today.
         </p>
       ) : (
         <div className="space-y-2">
-          <p className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">
+          <p className="text-[22px] font-semibold tracking-tight text-ink sm:text-[24px]">
             Your practice is mostly on track —{" "}
             <span className="text-crit">
               {attentionCount === 1 ? "1 thing needs attention:" : `${attentionCount} things need attention:`}

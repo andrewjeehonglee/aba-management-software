@@ -81,7 +81,7 @@ function SortableHeader({
         className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
       >
         {label}
-        <ArrowUpDown className={`size-3 ${isActive ? "text-[#0D7377]" : "opacity-40"}`} aria-hidden="true" />
+        <ArrowUpDown className={`size-3 ${isActive ? "text-brand" : "opacity-40"}`} aria-hidden="true" />
       </button>
     </th>
   )
@@ -196,11 +196,11 @@ function BcbaOverviewCard({
       onClick={onSelect}
       className={`rounded-lg border p-4 text-left transition-colors w-full ${
         active
-          ? "border-[#0D7377] bg-[#E8F7F7] ring-1 ring-[#0D7377]/30"
-          : "border-border bg-white hover:border-[#0D7377]/40"
+          ? "border-brand bg-brand-weak ring-1 ring-brand/30"
+          : "border-border bg-surface hover:border-brand/40"
       }`}
     >
-      <p className="font-semibold text-sm text-[#0D7377]">{summary.fullName}</p>
+      <p className="font-semibold text-sm text-brand">{summary.fullName}</p>
       <p className="mt-1 text-xs text-muted-foreground">
         {summary.clientCount} client{summary.clientCount === 1 ? "" : "s"}
         {" · "}
@@ -242,7 +242,7 @@ function StaffDirectory({ staff }: { staff: RosterStaffEntry[] }) {
                   <li key={s.id}>
                     <Link
                       to={staffProfilePath(s.externalCode)}
-                      className="inline-flex rounded-md border border-border bg-white px-3 py-1.5 text-sm hover:border-[#0D7377]/40 hover:bg-[#E8F7F7] transition-colors"
+                      className="inline-flex rounded-md border border-border bg-surface px-3 py-1.5 text-sm hover:border-brand/40 hover:bg-brand-weak transition-colors"
                     >
                       {s.fullName}
                     </Link>
@@ -283,7 +283,7 @@ function ClientDirectory({ rows }: { rows: RosterRow[] }) {
                   <td className="py-2">
                     <Link
                       to={clientProfilePath(row.clientCode)}
-                      className="text-[#0D7377] hover:underline underline-offset-2"
+                      className="text-brand hover:underline underline-offset-2"
                     >
                       View care team →
                     </Link>
@@ -389,7 +389,7 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
     hasRoster && filteredRows.length > 0 && footerStats.unassignedBtCount === 0
 
   return (
-    <div className="min-h-svh bg-[#F0F4F4] text-foreground flex flex-col items-center gap-6 p-4 pb-10">
+    <div className="min-h-svh bg-bg text-foreground flex flex-col items-center gap-6 p-4 pb-10">
       <header className="flex w-full max-w-5xl items-center justify-between gap-4 pt-2">
         <Link
           to="/"
@@ -402,7 +402,7 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
 
       <div className="w-full max-w-5xl space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[#1E2A2A]">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
             Caseload roster
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -464,7 +464,7 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
             )}
 
             <div
-              className="flex flex-wrap gap-1 rounded-full border border-[#D0DCDC] bg-[#E8F7F7] p-0.5 w-fit"
+              className="flex flex-wrap gap-1 rounded-full border border-border bg-brand-weak p-0.5 w-fit"
               role="tablist"
               aria-label="Filter by BCBA"
             >
@@ -475,8 +475,8 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
                 onClick={() => setBcbaFilter("all")}
                 className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   bcbaFilter === "all"
-                    ? "bg-white text-[#0D7377] shadow-sm"
-                    : "text-[#4A5C5C] hover:text-[#0D7377]"
+                    ? "bg-surface text-brand shadow-card"
+                    : "text-muted hover:text-ink"
                 }`}
               >
                 All ({allRows.length})
@@ -490,8 +490,8 @@ export function RosterPage({ practiceId }: { practiceId: string }) {
                   onClick={() => setBcbaFilter(summary.staffId)}
                   className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                     bcbaFilter === summary.staffId
-                      ? "bg-white text-[#0D7377] shadow-sm"
-                      : "text-[#4A5C5C] hover:text-[#0D7377]"
+                      ? "bg-surface text-brand shadow-card"
+                      : "text-muted hover:text-ink"
                   }`}
                 >
                   {summary.fullName} ({summary.clientCount})
