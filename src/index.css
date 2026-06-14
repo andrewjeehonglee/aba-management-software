@@ -84,7 +84,7 @@
 
 :root {
     /* ── Pulse v1 tokens ───────────────────────────────────────────────────── */
-    --bg: #FBFBFD;
+    --bg: #F1F4F8;
     --surface: #FFFFFF;
     --border: #ECEEF2;
     --ink: #0F172A;
@@ -101,7 +101,7 @@
 
     --radius-card: 16px;
     --radius-control: 10px;
-    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 2px 8px rgba(15, 23, 42, 0.06);
     --shadow-card-flagged: 0 1px 2px rgba(15, 23, 42, 0.05), 0 4px 12px rgba(15, 23, 42, 0.08);
 
     /* ── Legacy Pulse aliases ──────────────────────────────────────────────── */
