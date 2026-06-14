@@ -134,15 +134,17 @@ export function PulseDrillSection({
 export function PulseDrillRow({
   name,
   to,
-  dotColor,
+  flagged,
+  severity = "warn",
   value,
 }: {
   name: string
   to?: string
-  dotColor: "crit" | "warn"
+  /** When true, dot and value use severity color; otherwise neutral. */
+  flagged: boolean
+  severity?: "crit" | "warn"
   value: React.ReactNode
 }) {
-  const dotClass = dotColor === "crit" ? "bg-crit" : "bg-warn"
   return (
     <li className="flex items-center justify-between gap-3 text-lg text-ink">
       {to ? (
@@ -152,19 +154,42 @@ export function PulseDrillRow({
       ) : (
         <span className="truncate font-medium">{name}</span>
       )}
-      <span className="inline-flex shrink-0 items-center gap-2.5 text-xl tabular-nums font-semibold text-ink">
-        <span className={cn("size-2.5 rounded-full", dotClass)} aria-hidden />
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center gap-2.5 text-xl tabular-nums font-semibold",
+          flagged && severity === "crit" && "text-crit",
+          flagged && severity === "warn" && "text-warn",
+          !flagged && "text-ink",
+        )}
+      >
+        <span
+          className={cn(
+            "size-2.5 rounded-full",
+            flagged && severity === "crit" && "bg-crit",
+            flagged && severity === "warn" && "bg-warn",
+            !flagged && "bg-subtle",
+          )}
+          aria-hidden
+        />
         {value}
       </span>
     </li>
   )
 }
 
-export function PulseExpandButton({ count, onClick }: { count: number; onClick: () => void }) {
-  if (count <= 0) return null
+export function PulseDrillExpand({
+  hiddenCount,
+  noun,
+  onClick,
+}: {
+  hiddenCount: number
+  noun: string
+  onClick: () => void
+}) {
+  if (hiddenCount <= 0) return null
   return (
     <button type="button" onClick={onClick} className="mt-3 text-left text-base font-medium text-brand hover:underline">
-      + {count} more
+      + {hiddenCount} more {noun}
     </button>
   )
 }

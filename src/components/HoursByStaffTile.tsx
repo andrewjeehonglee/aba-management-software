@@ -34,6 +34,7 @@ import {
   PulseBaseline,
   PulseDrillSection,
   PulseDrillRow,
+  PulseDrillExpand,
   PulseHealthyLine,
   PulseMetric,
   PulseTileError,
@@ -289,6 +290,12 @@ function sortByTotalHoursDesc(a: StaffHoursRow, b: StaffHoursRow): number {
   return b.totalHours - a.totalHours
 }
 
+function sortByDirectPctAsc(a: StaffHoursRow, b: StaffHoursRow): number {
+  return a.directPct - b.directPct || b.totalHours - a.totalHours
+}
+
+const PULSE_DRILL_LIMIT = 6
+
 function PulseHoursTile({
   className,
   summary,
@@ -310,13 +317,13 @@ function PulseHoursTile({
 
   const monthLabel = summary?.monthLabel ?? ""
   const allStaff = summary?.byStaff ?? []
-  const flaggedStaff = allStaff.filter((row) => row.flagged).sort(sortByTotalHoursDesc)
-  const flaggedCount = flaggedStaff.length
+  const flaggedCount = allStaff.filter((row) => row.flagged).length
   const lastMonthFlagged = summary?.lastMonthFlaggedCount ?? 0
   const totalBillable = allStaff.reduce((sum, row) => sum + row.totalHours, 0)
 
-  const visibleFlagged = expanded ? flaggedStaff : flaggedStaff.slice(0, 3)
-  const hiddenFlagged = flaggedStaff.length - 3
+  const drillStaff = [...allStaff].sort(sortByDirectPctAsc)
+  const visibleStaff = expanded ? drillStaff : drillStaff.slice(0, PULSE_DRILL_LIMIT)
+  const hiddenStaff = drillStaff.length - PULSE_DRILL_LIMIT
 
   if (error) {
     return (
@@ -365,27 +372,22 @@ function PulseHoursTile({
         )}
       </div>
 
-      {flaggedStaff.length > 0 && (
+      {drillStaff.length > 0 && (
         <PulseDrillSection eyebrow="Per staff">
           <ul className="space-y-2.5">
-            {visibleFlagged.map((row) => (
+            {visibleStaff.map((row) => (
               <PulseDrillRow
                 key={row.staffId}
                 name={row.staffName}
                 to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined}
-                dotColor="warn"
+                flagged={row.flagged}
+                severity="warn"
                 value={`${Math.round(row.directPct * 100)}% direct`}
               />
             ))}
           </ul>
-          {!expanded && hiddenFlagged > 0 && (
-            <button
-              type="button"
-              onClick={onExpand}
-              className="mt-3 text-left text-base font-medium text-brand hover:underline"
-            >
-              + {hiddenFlagged} more staff
-            </button>
+          {!expanded && (
+            <PulseDrillExpand hiddenCount={hiddenStaff} noun="staff" onClick={onExpand} />
           )}
         </PulseDrillSection>
       )}

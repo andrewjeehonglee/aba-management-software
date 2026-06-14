@@ -12,6 +12,8 @@
 export const FLAGGED_THRESHOLD = 80
 export const RED_THRESHOLD = 85
 export const AMBER_LOWER = 75
+/** Utilization above authorized hours — distinct from approaching threshold. */
+export const OVER_AUTHORIZED_THRESHOLD = 100
 
 export function utilizationClass(pct: number): { bar: string; text: string } {
   if (pct >= RED_THRESHOLD) return { bar: "bg-red-500",     text: "text-red-700" }

@@ -18,6 +18,7 @@ import {
   PulseBaseline,
   PulseDrillSection,
   PulseDrillRow,
+  PulseDrillExpand,
   PulseHealthyLine,
   PulseMetric,
   PulseTileError,
@@ -100,6 +101,8 @@ function sortByUtilizationDesc(a: ClientAuthUtilRow, b: ClientAuthUtilRow): numb
   return b.utilizationPct - a.utilizationPct || a.clientName.localeCompare(b.clientName)
 }
 
+const PULSE_DRILL_LIMIT = 6
+
 function PulseAuthTile({
   className,
   summary,
@@ -123,12 +126,13 @@ function PulseAuthTile({
 
   const monthLabel = summary?.monthLabel ?? ""
   const allClients = summary?.byClient ?? []
-  const flaggedClients = allClients.filter((row) => row.flagged).sort(sortByUtilizationDesc)
-  const flaggedCount = flaggedClients.length
+  const flaggedCount = allClients.filter((row) => row.flagged).length
   const lastMonthFlagged = summary?.lastMonthFlaggedCount ?? 0
+  const hasOverAuthorized = allClients.some((row) => row.overAuthorized)
 
-  const visibleFlagged = expanded ? flaggedClients : flaggedClients.slice(0, 3)
-  const hiddenFlagged = flaggedClients.length - 3
+  const drillClients = [...allClients].sort(sortByUtilizationDesc)
+  const visibleClients = expanded ? drillClients : drillClients.slice(0, PULSE_DRILL_LIMIT)
+  const hiddenClients = drillClients.length - PULSE_DRILL_LIMIT
 
   if (error) {
     return (
@@ -159,7 +163,11 @@ function PulseAuthTile({
   }
 
   return (
-    <PulseTileShell flagged={flaggedCount > 0} severity="warn" className={className}>
+    <PulseTileShell
+      flagged={flaggedCount > 0}
+      severity={hasOverAuthorized ? "crit" : "warn"}
+      className={className}
+    >
       <PulseTileHeader title="Auth Utilization" periodPrefix="This month" periodLabel={monthLabel} />
 
       <div className="mt-4">
@@ -181,27 +189,22 @@ function PulseAuthTile({
         )}
       </div>
 
-      {flaggedClients.length > 0 && (
+      {drillClients.length > 0 && (
         <PulseDrillSection eyebrow="Per client">
           <ul className="space-y-2.5">
-            {visibleFlagged.map((row) => (
+            {visibleClients.map((row) => (
               <PulseDrillRow
                 key={row.authId}
                 name={row.clientName}
                 to={row.clientCode ? clientProfilePath(row.clientCode) : undefined}
-                dotColor="warn"
+                flagged={row.flagged}
+                severity={row.overAuthorized ? "crit" : "warn"}
                 value={`${row.utilizationPct}%`}
               />
             ))}
           </ul>
-          {!expanded && hiddenFlagged > 0 && (
-            <button
-              type="button"
-              onClick={onExpand}
-              className="mt-3 text-left text-base font-medium text-brand hover:underline"
-            >
-              + {hiddenFlagged} more clients
-            </button>
+          {!expanded && (
+            <PulseDrillExpand hiddenCount={hiddenClients} noun="clients" onClick={onExpand} />
           )}
         </PulseDrillSection>
       )}

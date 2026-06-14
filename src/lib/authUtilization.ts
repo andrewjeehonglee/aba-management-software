@@ -1,4 +1,4 @@
-import { FLAGGED_THRESHOLD } from "@/lib/authorization"
+import { FLAGGED_THRESHOLD, OVER_AUTHORIZED_THRESHOLD } from "@/lib/authorization"
 import { isCompleteSessionNote } from "@/lib/notesStatus"
 import { getCurrentCalendarMonth, getPreviousCalendarMonth } from "@/lib/payPeriod"
 import { classifySessionHours, DEFAULT_SESSION_HOURS } from "@/lib/staffHours"
@@ -47,6 +47,7 @@ export interface ClientAuthUtilRow {
   usedHours: number
   utilizationPct: number
   flagged: boolean
+  overAuthorized: boolean
 }
 
 export interface AuthUtilizationSummary {
@@ -154,6 +155,7 @@ export async function getAuthUtilizationByMonth(
         usedHours,
         utilizationPct,
         flagged: utilizationPct >= FLAGGED_THRESHOLD,
+        overAuthorized: utilizationPct > OVER_AUTHORIZED_THRESHOLD,
       }
     })
     .filter((row) => options?.clientIds?.length ? true : row.usedHours > 0)

@@ -17,6 +17,7 @@ import {
   PulseCompletionBar,
   PulseDrillSection,
   PulseDrillRow,
+  PulseDrillExpand,
   PulseHealthyLine,
   PulseMetric,
   PulseTileError,
@@ -92,6 +93,7 @@ function PulseNotesTile({
   const staffWithOverdue = (summary?.byStaff ?? [])
     .filter((row) => row.overdueCount > 0)
     .sort(sortByOverdueDesc)
+  const staffCount = summary?.byStaff.length ?? 0
 
   const visibleStaff = expanded ? staffWithOverdue : staffWithOverdue.slice(0, 3)
   const hiddenCount = staffWithOverdue.length - 3
@@ -141,7 +143,7 @@ function PulseNotesTile({
         <PulseCompletionBar pct={pctDocumented} label={`${pctDocumented}% documented`} />
       )}
 
-      {staffWithOverdue.length > 0 && (
+      {staffWithOverdue.length > 0 ? (
         <PulseDrillSection eyebrow="Per staff">
           <ul className="space-y-2.5">
             {visibleStaff.map((row) => (
@@ -149,21 +151,22 @@ function PulseNotesTile({
                 key={row.staffId}
                 name={row.staffName}
                 to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined}
-                dotColor="crit"
+                flagged
+                severity="crit"
                 value={row.overdueCount}
               />
             ))}
           </ul>
-          {!expanded && hiddenCount > 0 && (
-            <button
-              type="button"
-              onClick={onExpand}
-              className="mt-3 text-left text-base font-medium text-brand hover:underline"
-            >
-              + {hiddenCount} more staff
-            </button>
+          {!expanded && (
+            <PulseDrillExpand hiddenCount={hiddenCount} noun="staff" onClick={onExpand} />
           )}
         </PulseDrillSection>
+      ) : (
+        staffCount > 0 && (
+          <p className="mt-auto border-t border-border pt-4 text-base text-subtle">
+            All {staffCount} staff current.
+          </p>
+        )
       )}
     </PulseTileShell>
   )
