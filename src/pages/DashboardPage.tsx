@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select"
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar"
 import { FocalStatusArea } from "@/components/dashboard/FocalStatusArea"
+import { WorklistRail } from "@/components/dashboard/WorklistRail"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { BcbaCaseloadPanel } from "@/components/BcbaCaseloadPanel"
@@ -35,6 +36,7 @@ import {
   getOwnerAttentionSummary,
   type OwnerAttentionSummary,
 } from "@/lib/ownerDashboardStatus"
+import { cn } from "@/lib/utils"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
 type CalendarRole = "Technician" | "Supervisor" | "BCBA"
@@ -103,7 +105,9 @@ export function DashboardPage({
   const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null)
   const [attention, setAttention] = useState<OwnerAttentionSummary>({
     attentionCount: 0,
+    worstSeverity: "ok",
     items: [],
+    worklist: [],
     loading: true,
     resolved: false,
   })
@@ -279,7 +283,9 @@ export function DashboardPage({
         if (cancelled) return
         setAttention((prev) => ({
           attentionCount: 0,
+          worstSeverity: "ok",
           items: [],
+          worklist: [],
           loading: false,
           resolved: prev.resolved,
         }))
@@ -347,35 +353,33 @@ export function DashboardPage({
     viewRole === "BCBA" ? "BCBA" : viewRole === "Supervisor" ? "Supervisor" : "Technician"
 
   return (
-    <div className="flex min-h-svh flex-col bg-bg text-foreground">
+    <div className={cn("flex min-h-svh flex-col bg-bg text-foreground", isOwnerView && "h-svh overflow-hidden")}>
       <DashboardTopBar
         practiceName={practiceName}
         role={role}
         viewRole={viewRole}
         onViewRoleChange={setViewRole}
         isDemo={isDemo}
+        ownerName={ownerDisplayName}
       />
 
       {isOwnerView ? (
-        <main className="mx-auto w-full max-w-[min(100%,1360px)] flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mb-5">
-            <FocalStatusArea
-              userName={ownerDisplayName}
-              attention={attention}
-              rosterReady={rosterReady}
-            />
-          </div>
+        <main className="mx-auto flex h-[calc(100svh-3.5rem)] w-full max-w-[min(100%,1480px)] min-h-0 flex-col overflow-hidden px-4 py-4 sm:px-6">
+          <FocalStatusArea
+            userName={ownerDisplayName}
+            attention={attention}
+            rosterReady={rosterReady}
+          />
 
-          <div className="grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 xl:grid-cols-3">
-            <div id="notes-overdue" className="h-full">
+          <div className="mt-4 grid min-h-0 flex-1 grid-cols-1 gap-[18px] lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="grid min-h-0 grid-rows-3 gap-[18px]">
               <NotesOverdueTile
                 variant="pulse"
                 refreshKey={notesRefreshKey}
                 staffIds={rosterScope?.staffIds}
                 clientIds={rosterScope?.clientIds}
+                includeCaseloadStaff
               />
-            </div>
-            <div id="hours-by-staff" className="h-full">
               <HoursByStaffTile
                 variant="pulse"
                 refreshKey={staffRefreshKey}
@@ -385,13 +389,13 @@ export function DashboardPage({
                 includeZeroHourStaff
                 onStaffCreated={() => setStaffRefreshKey((k) => k + 1)}
               />
-            </div>
-            <div id="auth-utilization" className="h-full">
               <AuthorizationUtilizationTile
                 variant="pulse"
                 clientIds={rosterScope?.clientIds}
               />
             </div>
+
+            <WorklistRail items={attention.worklist} loading={attention.loading && !attention.resolved} />
           </div>
         </main>
       ) : (
@@ -478,7 +482,9 @@ export function DashboardPage({
         </div>
       )}
 
-      <p className="px-4 pb-6 text-center text-xs text-subtle sm:px-6">Built by Andrew Lee · 2026</p>
+      {!isOwnerView && (
+        <p className="px-4 pb-6 text-center text-xs text-subtle sm:px-6">Built by Andrew Lee · 2026</p>
+      )}
     </div>
   )
 }
