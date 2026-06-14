@@ -1,4 +1,5 @@
 import { getCurrentPayPeriod, getPreviousPayPeriod, type PayPeriod } from "@/lib/payPeriod"
+import { DEFAULT_SESSION_HOURS } from "@/lib/staffHours"
 import { supabase } from "@/lib/supabase"
 
 function teamLabel(raw: string | null | undefined): string {
@@ -52,6 +53,8 @@ export interface NotesStatusSummary {
   lastPeriodOverdue: number
   totalCompleted: number
   pctDocumented: number
+  /** Hours in the current pay period blocked by incomplete notes. */
+  payableHoursPending: number
   byStaff: StaffNotesStatus[]
 }
 
@@ -191,6 +194,7 @@ export async function getNotesStatus(
       lastPeriodOverdue,
       totalCompleted: 0,
       pctDocumented: 0,
+      payableHoursPending: 0,
       byStaff: [],
     }
   }
@@ -308,6 +312,8 @@ export async function getNotesStatus(
   const totalCompleted = completedSessions.length
   const pctDocumented =
     totalCompleted > 0 ? Math.round((documentedCount / totalCompleted) * 100) : 0
+  const payableHoursPending =
+    (totalCompleted - documentedCount) * DEFAULT_SESSION_HOURS
 
   const previousPeriod = getPreviousPayPeriod(now)
   const lastPeriodOverdue = await countOverdueForPayPeriod(previousPeriod, now, options)
@@ -319,6 +325,7 @@ export async function getNotesStatus(
     lastPeriodOverdue,
     totalCompleted,
     pctDocumented,
+    payableHoursPending,
     byStaff,
   }
 }

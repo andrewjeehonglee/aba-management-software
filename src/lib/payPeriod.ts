@@ -74,6 +74,27 @@ export function getCurrentPayPeriod(referenceDate: Date = new Date()): PayPeriod
   }
 }
 
+/** Whole days until pay period end in practice TZ (0 = last day). */
+export function daysUntilPeriodEnd(referenceDate: Date = new Date()): number {
+  const period = getCurrentPayPeriod(referenceDate)
+  const { year, month, day } = calendarPartsInPracticeTz(referenceDate)
+  const { year: endYear, month: endMonth, day: endDay } = calendarPartsInPracticeTz(period.end)
+  if (year === endYear && month === endMonth) {
+    return Math.max(0, endDay - day)
+  }
+  return 0
+}
+
+/** Formatted close date for payroll copy — e.g. "Jun 28". */
+export function formatPayPeriodCloseDate(referenceDate: Date = new Date()): string {
+  const period = getCurrentPayPeriod(referenceDate)
+  return period.end.toLocaleDateString("en-US", {
+    timeZone: PRACTICE_TIMEZONE,
+    month: "short",
+    day: "numeric",
+  })
+}
+
 /** Prior semi-monthly window — used for period-over-period baselines. */
 export function getPreviousPayPeriod(referenceDate: Date = new Date()): PayPeriod {
   const current = getCurrentPayPeriod(referenceDate)

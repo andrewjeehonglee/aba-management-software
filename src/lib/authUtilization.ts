@@ -48,6 +48,9 @@ export interface ClientAuthUtilRow {
   utilizationPct: number
   flagged: boolean
   overAuthorized: boolean
+  approaching: boolean
+  overHours: number
+  hoursRemaining: number
 }
 
 /** Show full name once; skip redundant `code — code` when roster has no display names. */
@@ -78,6 +81,11 @@ export function formatClientDisplayName(
 export interface AuthUtilizationSummary {
   monthLabel: string
   lastMonthFlaggedCount: number
+  totalOverHours: number
+  overCount: number
+  approachingCount: number
+  withinCount: number
+  totalClients: number
   byClient: ClientAuthUtilRow[]
 }
 
@@ -106,7 +114,16 @@ export async function getAuthUtilizationByMonth(
   }
 
   if (activeAuths.length === 0) {
-    return { monthLabel: month.label, lastMonthFlaggedCount: 0, byClient: [] }
+    return {
+      monthLabel: month.label,
+      lastMonthFlaggedCount: 0,
+      totalOverHours: 0,
+      overCount: 0,
+      approachingCount: 0,
+      withinCount: 0,
+      totalClients: 0,
+      byClient: [],
+    }
   }
 
   const clientIds = activeAuths.map((a) => a.client_id)
@@ -156,8 +173,7 @@ export async function getAuthUtilizationByMonth(
     )
   }
 
-  const byClient = activeAuths
-    .map((auth) => {
+  const allRows = activeAuths.map((auth) => {
       const usedHours = usedByClientId.get(auth.client_id) ?? 0
       const authorizedHours = auth.authorized_units
       const utilizationPct = authorizedHours > 0
@@ -170,6 +186,12 @@ export async function getAuthUtilizationByMonth(
         auth.clients.last_name,
       )
 
+      const overHours = Math.max(0, usedHours - authorizedHours)
+      const hoursRemaining = Math.max(0, authorizedHours - usedHours)
+      const overAuthorized = utilizationPct > OVER_AUTHORIZED_THRESHOLD
+      const flagged = utilizationPct >= FLAGGED_THRESHOLD
+      const approaching = flagged && !overAuthorized
+
       return {
         authId: auth.id,
         clientId: auth.client_id,
@@ -179,16 +201,27 @@ export async function getAuthUtilizationByMonth(
         authorizedHours,
         usedHours,
         utilizationPct,
-        flagged: utilizationPct >= FLAGGED_THRESHOLD,
-        overAuthorized: utilizationPct > OVER_AUTHORIZED_THRESHOLD,
+        flagged,
+        overAuthorized,
+        approaching,
+        overHours,
+        hoursRemaining,
       }
     })
+
+  const byClient = [...allRows]
     .filter((row) => options?.clientIds?.length ? true : row.usedHours > 0)
     .sort(
       (a, b) =>
         b.utilizationPct - a.utilizationPct ||
         a.clientName.localeCompare(b.clientName),
     )
+
+  const totalClients = allRows.length
+  const overCount = allRows.filter((row) => row.overAuthorized).length
+  const approachingCount = allRows.filter((row) => row.approaching).length
+  const withinCount = allRows.filter((row) => !row.flagged).length
+  const totalOverHours = allRows.reduce((sum, row) => sum + row.overHours, 0)
 
   let lastMonthFlaggedCount = 0
   if (options?.includeBaseline !== false) {
@@ -205,6 +238,11 @@ export async function getAuthUtilizationByMonth(
   return {
     monthLabel: month.label,
     lastMonthFlaggedCount,
+    totalOverHours,
+    overCount,
+    approachingCount,
+    withinCount: Math.max(0, withinCount),
+    totalClients,
     byClient,
   }
 }
