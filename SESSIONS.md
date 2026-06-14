@@ -1679,4 +1679,47 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 9, 2026 (Session 28 — supervision SQL patch applied on live Supabase).*
+## Session 29 — Pulse owner dashboard: v1 → v1.1 → command center (Jun 14, 2026 morning)
+
+**What landed:** Full visual + IA pass on the **owner dashboard only** — from first Pulse tokens through command-center layout with worklist rail, consequence copy, and proportion polish. All pushed to `main`; Vercel auto-deploy.
+
+**Detailed log:** `templates/SESSION_LOG_20260614_morning.md`
+
+### Phases shipped (same morning)
+
+1. **Pulse v1** (`0eaa8fb` → `381a059`) — Inter tokens, focal status sentence, 3 pulse tiles, shared `PulseTile.tsx`, 1680px shell.
+2. **Pulse v1.1** (`d1d33bc` → `4f52a7f`) — Always-on drill rows, deeper bg, 1360px width, auth display + direct-only utilization fix.
+3. **Command center** (`f123f83` → `8a01589`) — Single-screen two-column layout, chart-free pillars, owner-unit copy, worklist rail, payroll cadence on Hours tile.
+4. **Polish** (`4b74ff7`, `dd61825`) — Jenny Lee persona (not Sarah Chen); 500px/400px proportional layout + typography scale.
+
+### Owner view at HEAD (`dd61825`)
+
+- **Jenny Lee** in greeting, avatar, account — `resolveOwnerDisplayName()` for owner role.
+- **1080px** centered grid: 3 pillar cards (500px) + worklist (400px).
+- **No page scroll**; worklist `overflow-y: auto`.
+- **Severity:** red = auth over limit only; amber = notes/payroll/approaching auth.
+- **Role tabs:** demo-only (`isDemo`).
+
+### Commits (chronological, Jun 14)
+
+| Hash | Message |
+|------|---------|
+| `0eaa8fb` … `381a059` | Pulse v1 owner dashboard (see detailed log) |
+| `d1d33bc` | Pulse v1.1: always-on drill rows |
+| `7548950` | Pulse v1.1: page contrast tokens |
+| `85f6c6e` | Pulse v1.1: 1360px width |
+| `4f52a7f` | Auth display names + direct-only utilization |
+| `f123f83` … `8a01589` | Pulse command center (5 commits) |
+| `4b74ff7` | Jenny Lee owner persona fix |
+| `dd61825` | Proportions + typography rebalance |
+
+### Not done (explicitly deferred)
+
+- Token rollout to staff/client pages (command center spec §11 step 6).
+- BCBA/Supervisor/Technician dashboard pulse restyle.
+- `pulse-owner-dashboard-mockup.html` not in repo — live vs spec text validation only.
+- Open call: status sentence always-amber vs worst-severity (currently worst-severity).
+
+---
+
+*Last updated: Jun 14, 2026 (Session 29 — Pulse owner command center + morning polish).*
