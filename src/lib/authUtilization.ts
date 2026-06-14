@@ -50,6 +50,31 @@ export interface ClientAuthUtilRow {
   overAuthorized: boolean
 }
 
+/** Show full name once; skip redundant `code — code` when roster has no display names. */
+export function formatClientDisplayName(
+  code: string | null | undefined,
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+): string {
+  const nameParts = [firstName, lastName].filter(Boolean) as string[]
+  const fullName = nameParts.join(" ").trim()
+  const normalizedCode = code?.trim() ?? ""
+
+  if (fullName && normalizedCode) {
+    const compactName = fullName.replace(/\s+/g, "")
+    if (
+      fullName.toLowerCase() === normalizedCode.toLowerCase() ||
+      compactName.toLowerCase() === normalizedCode.toLowerCase()
+    ) {
+      return normalizedCode
+    }
+    return fullName
+  }
+  if (normalizedCode) return normalizedCode
+  if (fullName) return fullName
+  return "Unknown"
+}
+
 export interface AuthUtilizationSummary {
   monthLabel: string
   lastMonthFlaggedCount: number
@@ -123,7 +148,7 @@ export async function getAuthUtilizationByMonth(
       hasCompleteNote,
     })
 
-    if (bucket !== "direct" && bucket !== "indirect") continue
+    if (bucket !== "direct") continue
 
     usedByClientId.set(
       session.client_id,
@@ -138,12 +163,12 @@ export async function getAuthUtilizationByMonth(
       const utilizationPct = authorizedHours > 0
         ? Math.round((usedHours / authorizedHours) * 100)
         : 0
-      const code = auth.clients.external_code
-      const nameParts = [auth.clients.first_name, auth.clients.last_name].filter(Boolean)
-      let displayName = "Unknown"
-      if (code && nameParts.length) displayName = `${code} — ${nameParts.join(" ")}`
-      else if (code) displayName = code
-      else if (nameParts.length) displayName = nameParts.join(" ")
+      const code = auth.clients.external_code?.trim() || null
+      const displayName = formatClientDisplayName(
+        code,
+        auth.clients.first_name,
+        auth.clients.last_name,
+      )
 
       return {
         authId: auth.id,
