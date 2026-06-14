@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { AlertTriangle, BadgeCheck } from "lucide-react"
+import { AlertTriangle, BadgeCheck, Check } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -88,25 +88,212 @@ function sortByUtilizationDesc(a: ClientAuthUtilRow, b: ClientAuthUtilRow): numb
   return b.utilizationPct - a.utilizationPct || a.clientName.localeCompare(b.clientName)
 }
 
+function PulseAuthSkeleton() {
+  return (
+    <div className="flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card">
+      <div className="flex items-start justify-between">
+        <div className="h-4 w-36 animate-pulse rounded bg-border" />
+        <div className="h-8 w-16 animate-pulse rounded bg-border" />
+      </div>
+      <div className="mt-4 space-y-2">
+        <div className="h-8 w-12 animate-pulse rounded bg-border" />
+        <div className="h-3 w-36 animate-pulse rounded bg-border" />
+      </div>
+      <div className="mt-5 space-y-2 border-t border-border pt-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-4 w-full animate-pulse rounded bg-border" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PulseAuthTile({
+  className,
+  summary,
+  loading,
+  error,
+  onRetry,
+  expanded,
+  onExpand,
+  clientIds,
+}: {
+  className?: string
+  summary: Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null
+  loading: boolean
+  error: string | null
+  onRetry: () => void
+  expanded: boolean
+  onExpand: () => void
+  clientIds?: string[]
+}) {
+  if (loading) return <PulseAuthSkeleton />
+
+  const monthLabel = summary?.monthLabel ?? ""
+  const allClients = summary?.byClient ?? []
+  const flaggedClients = allClients.filter((row) => row.flagged).sort(sortByUtilizationDesc)
+  const flaggedCount = flaggedClients.length
+
+  const visibleFlagged = expanded ? flaggedClients : flaggedClients.slice(0, 3)
+  const hiddenFlagged = flaggedClients.length - 3
+
+  if (error) {
+    return (
+      <div className={cn("flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card", className)}>
+        <h3 className="text-[15px] font-semibold text-ink">Authorization Utilization</h3>
+        <p className="mt-4 text-sm text-muted">Couldn&apos;t load authorizations.</p>
+        <button type="button" onClick={onRetry} className="mt-2 w-fit text-xs text-brand hover:underline">
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (allClients.length === 0) {
+    return (
+      <div className={cn("flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card", className)}>
+        <div className="flex items-start justify-between">
+          <h3 className="text-[15px] font-semibold text-ink">Authorization Utilization</h3>
+          {monthLabel && (
+            <span className="text-right text-xs leading-tight text-subtle">
+              This month
+              <br />
+              {monthLabel}
+            </span>
+          )}
+        </div>
+        <div className="mt-6 flex flex-1 flex-col items-start gap-2">
+          <BadgeCheck className="size-5 text-subtle" aria-hidden />
+          <p className="text-sm text-ink">
+            {clientIds?.length
+              ? "No authorization records for this caseload yet."
+              : "No billable sessions this month."}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-flagged={flaggedCount > 0}
+      className={cn(
+        "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
+        "data-[flagged=true]:border-l-4 data-[flagged=true]:border-l-warn data-[flagged=true]:shadow-card-flagged",
+        className,
+      )}
+    >
+      <div className="flex items-start justify-between">
+        <h3 className="text-[15px] font-semibold text-ink">Authorization Utilization</h3>
+        <span className="text-right text-xs leading-tight text-subtle">
+          This month
+          <br />
+          {monthLabel}
+        </span>
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-baseline gap-2">
+          <span
+            className={cn(
+              "text-[30px] font-semibold tabular-nums tracking-tight",
+              flaggedCount > 0 ? "text-warn" : "text-ink",
+            )}
+          >
+            {flaggedCount}
+          </span>
+          <span className="text-sm text-muted">at or above 80%</span>
+        </div>
+        {flaggedCount > 0 ? (
+          <p className="mt-1 text-xs text-subtle">
+            {allClients.length} clients authorized this month
+          </p>
+        ) : (
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-ok">
+            <Check className="size-3.5" aria-hidden />
+            All clients below 80% · {allClients.length} authorized.
+          </p>
+        )}
+      </div>
+
+      {flaggedClients.length > 0 && (
+        <div className="mt-5 flex flex-1 flex-col border-t border-border pt-4">
+          <p className="mb-2 text-xs text-subtle">Per client</p>
+          <ul className="space-y-2">
+            {visibleFlagged.map((row) => {
+              const href = row.clientCode ? clientProfilePath(row.clientCode) : null
+              return (
+                <li key={row.authId} className="flex items-center justify-between gap-2 text-sm text-ink">
+                  {href ? (
+                    <Link to={href} className="truncate hover:underline underline-offset-2">
+                      {row.clientName}
+                    </Link>
+                  ) : (
+                    <span className="truncate">{row.clientName}</span>
+                  )}
+                  <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums text-muted">
+                    <span className="size-1.5 rounded-full bg-warn" aria-hidden />
+                    {row.utilizationPct}%
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+          {!expanded && hiddenFlagged > 0 && (
+            <button
+              type="button"
+              onClick={onExpand}
+              className="mt-3 text-left text-xs text-brand hover:underline"
+            >
+              + {hiddenFlagged} more clients
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AuthorizationUtilizationTile({
   className,
   teamFilter,
   clientIds,
+  variant = "default",
 }: {
   className?: string
   teamFilter?: TeamFilter
   clientIds?: string[]
+  variant?: "default" | "pulse"
 }) {
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
+    setLoading(true)
+    setError(null)
     getAuthUtilizationByMonth(undefined, clientIds?.length ? { clientIds } : undefined)
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load authorizations"))
       .finally(() => setLoading(false))
-  }, [clientIds])
+  }, [clientIds, retryTick])
+
+  if (variant === "pulse") {
+    return (
+      <PulseAuthTile
+        className={className}
+        summary={summary}
+        loading={loading}
+        error={error}
+        expanded={expanded}
+        onExpand={() => setExpanded(true)}
+        onRetry={() => setRetryTick((k) => k + 1)}
+        clientIds={clientIds}
+      />
+    )
+  }
 
   const teamClients = summary
     ? (clientIds?.length

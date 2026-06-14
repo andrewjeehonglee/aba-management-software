@@ -377,6 +377,7 @@ export function DashboardPage({
             </div>
             <div id="hours-by-staff" className="h-full">
               <HoursByStaffTile
+                variant="pulse"
                 refreshKey={staffRefreshKey}
                 practiceId={practiceId}
                 staffIds={rosterScope?.staffIds}
@@ -386,7 +387,10 @@ export function DashboardPage({
               />
             </div>
             <div id="auth-utilization" className="h-full">
-              <AuthorizationUtilizationTile clientIds={rosterScope?.clientIds} />
+              <AuthorizationUtilizationTile
+                variant="pulse"
+                clientIds={rosterScope?.clientIds}
+              />
             </div>
           </div>
         </main>

@@ -5,6 +5,8 @@ import { getStaffHoursByMonth } from "@/lib/staffHours"
 export interface OwnerAttentionItem {
   id: "notes" | "hours" | "auth"
   scrollTargetId: string
+  label: string
+  detail: string
 }
 
 export interface OwnerAttentionSummary {
@@ -37,15 +39,32 @@ export async function getOwnerAttentionSummary(options?: {
   const items: OwnerAttentionItem[] = []
 
   if (notes.totalOverdue > 0) {
-    items.push({ id: "notes", scrollTargetId: "notes-overdue" })
+    items.push({
+      id: "notes",
+      scrollTargetId: "notes-overdue",
+      label: "Session notes",
+      detail: `${notes.totalOverdue} overdue`,
+    })
   }
 
-  if (hours.byStaff.some((row) => row.flagged)) {
-    items.push({ id: "hours", scrollTargetId: "hours-by-staff" })
+  const flaggedStaff = hours.byStaff.filter((row) => row.flagged)
+  if (flaggedStaff.length > 0) {
+    items.push({
+      id: "hours",
+      scrollTargetId: "hours-by-staff",
+      label: "Hours by staff",
+      detail: `${flaggedStaff.length} below direct mix`,
+    })
   }
 
-  if (auth.byClient.some((row) => row.flagged)) {
-    items.push({ id: "auth", scrollTargetId: "auth-utilization" })
+  const flaggedClients = auth.byClient.filter((row) => row.flagged)
+  if (flaggedClients.length > 0) {
+    items.push({
+      id: "auth",
+      scrollTargetId: "auth-utilization",
+      label: "Authorization utilization",
+      detail: `${flaggedClients.length} at or above 80%`,
+    })
   }
 
   return {

@@ -68,7 +68,6 @@ function PulseNotesSkeleton() {
         <div className="h-8 w-16 animate-pulse rounded bg-border" />
         <div className="h-3 w-32 animate-pulse rounded bg-border" />
       </div>
-      <div className="mt-4 h-1.5 w-full animate-pulse rounded-full bg-border" />
       <div className="mt-5 space-y-2 border-t border-border pt-4">
         <div className="h-3 w-16 animate-pulse rounded bg-border" />
         {[0, 1, 2].map((i) => (
@@ -194,23 +193,15 @@ function PulseNotesTile({
         {overdue > 0 ? (
           <p className="mt-1 text-xs text-subtle">
             {trendGlyph(overdue, lastPeriodOverdue)} was {lastPeriodOverdue} last period
+            {pctDocumented > 0 && pctDocumented < 100 ? ` · ${pctDocumented}% documented` : ""}
           </p>
         ) : (
           <p className="mt-1 inline-flex items-center gap-1 text-xs text-ok">
             <Check size={13} aria-hidden />
-            All notes in for this period.
+            All notes in for this period
+            {pctDocumented > 0 ? ` · ${pctDocumented}% documented` : ""}.
           </p>
         )}
-      </div>
-
-      <div className="mt-4">
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
-          <div
-            className="h-full rounded-full bg-brand transition-[width] duration-300"
-            style={{ width: `${pctDocumented}%` }}
-          />
-        </div>
-        <p className="mt-1.5 text-xs text-subtle">{pctDocumented}% documented</p>
       </div>
 
       {staffWithOverdue.length > 0 && (
