@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { AlertCircle, AlertTriangle, CheckCircle2, Info } from "lucide-react"
+import { AlertCircle, AlertTriangle, Check, CheckCircle2, FileText, Info } from "lucide-react"
 import {
   Card,
   CardContent,
@@ -33,6 +33,12 @@ function sortByOverdueDesc(a: StaffNotesStatus, b: StaffNotesStatus): number {
   )
 }
 
+function trendGlyph(current: number, previous: number): string {
+  if (current > previous) return "▲"
+  if (current < previous) return "▼"
+  return "▸"
+}
+
 function MissingPill({ count }: { count: number }) {
   if (count === 0) return null
   return (
@@ -51,6 +57,196 @@ function OverduePill({ count }: { count: number }) {
   )
 }
 
+function PulseNotesSkeleton() {
+  return (
+    <div className="flex h-full flex-col rounded-2xl bg-surface p-6 shadow-card">
+      <div className="flex items-start justify-between">
+        <div className="h-4 w-28 animate-pulse rounded bg-border" />
+        <div className="h-8 w-16 animate-pulse rounded bg-border" />
+      </div>
+      <div className="mt-4 space-y-2">
+        <div className="h-8 w-16 animate-pulse rounded bg-border" />
+        <div className="h-3 w-32 animate-pulse rounded bg-border" />
+      </div>
+      <div className="mt-4 h-1.5 w-full animate-pulse rounded-full bg-border" />
+      <div className="mt-5 space-y-2 border-t border-border pt-4">
+        <div className="h-3 w-16 animate-pulse rounded bg-border" />
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-4 w-full animate-pulse rounded bg-border" />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function PulseNotesTile({
+  className,
+  summary,
+  loading,
+  error,
+  onRetry,
+  expanded,
+  onExpand,
+}: {
+  className?: string
+  summary: Awaited<ReturnType<typeof getNotesStatus>> | null
+  loading: boolean
+  error: string | null
+  onRetry: () => void
+  expanded: boolean
+  onExpand: () => void
+}) {
+  if (loading) return <PulseNotesSkeleton />
+
+  const overdue = summary?.totalOverdue ?? 0
+  const periodLabel = summary?.payPeriodLabel ?? ""
+  const lastPeriodOverdue = summary?.lastPeriodOverdue ?? 0
+  const pctDocumented = summary?.pctDocumented ?? 0
+  const totalCompleted = summary?.totalCompleted ?? 0
+
+  const staffWithOverdue = (summary?.byStaff ?? [])
+    .filter((row) => row.overdueCount > 0)
+    .sort(sortByOverdueDesc)
+
+  const visibleStaff = expanded ? staffWithOverdue : staffWithOverdue.slice(0, 3)
+  const hiddenCount = staffWithOverdue.length - 3
+
+  if (error) {
+    return (
+      <div
+        className={cn(
+          "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
+          className,
+        )}
+      >
+        <h3 className="text-[15px] font-semibold text-ink">Session Notes</h3>
+        <p className="mt-4 text-sm text-muted">Couldn&apos;t load notes.</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-2 w-fit text-xs text-brand hover:underline"
+        >
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (totalCompleted === 0) {
+    return (
+      <div
+        className={cn(
+          "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
+          className,
+        )}
+      >
+        <div className="flex items-start justify-between">
+          <h3 className="text-[15px] font-semibold text-ink">Session Notes</h3>
+          {periodLabel && (
+            <span className="text-right text-xs leading-tight text-subtle">
+              This period
+              <br />
+              {periodLabel}
+            </span>
+          )}
+        </div>
+        <div className="mt-6 flex flex-1 flex-col items-start gap-2">
+          <FileText className="size-5 text-subtle" aria-hidden />
+          <p className="text-sm text-ink">No sessions logged yet this period.</p>
+          <p className="text-xs text-muted">
+            Notes will appear here as your team documents sessions.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      data-flagged={overdue > 0}
+      className={cn(
+        "flex h-full flex-col rounded-2xl border-0 bg-surface p-6 shadow-card",
+        "data-[flagged=true]:border-l-4 data-[flagged=true]:border-l-crit data-[flagged=true]:shadow-card-flagged",
+        className,
+      )}
+    >
+      <div className="flex items-start justify-between">
+        <h3 className="text-[15px] font-semibold text-ink">Session Notes</h3>
+        <span className="text-right text-xs leading-tight text-subtle">
+          This period
+          <br />
+          {periodLabel}
+        </span>
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-baseline gap-2">
+          <span
+            className={cn(
+              "text-[30px] font-semibold tabular-nums tracking-tight",
+              overdue > 0 ? "text-crit" : "text-ink",
+            )}
+          >
+            {overdue}
+          </span>
+          <span className="text-sm text-muted">overdue</span>
+        </div>
+        {overdue > 0 ? (
+          <p className="mt-1 text-xs text-subtle">
+            {trendGlyph(overdue, lastPeriodOverdue)} was {lastPeriodOverdue} last period
+          </p>
+        ) : (
+          <p className="mt-1 inline-flex items-center gap-1 text-xs text-ok">
+            <Check size={13} aria-hidden />
+            All notes in for this period.
+          </p>
+        )}
+      </div>
+
+      <div className="mt-4">
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-border">
+          <div
+            className="h-full rounded-full bg-brand transition-[width] duration-300"
+            style={{ width: `${pctDocumented}%` }}
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-subtle">{pctDocumented}% documented</p>
+      </div>
+
+      {staffWithOverdue.length > 0 && (
+        <div className="mt-5 flex flex-1 flex-col border-t border-border pt-4">
+          <p className="mb-2 text-xs text-subtle">Per staff</p>
+          <ul className="space-y-2">
+            {visibleStaff.map((row) => (
+              <li key={row.staffId} className="flex items-center justify-between text-sm text-ink">
+                <Link
+                  to={row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : "#"}
+                  className="truncate hover:underline underline-offset-2"
+                >
+                  {row.staffName}
+                </Link>
+                <span className="inline-flex items-center gap-1.5 tabular-nums">
+                  <span className="size-1.5 rounded-full bg-crit" aria-hidden />
+                  {row.overdueCount}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {!expanded && hiddenCount > 0 && (
+            <button
+              type="button"
+              onClick={onExpand}
+              className="mt-3 text-left text-xs text-brand hover:underline"
+            >
+              + {hiddenCount} more staff
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function NotesOverdueTile({
   className,
   refreshKey,
@@ -58,6 +254,7 @@ export function NotesOverdueTile({
   clientIds,
   selfMode,
   includeCaseloadStaff,
+  variant = "default",
 }: {
   className?: string
   teamFilter?: string
@@ -66,10 +263,13 @@ export function NotesOverdueTile({
   clientIds?: string[]
   selfMode?: boolean
   includeCaseloadStaff?: boolean
+  variant?: "default" | "pulse"
 }) {
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -87,11 +287,23 @@ export function NotesOverdueTile({
       .then(setSummary)
       .catch((err) => setError(err.message ?? "Failed to load notes status"))
       .finally(() => setLoading(false))
-  }, [refreshKey, staffIds, clientIds, includeCaseloadStaff])
+  }, [refreshKey, staffIds, clientIds, includeCaseloadStaff, retryTick])
 
-  const sortedStaff = summary
-    ? [...summary.byStaff].sort(sortByOverdueDesc)
-    : []
+  if (variant === "pulse" && !selfMode) {
+    return (
+      <PulseNotesTile
+        className={className}
+        summary={summary}
+        loading={loading}
+        error={error}
+        expanded={expanded}
+        onExpand={() => setExpanded(true)}
+        onRetry={() => setRetryTick((k) => k + 1)}
+      />
+    )
+  }
+
+  const sortedStaff = summary ? [...summary.byStaff].sort(sortByOverdueDesc) : []
 
   const totalMissing = summary?.totalMissing ?? 0
   const totalOverdue = summary?.totalOverdue ?? 0
@@ -100,16 +312,20 @@ export function NotesOverdueTile({
   const hasGaps = totalMissing > 0 || totalOverdue > 0
   const showCaseloadRoster = Boolean(includeCaseloadStaff && sortedStaff.length > 0 && !selfMode)
 
-  const borderClass = urgency === "critical" ? "border-l-4 border-l-red-500"
-                    : urgency === "warning"  ? "border-l-4 border-l-amber-500"
-                    : ""
+  const borderClass =
+    urgency === "critical"
+      ? "border-l-4 border-l-red-500"
+      : urgency === "warning"
+        ? "border-l-4 border-l-amber-500"
+        : ""
   const shadowClass = urgency !== "healthy" ? "shadow-md" : ""
 
-  const UrgencyIcon = urgency === "critical" ? (
-    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" aria-hidden />
-  ) : urgency === "warning" ? (
-    <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" aria-hidden />
-  ) : null
+  const UrgencyIcon =
+    urgency === "critical" ? (
+      <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" aria-hidden />
+    ) : urgency === "warning" ? (
+      <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" aria-hidden />
+    ) : null
 
   return (
     <Card size="sm" className={cn("w-full", borderClass, shadowClass, className)}>
@@ -246,11 +462,16 @@ export function NotesOverdueTile({
         <CardFooter className="flex flex-wrap gap-x-4 gap-y-1 border-t bg-slate-50/80 px-4 py-2.5 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-amber-500" aria-hidden />
-            <span><span className="font-medium text-amber-700">Missing</span> — due before next session</span>
+            <span>
+              <span className="font-medium text-amber-700">Missing</span> — due before next session
+            </span>
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-red-500" aria-hidden />
-            <span><span className="font-medium text-red-700">Overdue</span> — next session started or period ended</span>
+            <span>
+              <span className="font-medium text-red-700">Overdue</span> — next session started or
+              period ended
+            </span>
           </span>
         </CardFooter>
       )}
