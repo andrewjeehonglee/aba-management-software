@@ -370,7 +370,7 @@ export function DashboardPage({
         <main
           className={cn(
             "mx-auto flex w-full max-w-[min(100%,1080px)] min-h-0 flex-col overflow-hidden px-4 sm:px-6",
-            isDemo ? "h-[calc(100svh-3.5rem-2.5rem)] py-3" : "h-[calc(100svh-3.5rem)] py-4",
+            "h-[calc(100svh-3.5rem)] py-4",
           )}
         >
           <FocalStatusArea

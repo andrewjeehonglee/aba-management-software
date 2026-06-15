@@ -479,9 +479,9 @@ export function SessionViewPage() {
   return (
     <div className="min-h-svh bg-background text-foreground flex flex-col">
 
-      {/* Session timer — fixed so it stays visible below the demo banner when scrolling */}
+      {/* Session timer — fixed so it stays visible when scrolling */}
       <div
-        className={`fixed right-4 z-[60] flex items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 shadow-lg backdrop-blur ${isDemo ? "top-12" : "top-3"}`}
+        className="fixed right-4 top-3 z-[60] flex items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 shadow-lg backdrop-blur"
         aria-live="polite"
       >
         <span className="font-mono text-xl font-bold tabular-nums text-primary">
@@ -493,7 +493,7 @@ export function SessionViewPage() {
       </div>
 
       {/* ══ STICKY HEADER ══════════════════════════════════════════════════ */}
-      <header className={`sticky z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 ${isDemo ? "top-10" : "top-0"}`}>
+      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
         <div className="mx-auto max-w-6xl px-4 pt-3 pb-2 flex items-center gap-3">
           <Link
             to={sessionDetail.clientId ? `/clients/${sessionDetail.clientId}` : "/"}

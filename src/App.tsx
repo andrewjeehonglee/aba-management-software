@@ -11,7 +11,6 @@ import { LandingPage } from "@/pages/LandingPage"
 import { CreatePracticePage } from "@/pages/CreatePracticePage"
 import { SessionViewPage } from "@/pages/SessionViewPage"
 import { StaffOverviewPage } from "@/pages/StaffOverviewPage"
-import { DemoBanner } from "@/components/DemoBanner"
 import { DemoContext } from "@/context/DemoContext"
 import { supabase, getUserPractice, getUserRole, getStaffByUserId } from "@/lib/supabase"
 import type { PracticeMembership } from "@/lib/supabase"
@@ -197,7 +196,6 @@ function App() {
   return (
     <DemoContext.Provider value={isDemo}>
       <Toaster position="top-center" richColors />
-      {isDemo && <DemoBanner />}
       <Routes>
         <Route path="/" element={<DashboardPage practiceId={practice.practice_id} userRole={userRole} currentStaffId={currentStaffId} isDemo={isDemo} />} />
         <Route
