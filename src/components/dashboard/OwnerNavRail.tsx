@@ -56,7 +56,7 @@ function NavLinkItem({
     <Link
       to={href}
       className={cn(
-        "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "flex items-center gap-3 rounded-[12px] px-3 py-2 text-[15px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         active
           ? "bg-surface text-ink shadow-card"
           : "text-ink-soft hover:bg-surface-2 hover:text-ink",
@@ -64,7 +64,7 @@ function NavLinkItem({
       aria-current={active ? "page" : undefined}
     >
       <Icon
-        className={cn("size-[18px] shrink-0", active ? "text-brand" : "text-muted")}
+        className={cn("size-[19px] shrink-0", active ? "text-brand" : "text-muted")}
         strokeWidth={1.75}
       />
       {label}
@@ -90,16 +90,16 @@ export function OwnerNavRail({
   }
 
   const accountBlock = (
-    <div className="flex items-center gap-3 px-2">
+    <div className="flex items-center gap-3 px-1">
       <span
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-brand"
+        className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[15px] font-semibold text-brand"
         aria-hidden
       >
         {initials}
       </span>
       <div className="min-w-0">
-        <p className="truncate text-[15px] font-semibold text-ink">{firstName(ownerName)}</p>
-        <p className="truncate text-[13px] text-muted">{practiceLabel}</p>
+        <p className="truncate text-[17px] font-semibold text-ink">{firstName(ownerName)}</p>
+        <p className="truncate text-[14px] text-muted">{practiceLabel}</p>
       </div>
     </div>
   )
@@ -107,15 +107,15 @@ export function OwnerNavRail({
   return (
     <>
       {/* Desktop rail */}
-      <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r border-line bg-bg px-4 py-6 min-[1000px]:flex">
-        <div className="mb-6 flex items-center gap-2.5 px-2">
-          <span className="text-lg font-semibold tracking-tight text-brand">Pulse</span>
+      <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r border-line bg-bg px-3 py-5 min-[1000px]:flex">
+        <div className="mb-5 flex items-center gap-2.5 px-2">
+          <span className="text-xl font-semibold tracking-tight text-brand">Pulse</span>
           <PulseGlyph className="text-brand" />
         </div>
 
         {accountBlock}
 
-        <nav className="mt-6 flex-1 space-y-1" aria-label="Main">
+        <nav className="mt-5 space-y-0.5" aria-label="Main">
           {NAV_ITEMS.map((item) => (
             <NavLinkItem
               key={item.label}
@@ -130,9 +130,9 @@ export function OwnerNavRail({
         <button
           type="button"
           onClick={() => void handleSignOut()}
-          className="mt-4 flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="mt-auto flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[15px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
-          <LogOut className="size-[18px] shrink-0" strokeWidth={1.75} />
+          <LogOut className="size-[19px] shrink-0" strokeWidth={1.75} />
           Sign out
         </button>
       </aside>
@@ -145,8 +145,8 @@ export function OwnerNavRail({
             <PulseGlyph className="text-brand" />
           </div>
           <div className="hidden min-w-0 sm:block">
-            <p className="truncate text-sm font-semibold text-ink">{firstName(ownerName)}</p>
-            <p className="truncate text-xs text-muted">{practiceLabel}</p>
+            <p className="truncate text-[15px] font-semibold text-ink">{firstName(ownerName)}</p>
+            <p className="truncate text-[13px] text-muted">{practiceLabel}</p>
           </div>
         </div>
         <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Main">

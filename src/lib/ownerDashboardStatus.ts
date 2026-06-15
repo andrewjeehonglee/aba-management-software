@@ -90,9 +90,6 @@ export async function getOwnerAttentionSummary(options?: {
   }
 
   const flaggedStaff = hours.byStaff.filter((row) => row.flagged)
-  const daysUntilClose = daysUntilPeriodEnd()
-  const payrollEscalates =
-    daysUntilClose <= PAYROLL_ESCALATION_DAYS && notes.payableHoursPending > 0
 
   if (flaggedStaff.length > 0) {
     items.push({
@@ -100,7 +97,7 @@ export async function getOwnerAttentionSummary(options?: {
       scrollTargetId: "hours-by-staff",
       label: "Hours by staff",
       detail: `${flaggedStaff.length} below 50% direct`,
-      displayValue: `${flaggedStaff.length} below mix`,
+      displayValue: `${flaggedStaff.length} below direct`,
       severity: "warn",
     })
     worstSeverityLevel = worstSeverity(worstSeverityLevel, "warn")
@@ -109,23 +106,13 @@ export async function getOwnerAttentionSummary(options?: {
       worklist.push({
         id: `hours-${row.staffId}`,
         group: "hours",
-        groupLabel: "Hours — below direct mix",
+        groupLabel: "Below 50% direct",
         name: row.staffName,
         displayValue: `${Math.round(row.directPct * 100)}% direct`,
         severity: "warn",
         href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
       })
     }
-  } else if (payrollEscalates) {
-    items.push({
-      id: "hours",
-      scrollTargetId: "hours-by-staff",
-      label: "Payroll",
-      detail: `${notes.payableHoursPending} hours on hold`,
-      displayValue: `${notes.payableHoursPending} hrs blocked`,
-      severity: "warn",
-    })
-    worstSeverityLevel = worstSeverity(worstSeverityLevel, "warn")
   }
 
   if (auth.overCount > 0) {

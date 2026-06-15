@@ -10,9 +10,8 @@ import {
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar"
 import { FocalStatusArea } from "@/components/dashboard/FocalStatusArea"
 import { OwnerNavRail } from "@/components/dashboard/OwnerNavRail"
+import { OwnerPracticeGrid } from "@/components/dashboard/OwnerPracticeGrid"
 import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
-import { PracticeTodaySurface } from "@/components/dashboard/PracticeTodaySurface"
-import { WorklistRail } from "@/components/dashboard/WorklistRail"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { BcbaCaseloadPanel } from "@/components/BcbaCaseloadPanel"
@@ -382,7 +381,7 @@ export function DashboardPage({
           <main className="flex min-h-0 min-w-0 flex-col overflow-hidden px-5 py-6 short:py-5 min-[1000px]:px-[52px] min-[1000px]:py-8">
             <div className="mx-auto flex h-full w-full max-w-[1400px] min-h-0 flex-col">
               <div className="mb-5 flex shrink-0 items-center justify-between gap-4 short:mb-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
+                <p className="text-[13px] font-semibold uppercase tracking-[0.10em] text-muted">
                   {formatEyebrowDate()}
                 </p>
                 {role === "Owner" && (
@@ -396,20 +395,15 @@ export function DashboardPage({
                 rosterReady={rosterReady}
               />
 
-              <div className="mt-6 grid min-h-0 flex-1 grid-cols-1 gap-6 short:mt-4 min-[1000px]:grid-cols-[1.55fr_1fr] min-[1000px]:gap-6">
-                <PracticeTodaySurface
-                  refreshKey={notesRefreshKey + staffRefreshKey}
-                  staffIds={rosterScope?.staffIds}
-                  clientIds={rosterScope?.clientIds}
-                  includeCaseloadStaff
-                  className="min-h-0"
-                />
-                <WorklistRail
-                  className="min-h-0"
-                  items={attention.worklist}
-                  loading={attention.loading && !attention.resolved}
-                />
-              </div>
+              <OwnerPracticeGrid
+                className="mt-6 short:mt-4"
+                refreshKey={notesRefreshKey + staffRefreshKey}
+                staffIds={rosterScope?.staffIds}
+                clientIds={rosterScope?.clientIds}
+                includeCaseloadStaff
+                worklistItems={attention.worklist}
+                worklistLoading={attention.loading && !attention.resolved}
+              />
             </div>
           </main>
         </>
