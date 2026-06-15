@@ -80,7 +80,7 @@ export async function getOwnerAttentionSummary(options?: {
       worklist.push({
         id: `notes-${row.staffId}`,
         group: "notes",
-        groupLabel: "Notes to wrap up",
+        groupLabel: "Incomplete notes",
         name: row.staffName,
         displayValue: sessionLabel(sessionCount),
         severity: "warn",
@@ -144,7 +144,7 @@ export async function getOwnerAttentionSummary(options?: {
     worklist.push({
       id: `auth-over-${row.authId}`,
       group: "auth",
-      groupLabel: "Authorization — over limit",
+      groupLabel: "Over authorized limit",
       name: row.clientName,
       displayValue: `${row.overHours} hrs over`,
       severity: "crit",
@@ -156,7 +156,7 @@ export async function getOwnerAttentionSummary(options?: {
     worklist.push({
       id: `auth-approaching-${row.authId}`,
       group: "auth",
-      groupLabel: "Authorization — over limit",
+      groupLabel: "Over authorized limit",
       name: row.clientName,
       displayValue: `${row.hoursRemaining} hrs left`,
       severity: "warn",

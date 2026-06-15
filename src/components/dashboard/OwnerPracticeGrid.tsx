@@ -15,9 +15,9 @@ type Domain = "notes" | "hours" | "auth"
 const DOMAIN_ORDER: Domain[] = ["notes", "hours", "auth"]
 
 const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
-  notes: "Notes to wrap up",
+  notes: "Incomplete notes",
   hours: "Below 50% direct",
-  auth: "Over their authorized hours",
+  auth: "Over authorized limit",
 }
 
 function domainAccent(domain: Domain, tagSeverity: PulseSeverity): "neutral" | "amber" | "sage" {
@@ -209,7 +209,7 @@ function LinkedBubbleGroup({
         : "bg-surface-2 text-ink-soft ring-1 ring-line"
 
   return (
-    <div className="flex min-h-[120px] flex-col justify-center py-4 short:py-3 min-[1000px]:border-l-2 min-[1000px]:border-line min-[1000px]:pl-4 min-[1000px]:py-0">
+    <div className="flex min-h-[120px] flex-col justify-center py-4 short:py-3 min-[1000px]:py-0">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p className="text-[16px] font-semibold uppercase tracking-[0.08em] text-ink">
           {WORKLIST_GROUP_LABELS[domain]}
@@ -476,34 +476,35 @@ export function OwnerPracticeGrid({
             Your practice today
           </h2>
           <p className="mt-1 text-[14px] text-muted">
-            16 clients · 3 BCBAs · 5 clinical supervisors · 6 technicians
+            3 BCBAs · 5 clinical supervisors · 6 technicians
           </p>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col min-[1000px]:rounded-[var(--radius)] min-[1000px]:bg-surface min-[1000px]:shadow-card">
-          {DOMAIN_ORDER.map((domain, index) => {
+        <div className="flex min-h-0 flex-1 flex-col gap-3 min-[1000px]:gap-4">
+          {DOMAIN_ORDER.map((domain) => {
             const row = domainRows[domain]
             return (
               <div
                 key={domain}
                 className={cn(
-                  "flex flex-col gap-4 max-[999px]:mb-3 max-[999px]:rounded-[var(--radius)] max-[999px]:bg-surface max-[999px]:shadow-card",
+                  "flex flex-col gap-4",
                   "min-[1000px]:grid min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-stretch min-[1000px]:gap-x-8",
-                  index < DOMAIN_ORDER.length - 1 && "min-[1000px]:border-b min-[1000px]:border-line-soft",
                 )}
               >
-                <OpsRow
-                  id={row.id}
-                  domain={domain}
-                  title={row.title}
-                  tag={row.tag}
-                  tagSeverity={row.tagSeverity}
-                  lines={row.lines}
-                  metric={row.metric}
-                  metricLabel={row.metricLabel}
-                  metricPeriod={row.metricPeriod}
-                  isLast
-                />
+                <div className="rounded-[var(--radius)] bg-surface shadow-card">
+                  <OpsRow
+                    id={row.id}
+                    domain={domain}
+                    title={row.title}
+                    tag={row.tag}
+                    tagSeverity={row.tagSeverity}
+                    lines={row.lines}
+                    metric={row.metric}
+                    metricLabel={row.metricLabel}
+                    metricPeriod={row.metricPeriod}
+                    isLast
+                  />
+                </div>
                 <LinkedBubbleGroup
                   domain={domain}
                   items={worklistByDomain[domain]}

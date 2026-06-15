@@ -1,96 +1,26 @@
 import { useEffect, useMemo, useState } from "react"
-import { AlertCircle, ArrowUpDown } from "lucide-react"
-import { Link, useNavigate } from "react-router-dom"
+import { AlertCircle } from "lucide-react"
+import { Link } from "react-router-dom"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
-import { cn } from "@/lib/utils"
-import {
-  getBcbaSummaries,
-  getRosterRows,
-  type BcbaSummary,
-  type RosterRow,
-} from "@/lib/rosterTable"
+import { getBcbaSummaries, getRosterRows, type BcbaSummary, type RosterRow } from "@/lib/rosterTable"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
-
-type BcbaFilter = "all" | string
-type SortKey = "client" | "bcba" | "supervisor" | "bt"
-
-function compareRosterRows(
-  a: RosterRow,
-  b: RosterRow,
-  key: SortKey,
-  dir: "asc" | "desc",
-): number {
-  if (key === "bt") {
-    if (a.btUnassigned && !b.btUnassigned) return 1
-    if (!a.btUnassigned && b.btUnassigned) return -1
-  }
-
-  const value = (row: RosterRow): string => {
-    switch (key) {
-      case "client":
-        return row.clientCode
-      case "bcba":
-        return row.bcbaName ?? ""
-      case "supervisor":
-        return row.supervisorName ?? ""
-      case "bt":
-        return row.btUnassigned ? "Unassigned" : (row.btName ?? "")
-    }
-  }
-
-  const cmp = value(a).localeCompare(value(b), undefined, { sensitivity: "base" })
-  return dir === "asc" ? cmp : -cmp
-}
-
-function SortableHeader({
-  label,
-  sortKey,
-  activeKey,
-  sortDir,
-  onSort,
-  className = "",
-}: {
-  label: string
-  sortKey: SortKey
-  activeKey: SortKey
-  sortDir: "asc" | "desc"
-  onSort: (key: SortKey) => void
-  className?: string
-}) {
-  const isActive = activeKey === sortKey
-  return (
-    <th
-      className={cn("py-3 pr-4 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted", className)}
-      aria-sort={isActive ? (sortDir === "asc" ? "ascending" : "descending") : "none"}
-    >
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className="inline-flex items-center gap-1 transition-colors hover:text-ink"
-      >
-        {label}
-        <ArrowUpDown className={cn("size-3", isActive ? "text-brand" : "opacity-40")} aria-hidden />
-      </button>
-    </th>
-  )
-}
 
 function UnassignedChip() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-alert-soft px-2.5 py-0.5 text-[13px] font-semibold text-alert ring-1 ring-alert/20">
+    <span className="inline-flex items-center gap-1 text-alert">
       <AlertCircle className="size-3.5 shrink-0" aria-hidden />
       Unassigned
     </span>
   )
 }
 
-function StaffLink({ name, code }: { name: string; code?: string | null }) {
+function StaffName({ name, code }: { name: string; code?: string | null }) {
   if (!code) return <span>{name}</span>
   return (
     <Link
       to={staffProfilePath(code)}
-      className="text-ink hover:text-brand hover:underline underline-offset-2"
+      className="hover:text-brand hover:underline underline-offset-2"
       onClick={(e) => e.stopPropagation()}
     >
       {name}
@@ -98,111 +28,74 @@ function StaffLink({ name, code }: { name: string; code?: string | null }) {
   )
 }
 
-function BcbaOverviewCard({
-  summary,
-  active,
-  onSelect,
-}: {
-  summary: BcbaSummary
-  active: boolean
-  onSelect: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={cn(
-        "w-full rounded-[16px] border p-4 text-left transition-colors",
-        active
-          ? "border-brand/40 bg-accent-soft ring-1 ring-brand/20"
-          : "border-line bg-surface hover:border-brand/30 hover:bg-surface-2",
-      )}
-    >
-      <p className="text-[17px] font-semibold text-brand">{summary.fullName}</p>
-      <p className="mt-1 text-[14px] text-muted">
-        {summary.clientCount} client{summary.clientCount === 1 ? "" : "s"}
-        {" · "}
-        {summary.btCount} technician{summary.btCount === 1 ? "" : "s"}
-        {summary.unassignedBtCount > 0 && (
-          <>
-            {" · "}
-            <span className="font-medium text-alert">
-              {summary.unassignedBtCount} unassigned
-            </span>
-          </>
-        )}
-      </p>
-    </button>
-  )
-}
-
-function ClientTableRow({ row }: { row: RosterRow }) {
-  const navigate = useNavigate()
-  const showDisplayName =
-    row.clientDisplayName.toLowerCase() !== row.clientCode.toLowerCase()
-
-  return (
-    <tr
-      className="cursor-pointer border-b border-line-soft last:border-0 hover:bg-surface-2/80"
-      onClick={() => navigate(clientProfilePath(row.clientCode))}
-    >
-      <td className="py-4 pr-4 pl-5 align-top">
-        <Link
-          to={clientProfilePath(row.clientCode)}
-          className="block hover:underline underline-offset-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="text-[16px] font-semibold text-ink">{row.clientCode}</span>
-          {showDisplayName && (
-            <span className="mt-0.5 block text-[14px] text-muted">{row.clientDisplayName}</span>
-          )}
-        </Link>
-      </td>
-      <td className="py-4 pr-4 align-top text-[15px]">
-        {row.bcbaName ? <StaffLink name={row.bcbaName} code={row.bcbaCode} /> : "—"}
-      </td>
-      <td className="py-4 pr-4 align-top text-[15px]">
-        {row.supervisorName ? <StaffLink name={row.supervisorName} code={row.supervisorCode} /> : "—"}
-      </td>
-      <td className="py-4 pr-5 align-top text-[15px]">
-        {row.btUnassigned ? (
-          <UnassignedChip />
-        ) : row.btName ? (
-          <StaffLink name={row.btName} code={row.btCode} />
-        ) : (
-          "—"
-        )}
-      </td>
-    </tr>
-  )
-}
-
-function ClientMobileCard({ row }: { row: RosterRow }) {
+function ClientTeamRow({ row }: { row: RosterRow }) {
   const showDisplayName =
     row.clientDisplayName.toLowerCase() !== row.clientCode.toLowerCase()
 
   return (
     <Link
       to={clientProfilePath(row.clientCode)}
-      className="block rounded-[var(--radius)] border border-line bg-surface p-4 shadow-card transition-colors hover:bg-surface-2"
+      className="flex items-start justify-between gap-4 rounded-[14px] border border-line/80 bg-surface px-4 py-3.5 transition-colors hover:border-brand/25 hover:bg-surface-2"
     >
-      <div>
-        <span className="text-[16px] font-semibold text-ink">{row.clientCode}</span>
+      <div className="min-w-0">
+        <p className="text-[16px] font-semibold text-ink">{row.clientCode}</p>
         {showDisplayName && (
           <p className="mt-0.5 text-[14px] text-muted">{row.clientDisplayName}</p>
         )}
       </div>
-      <dl className="mt-3 grid grid-cols-[7rem_1fr] gap-x-3 gap-y-2 text-[15px]">
-        <dt className="text-muted">BCBA</dt>
-        <dd className="text-ink">{row.bcbaName ?? "—"}</dd>
-        <dt className="text-muted">Clinical supervisor</dt>
-        <dd className="text-ink">{row.supervisorName ?? "—"}</dd>
-        <dt className="text-muted">Technician</dt>
-        <dd>
-          {row.btUnassigned ? <UnassignedChip /> : (row.btName ?? "—")}
-        </dd>
-      </dl>
+      <p className="shrink-0 text-right text-[14px] leading-snug text-muted">
+        {row.supervisorName ? (
+          <StaffName name={row.supervisorName} code={row.supervisorCode} />
+        ) : (
+          "—"
+        )}
+        <span className="mx-1.5 text-line" aria-hidden>
+          ·
+        </span>
+        {row.btUnassigned ? (
+          <UnassignedChip />
+        ) : row.btName ? (
+          <StaffName name={row.btName} code={row.btCode} />
+        ) : (
+          "—"
+        )}
+      </p>
     </Link>
+  )
+}
+
+function BcbaTeamSection({
+  summary,
+  clients,
+}: {
+  summary: BcbaSummary
+  clients: RosterRow[]
+}) {
+  return (
+    <section>
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 className="text-[18px] font-semibold text-ink">{summary.fullName}</h2>
+        <p className="text-[15px] text-muted">
+          {clients.length} client{clients.length === 1 ? "" : "s"}
+          {summary.unassignedBtCount > 0 && (
+            <>
+              {" · "}
+              <span className="text-alert">
+                {summary.unassignedBtCount} unassigned technician
+                {summary.unassignedBtCount === 1 ? "" : "s"}
+              </span>
+            </>
+          )}
+        </p>
+      </div>
+      <ul className="space-y-2">
+        {clients.map((row) => (
+          <li key={row.clientId}>
+            <ClientTeamRow row={row} />
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -218,18 +111,6 @@ export function ClientsPage({
   const [bcbaSummaries, setBcbaSummaries] = useState<BcbaSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-  const [bcbaFilter, setBcbaFilter] = useState<BcbaFilter>("all")
-  const [sortKey, setSortKey] = useState<SortKey>("client")
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
-
-  function handleSort(key: SortKey) {
-    if (sortKey === key) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
-    } else {
-      setSortKey(key)
-      setSortDir("asc")
-    }
-  }
 
   useEffect(() => {
     let cancelled = false
@@ -254,29 +135,22 @@ export function ClientsPage({
     }
   }, [practiceId])
 
-  const filteredRows = useMemo(() => {
-    if (bcbaFilter === "all") return allRows
-    return allRows.filter((r) => r.bcbaId === bcbaFilter)
-  }, [allRows, bcbaFilter])
+  const teamsByBcba = useMemo(() => {
+    const sortedSummaries = [...bcbaSummaries].sort((a, b) =>
+      a.fullName.localeCompare(b.fullName, undefined, { sensitivity: "base" }),
+    )
 
-  const sortedRows = useMemo(() => {
-    const rows = [...filteredRows]
-    rows.sort((a, b) => compareRosterRows(a, b, sortKey, sortDir))
-    return rows
-  }, [filteredRows, sortKey, sortDir])
-
-  const footerStats = useMemo(() => {
-    const btIds = new Set(filteredRows.filter((r) => r.btId).map((r) => r.btId as string))
-    const unassigned = filteredRows.filter((r) => r.btUnassigned).length
-    return {
-      clientCount: filteredRows.length,
-      btCount: btIds.size,
-      unassignedBtCount: unassigned,
-    }
-  }, [filteredRows])
+    return sortedSummaries.map((summary) => {
+      const clients = allRows
+        .filter((row) => row.bcbaId === summary.staffId)
+        .sort((a, b) =>
+          a.clientCode.localeCompare(b.clientCode, undefined, { sensitivity: "base" }),
+        )
+      return { summary, clients }
+    })
+  }, [allRows, bcbaSummaries])
 
   const hasRoster = allRows.length > 0
-  const filterEmpty = hasRoster && filteredRows.length === 0
 
   return (
     <OwnerAppShell ownerName={ownerName} practiceName={practiceName}>
@@ -287,8 +161,8 @@ export function ClientsPage({
           </h1>
           <p className="mt-1.5 text-[16px] text-muted">
             {hasRoster
-              ? `${allRows.length} active clients across Jennifer, Blair, and Annie’s caseloads`
-              : "Client care teams — BCBA, clinical supervisor, and technician assignments"}
+              ? `${allRows.length} active client${allRows.length === 1 ? "" : "s"}`
+              : "Active client care teams"}
           </p>
         </header>
 
@@ -317,130 +191,10 @@ export function ClientsPage({
           )}
 
           {!loading && !error && hasRoster && (
-            <div className="space-y-5">
-              {bcbaSummaries.length > 0 && (
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {bcbaSummaries.map((summary) => (
-                    <BcbaOverviewCard
-                      key={summary.staffId}
-                      summary={summary}
-                      active={bcbaFilter === summary.staffId}
-                      onSelect={() => setBcbaFilter(summary.staffId)}
-                    />
-                  ))}
-                </div>
-              )}
-
-              <div
-                className="flex w-fit flex-wrap gap-1 rounded-full border border-line bg-surface-2 p-0.5"
-                role="tablist"
-                aria-label="Filter by BCBA"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={bcbaFilter === "all"}
-                  onClick={() => setBcbaFilter("all")}
-                  className={cn(
-                    "rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-colors",
-                    bcbaFilter === "all"
-                      ? "bg-surface text-brand shadow-card"
-                      : "text-muted hover:text-ink",
-                  )}
-                >
-                  All ({allRows.length})
-                </button>
-                {bcbaSummaries.map((summary) => (
-                  <button
-                    key={summary.staffId}
-                    type="button"
-                    role="tab"
-                    aria-selected={bcbaFilter === summary.staffId}
-                    onClick={() => setBcbaFilter(summary.staffId)}
-                    className={cn(
-                      "rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-colors",
-                      bcbaFilter === summary.staffId
-                        ? "bg-surface text-brand shadow-card"
-                        : "text-muted hover:text-ink",
-                    )}
-                  >
-                    {summary.fullName} ({summary.clientCount})
-                  </button>
-                ))}
-              </div>
-
-              {filterEmpty ? (
-                <div className="rounded-[var(--radius)] bg-surface p-10 text-center shadow-card">
-                  <p className="text-[15px] text-muted">No clients on this caseload</p>
-                </div>
-              ) : (
-                <>
-                  <div className="hidden overflow-hidden rounded-[var(--radius)] border border-line bg-surface shadow-card sm:block">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="border-b border-line-soft">
-                          <SortableHeader
-                            label="Client"
-                            sortKey="client"
-                            activeKey={sortKey}
-                            sortDir={sortDir}
-                            onSort={handleSort}
-                            className="pl-5"
-                          />
-                          <SortableHeader
-                            label="BCBA"
-                            sortKey="bcba"
-                            activeKey={sortKey}
-                            sortDir={sortDir}
-                            onSort={handleSort}
-                          />
-                          <SortableHeader
-                            label="Clinical supervisor"
-                            sortKey="supervisor"
-                            activeKey={sortKey}
-                            sortDir={sortDir}
-                            onSort={handleSort}
-                          />
-                          <SortableHeader
-                            label="Technician"
-                            sortKey="bt"
-                            activeKey={sortKey}
-                            sortDir={sortDir}
-                            onSort={handleSort}
-                            className="pr-5"
-                          />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sortedRows.map((row) => (
-                          <ClientTableRow key={row.clientId} row={row} />
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="space-y-3 sm:hidden">
-                    {sortedRows.map((row) => (
-                      <ClientMobileCard key={row.clientId} row={row} />
-                    ))}
-                  </div>
-
-                  <p className="text-[15px] text-muted">
-                    Showing {footerStats.clientCount} client
-                    {footerStats.clientCount === 1 ? "" : "s"}
-                    {" · "}
-                    {footerStats.btCount} technician{footerStats.btCount === 1 ? "" : "s"}
-                    {footerStats.unassignedBtCount > 0 && (
-                      <>
-                        {" · "}
-                        <span className="text-alert">
-                          {footerStats.unassignedBtCount} unassigned
-                        </span>
-                      </>
-                    )}
-                  </p>
-                </>
-              )}
+            <div className="space-y-8">
+              {teamsByBcba.map(({ summary, clients }) => (
+                <BcbaTeamSection key={summary.staffId} summary={summary} clients={clients} />
+              ))}
             </div>
           )}
         </div>

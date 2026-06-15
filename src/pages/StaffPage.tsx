@@ -10,23 +10,19 @@ import {
   type RosterStaffEntry,
 } from "@/lib/rosterScope"
 
-const ROLE_GROUPS: { label: string; role: RosterStaffEntry["role"]; description: string }[] = [
-  {
-    label: "BCBAs",
-    role: "bcba",
-    description: "Lead clinicians owning each caseload",
-  },
-  {
-    label: "Clinical supervisors",
-    role: "supervisor",
-    description: "Supervise technicians and support clinical quality",
-  },
-  {
-    label: "Technicians",
-    role: "technician",
-    description: "Direct service providers on client sessions",
-  },
+const ROLE_GROUPS: { label: string; role: RosterStaffEntry["role"] }[] = [
+  { label: "BCBAs", role: "bcba" },
+  { label: "Clinical supervisors", role: "supervisor" },
+  { label: "Technicians", role: "technician" },
 ]
+
+function clientCountLabel(role: RosterStaffEntry["role"], count: number): string | null {
+  if (count <= 0) return null
+  const noun = count === 1 ? "client" : "clients"
+  if (role === "bcba") return `Leads ${count} ${noun}`
+  if (role === "supervisor") return `Supervises ${count} ${noun}`
+  return `Assigned to ${count} ${noun}`
+}
 
 function StaffMemberCard({
   member,
@@ -35,17 +31,15 @@ function StaffMemberCard({
   member: RosterStaffEntry
   clientCount: number
 }) {
+  const subtitle = clientCountLabel(member.role, clientCount)
+
   return (
     <Link
       to={staffProfilePath(member.externalCode)}
-      className="group flex flex-col rounded-[16px] border border-line bg-surface p-4 shadow-card transition-colors hover:border-brand/30 hover:bg-surface-2"
+      className="group flex flex-col rounded-[16px] border border-line bg-surface px-4 py-3.5 shadow-card transition-colors hover:border-brand/30 hover:bg-surface-2"
     >
       <p className="text-[17px] font-semibold text-ink group-hover:text-brand">{member.fullName}</p>
-      <p className="mt-1 text-[14px] text-muted">
-        {clientCount > 0
-          ? `${clientCount} client${clientCount === 1 ? "" : "s"} on caseload`
-          : "Practice-wide role"}
-      </p>
+      {subtitle && <p className="mt-1 text-[14px] text-muted">{subtitle}</p>}
     </Link>
   )
 }
@@ -113,8 +107,8 @@ export function StaffPage({
           </h1>
           <p className="mt-1.5 text-[16px] text-muted">
             {hasStaff
-              ? `${staff.length} team members · ${roleCounts.bcba ?? 0} BCBAs · ${roleCounts.supervisor ?? 0} clinical supervisors · ${roleCounts.technician ?? 0} technicians`
-              : "Your practice team — BCBAs, clinical supervisors, and technicians"}
+              ? `${roleCounts.bcba ?? 0} BCBAs · ${roleCounts.supervisor ?? 0} clinical supervisors · ${roleCounts.technician ?? 0} technicians`
+              : "Your practice team"}
           </p>
         </header>
 
@@ -144,7 +138,7 @@ export function StaffPage({
 
           {!loading && !error && hasStaff && (
             <div className="space-y-8">
-              {ROLE_GROUPS.map(({ label, role, description }) => {
+              {ROLE_GROUPS.map(({ label, role }) => {
                 const members = staff
                   .filter((s) => s.role === role)
                   .sort((a, b) => a.fullName.localeCompare(b.fullName))
@@ -153,12 +147,7 @@ export function StaffPage({
 
                 return (
                   <section key={role}>
-                    <div className="mb-4">
-                      <h2 className="text-[14px] font-semibold uppercase tracking-[0.10em] text-muted">
-                        {label}
-                      </h2>
-                      <p className="mt-1 text-[15px] text-muted">{description}</p>
-                    </div>
+                    <h2 className="mb-4 text-[18px] font-semibold text-ink">{label}</h2>
                     <ul
                       className={cn(
                         "grid gap-3",
