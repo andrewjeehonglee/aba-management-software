@@ -5,7 +5,7 @@
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
 **Owner persona (dashboard):** Jenny Lee  
-**Branch:** `main` · **HEAD:** `d1a818e`
+**Branch:** `main` · **HEAD:** `5427970` (code + session log; feature code in `d1a818e`)
 
 ---
 
@@ -170,6 +170,7 @@ npm run build
 - Prior session: `templates/SESSION_LOG_20260614_morning.md` (Pulse v1 → command center)
 - Master log: `SESSIONS.md` → Session 30
 - Roster: `templates/roster_import.csv`, `templates/README.md`
+- **Cursor chat transcript** (full conversation): agent transcript `f648c36e-b7f0-407d-9d00-a4211085bcf7`
 
 ---
 
