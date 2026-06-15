@@ -34,9 +34,7 @@ export function DashboardTopBar({
 
   return (
     <header
-      className={`sticky top-0 z-10 flex h-14 shrink-0 w-full items-center justify-between gap-6 border-b border-line bg-surface px-5 sm:px-6 ${
-        isDemo ? "bg-warn-bg/40" : ""
-      }`}
+      className="sticky top-0 z-10 flex h-14 shrink-0 w-full items-center justify-between gap-6 border-b border-line bg-surface px-5 sm:px-6"
     >
       <div className="flex min-w-0 items-center gap-4">
         <span className="shrink-0 text-lg font-semibold tracking-tight text-brand">

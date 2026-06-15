@@ -1,11 +1,16 @@
-import { Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { OwnerAttentionSummary } from "@/lib/ownerDashboardStatus"
 import { firstName, timeGreeting } from "@/lib/ownerDashboardStatus"
-import { severityDotClass, severityTextClass } from "@/lib/pulseSeverity"
+import { severityDotClass } from "@/lib/pulseSeverity"
 
 function scrollToAttention(targetId: string) {
   document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+}
+
+function formatEyebrowDate(date: Date = new Date()): string {
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date)
+  const monthDay = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" }).format(date)
+  return `${weekday.toUpperCase()} · ${monthDay.toUpperCase()}`
 }
 
 export function FocalStatusArea({
@@ -20,51 +25,55 @@ export function FocalStatusArea({
   const greeting = timeGreeting()
   const name = firstName(userName)
   const showStatusPlaceholder = !attention.resolved && (!rosterReady || attention.loading)
-  const { attentionCount, items, worstSeverity } = attention
+  const { attentionCount, items } = attention
 
   return (
-    <div className="shrink-0 space-y-2.5">
-      <p className="text-lg text-muted">
+    <header className="shrink-0 animate-fade-rise short:space-y-2 space-y-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
+        {formatEyebrowDate()}
+      </p>
+
+      <p className="text-[15px] font-medium text-ink-soft">
         {greeting}, {name}.
       </p>
 
       {showStatusPlaceholder ? (
-        <div className="h-8 max-w-lg animate-pulse rounded bg-line" aria-hidden />
+        <div className="h-10 max-w-xl animate-pulse rounded bg-line-soft" aria-hidden />
       ) : attentionCount === 0 ? (
-        <p className="inline-flex items-center gap-2.5 text-[26px] font-semibold tracking-tight text-ink">
-          <Check className="size-6 shrink-0 text-ok" aria-hidden />
-          Your practice is on track today.
+        <p className="max-w-2xl text-[34px] font-semibold leading-tight tracking-[-0.025em] text-ink">
+          Nothing needs your attention this morning.
         </p>
       ) : (
-        <div className="space-y-2.5">
-          <p className="text-[26px] font-semibold leading-snug tracking-tight text-ink">
-            Your practice is mostly on track —{" "}
-            <span className={cn(severityTextClass(worstSeverity))}>
-              {attentionCount === 1 ? "1 thing needs attention." : `${attentionCount} things need attention.`}
-            </span>
+        <div className="short:space-y-2.5 space-y-3">
+          <p className="max-w-2xl text-[34px] font-semibold leading-tight tracking-[-0.025em] text-ink">
+            <span className="text-alert">
+              {attentionCount} {attentionCount === 1 ? "thing" : "things"}
+            </span>{" "}
+            need your attention this morning.
           </p>
-          <ul className="flex flex-wrap gap-x-6 gap-y-1.5">
+          <ul className="flex flex-wrap gap-x-5 gap-y-2">
             {items.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
                   onClick={() => scrollToAttention(item.scrollTargetId)}
-                  className="group inline-flex items-center gap-2.5 text-left text-[15px] text-ink"
+                  className="group inline-flex items-center gap-2 text-left text-[13.5px] text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <span
-                    className={cn("size-2.5 shrink-0 rounded-full", severityDotClass(item.severity))}
+                    className={cn("size-2 shrink-0 rounded-full", severityDotClass(item.severity))}
                     aria-hidden
                   />
-                  <span className="font-semibold text-brand group-hover:underline underline-offset-2">
+                  <span className="font-medium text-ink-soft group-hover:text-ink">
                     {item.label}
                   </span>
-                  <span className="text-muted">— {item.detail}</span>
+                  <span className="text-muted">—</span>
+                  <span className="font-semibold text-ink">{item.detail}</span>
                 </button>
               </li>
             ))}
           </ul>
         </div>
       )}
-    </div>
+    </header>
   )
 }

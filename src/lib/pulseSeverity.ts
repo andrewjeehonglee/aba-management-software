@@ -9,13 +9,19 @@ export function worstSeverity(a: PulseSeverity, b: PulseSeverity): PulseSeverity
 }
 
 export function severityDotClass(severity: PulseSeverity): string {
-  if (severity === "crit") return "bg-crit"
-  if (severity === "warn") return "bg-warn"
-  return "bg-ok"
+  if (severity === "crit") return "bg-alert-strong"
+  if (severity === "warn") return "bg-alert"
+  return "bg-brand"
 }
 
 export function severityTextClass(severity: PulseSeverity): string {
-  if (severity === "crit") return "text-crit"
-  if (severity === "warn") return "text-warn"
-  return "text-ink"
+  if (severity === "crit") return "text-alert-strong"
+  if (severity === "warn") return "text-alert"
+  return "text-brand"
+}
+
+export function severityTagClass(severity: PulseSeverity): string {
+  if (severity === "crit") return "bg-alert-soft text-alert-strong"
+  if (severity === "warn") return "bg-alert-soft text-alert"
+  return "bg-accent-soft text-brand"
 }

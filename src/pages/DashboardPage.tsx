@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/select"
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar"
 import { FocalStatusArea } from "@/components/dashboard/FocalStatusArea"
+import { OwnerNavRail } from "@/components/dashboard/OwnerNavRail"
+import { PracticeTodaySurface } from "@/components/dashboard/PracticeTodaySurface"
 import { WorklistRail } from "@/components/dashboard/WorklistRail"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
@@ -87,7 +89,7 @@ export function DashboardPage({
   const isOwnerPreview = role === "Owner" && !isOwnerView
 
   const [notesRefreshKey, setNotesRefreshKey] = useState(0)
-  const [staffRefreshKey, setStaffRefreshKey] = useState(0)
+  const [staffRefreshKey] = useState(0)
 
   const [effectiveStaffId, setEffectiveStaffId] = useState<string | null>(null)
   const [staffDisplayName, setStaffDisplayName] = useState("")
@@ -356,7 +358,51 @@ export function DashboardPage({
   const ownerPersonaName = resolveOwnerDisplayName(userRole, ownerDisplayName)
 
   return (
-    <div className={cn("flex min-h-svh flex-col bg-bg text-foreground", isOwnerView && "h-svh overflow-hidden")}>
+    <div
+      className={cn(
+        "bg-bg text-foreground",
+        isOwnerView
+          ? "grid h-dvh overflow-hidden min-[981px]:grid-cols-[232px_1fr] max-[980px]:grid-rows-[auto_1fr]"
+          : "flex min-h-svh flex-col",
+      )}
+    >
+      {isOwnerView ? (
+        <>
+          <OwnerNavRail
+            ownerName={ownerPersonaName}
+            practiceName={practiceName}
+            role={role}
+            viewRole={viewRole}
+            onViewRoleChange={setViewRole}
+            isDemo={isDemo}
+          />
+          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden px-5 py-6 sm:px-8 sm:py-8 short:py-5 min-[981px]:px-10 min-[981px]:py-10">
+            <div className="mx-auto flex h-full w-full max-w-[1180px] min-h-0 flex-col">
+              <FocalStatusArea
+                userName={ownerPersonaName}
+                attention={attention}
+                rosterReady={rosterReady}
+              />
+
+              <div className="mt-6 grid min-h-0 flex-1 grid-cols-1 gap-6 short:mt-4 min-[981px]:grid-cols-[1.45fr_1fr] min-[981px]:gap-6">
+                <PracticeTodaySurface
+                  refreshKey={notesRefreshKey + staffRefreshKey}
+                  staffIds={rosterScope?.staffIds}
+                  clientIds={rosterScope?.clientIds}
+                  includeCaseloadStaff
+                  className="min-h-0"
+                />
+                <WorklistRail
+                  className="min-h-0"
+                  items={attention.worklist}
+                  loading={attention.loading && !attention.resolved}
+                />
+              </div>
+            </div>
+          </main>
+        </>
+      ) : (
+        <>
       <DashboardTopBar
         practiceName={practiceName}
         role={role}
@@ -366,52 +412,7 @@ export function DashboardPage({
         ownerName={ownerPersonaName}
       />
 
-      {isOwnerView ? (
-        <main
-          className={cn(
-            "mx-auto flex w-full max-w-[min(100%,1080px)] min-h-0 flex-col overflow-hidden px-4 sm:px-6",
-            "h-[calc(100svh-3.5rem)] py-4",
-          )}
-        >
-          <FocalStatusArea
-            userName={ownerPersonaName}
-            attention={attention}
-            rosterReady={rosterReady}
-          />
-
-          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-center lg:gap-5">
-            <div className="flex min-h-0 w-full flex-1 flex-col justify-between gap-4 lg:max-w-[500px] lg:flex-none">
-              <NotesOverdueTile
-                variant="pulse"
-                refreshKey={notesRefreshKey}
-                staffIds={rosterScope?.staffIds}
-                clientIds={rosterScope?.clientIds}
-                includeCaseloadStaff
-              />
-              <HoursByStaffTile
-                variant="pulse"
-                refreshKey={staffRefreshKey}
-                practiceId={practiceId}
-                staffIds={rosterScope?.staffIds}
-                clientIds={rosterScope?.clientIds}
-                includeZeroHourStaff
-                onStaffCreated={() => setStaffRefreshKey((k) => k + 1)}
-              />
-              <AuthorizationUtilizationTile
-                variant="pulse"
-                clientIds={rosterScope?.clientIds}
-              />
-            </div>
-
-            <WorklistRail
-              className="min-h-0 w-full lg:max-w-[400px] lg:flex-none"
-              items={attention.worklist}
-              loading={attention.loading && !attention.resolved}
-            />
-          </div>
-        </main>
-      ) : (
-        <div className="mx-auto w-full max-w-[min(100%,1360px)] space-y-4 px-4 py-6 sm:px-6">
+      <div className="mx-auto w-full max-w-[min(100%,1360px)] space-y-4 px-4 py-6 sm:px-6">
           {isOwnerPreview && previewOptions.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-muted-foreground">View as {previewRoleLabel}:</span>
@@ -492,10 +493,11 @@ export function DashboardPage({
             </div>
           )}
         </div>
-      )}
 
       {!isOwnerView && (
         <p className="px-4 pb-6 text-center text-xs text-subtle sm:px-6">Built by Andrew Lee · 2026</p>
+      )}
+        </>
       )}
     </div>
   )

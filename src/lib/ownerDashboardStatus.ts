@@ -68,7 +68,7 @@ export async function getOwnerAttentionSummary(options?: {
       id: "notes",
       scrollTargetId: "notes-overdue",
       label: "Session notes",
-      detail: `${unpayableCount} unpayable`,
+      detail: `${unpayableCount} ${unpayableCount === 1 ? "session" : "sessions"} unpayable`,
       displayValue: `${unpayableCount} unpayable`,
       severity: "warn",
     })
@@ -99,7 +99,7 @@ export async function getOwnerAttentionSummary(options?: {
       id: "hours",
       scrollTargetId: "hours-by-staff",
       label: "Hours by staff",
-      detail: `${flaggedStaff.length} below direct mix`,
+      detail: `${flaggedStaff.length} below 50% direct`,
       displayValue: `${flaggedStaff.length} below mix`,
       severity: "warn",
     })
@@ -120,8 +120,8 @@ export async function getOwnerAttentionSummary(options?: {
     items.push({
       id: "hours",
       scrollTargetId: "hours-by-staff",
-      label: "Hours by staff",
-      detail: `${notes.payableHoursPending} hrs not yet payable`,
+      label: "Payroll",
+      detail: `${notes.payableHoursPending} hours on hold`,
       displayValue: `${notes.payableHoursPending} hrs blocked`,
       severity: "warn",
     })
@@ -132,7 +132,7 @@ export async function getOwnerAttentionSummary(options?: {
     items.push({
       id: "auth",
       scrollTargetId: "auth-utilization",
-      label: "Auth utilization",
+      label: "Authorizations",
       detail: `${auth.overCount} ${auth.overCount === 1 ? "client" : "clients"} over limit`,
       displayValue: `${auth.overCount} over limit`,
       severity: "crit",
@@ -142,7 +142,7 @@ export async function getOwnerAttentionSummary(options?: {
     items.push({
       id: "auth",
       scrollTargetId: "auth-utilization",
-      label: "Auth utilization",
+      label: "Authorizations",
       detail: `${auth.approachingCount} approaching limit`,
       displayValue: `${auth.approachingCount} approaching`,
       severity: "warn",
@@ -157,7 +157,7 @@ export async function getOwnerAttentionSummary(options?: {
     worklist.push({
       id: `auth-over-${row.authId}`,
       group: "auth",
-      groupLabel: "Authorization — over / nearing limit",
+      groupLabel: "Authorization — over limit",
       name: row.clientName,
       displayValue: `${row.overHours} hrs over`,
       severity: "crit",
@@ -169,7 +169,7 @@ export async function getOwnerAttentionSummary(options?: {
     worklist.push({
       id: `auth-approaching-${row.authId}`,
       group: "auth",
-      groupLabel: "Authorization — over / nearing limit",
+      groupLabel: "Authorization — over limit",
       name: row.clientName,
       displayValue: `${row.hoursRemaining} hrs left`,
       severity: "warn",
