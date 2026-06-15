@@ -5,6 +5,7 @@ import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
+import { PulseMark } from "@/components/brand/PulseMark"
 
 const DEMO_EMAIL    = "demo@pulseaba.app"
 const DEMO_PASSWORD = "PulseDemo2026!"
@@ -68,7 +69,10 @@ export function LandingPage() {
       {/* ── Nav ── */}
       <header className="sticky top-0 z-10 border-b border-pulse-light bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 md:px-6">
-          <span className="text-xl font-bold tracking-tight text-pulse-primary">Pulse</span>
+          <div className="flex items-center gap-2">
+            <PulseMark className="text-pulse-primary" size={22} />
+            <span className="text-xl font-bold tracking-tight text-pulse-primary">Pulse</span>
+          </div>
           <Link
             to="/signup"
             className={cn(buttonVariants(), "bg-pulse-primary hover:bg-pulse-primary/90 text-white")}

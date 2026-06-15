@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { markUserSignOut } from "@/lib/authDiagnostics"
 import { firstName, ownerInitials } from "@/lib/ownerDashboardStatus"
+import { PulseMark } from "@/components/brand/PulseMark"
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, match: (path: string) => path === "/" },
@@ -19,27 +20,6 @@ const NAV_ITEMS = [
   { label: "Sessions", href: "/roster", icon: CalendarDays, match: (path: string) => path.startsWith("/session/") },
   { label: "Audit", href: "/audit", icon: ClipboardList, match: (path: string) => path === "/audit" },
 ] as const
-
-function PulseGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="20"
-      height="12"
-      viewBox="0 0 20 12"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        d="M1 6h3.5l1.5-4 2.5 8 2-5 1.5 1H19"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 function NavLinkItem({
   label,
@@ -108,9 +88,9 @@ export function OwnerNavRail({
     <>
       {/* Desktop rail */}
       <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r border-line bg-bg px-3 py-6 min-[1000px]:flex">
-        <div className="mb-8 flex items-center gap-2.5 px-2">
+        <div className="mb-8 flex items-center gap-2 px-2">
+          <PulseMark className="text-brand" size={22} />
           <span className="text-xl font-semibold tracking-tight text-brand">Pulse</span>
-          <PulseGlyph className="text-brand" />
         </div>
 
         <div className="mb-8">{accountBlock}</div>
@@ -141,8 +121,8 @@ export function OwnerNavRail({
       <header className="flex min-h-0 shrink-0 items-center justify-between gap-3 border-b border-line bg-bg px-4 py-3 min-[1000px]:hidden">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex items-center gap-2">
+            <PulseMark className="text-brand" size={18} />
             <span className="text-base font-semibold text-brand">Pulse</span>
-            <PulseGlyph className="text-brand" />
           </div>
           <div className="hidden min-w-0 sm:block">
             <p className="truncate text-[15px] font-semibold text-ink">{firstName(ownerName)}</p>

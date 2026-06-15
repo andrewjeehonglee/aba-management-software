@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
 import { markUserSignOut } from "@/lib/authDiagnostics"
 import { ownerInitials, OWNER_PERSONA_NAME } from "@/lib/ownerDashboardStatus"
+import { PulseMark } from "@/components/brand/PulseMark"
 
 type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
 
@@ -37,9 +38,12 @@ export function DashboardTopBar({
       className="sticky top-0 z-10 flex h-14 shrink-0 w-full items-center justify-between gap-6 border-b border-line bg-surface px-5 sm:px-6"
     >
       <div className="flex min-w-0 items-center gap-4">
-        <span className="shrink-0 text-lg font-semibold tracking-tight text-brand">
-          Pulse
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          <PulseMark className="text-brand" size={20} />
+          <span className="text-lg font-semibold tracking-tight text-brand">
+            Pulse
+          </span>
+        </div>
         {displayPractice && (
           <span className="hidden truncate text-sm font-medium text-ink sm:block">
             {displayPractice}
