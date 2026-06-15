@@ -1722,4 +1722,39 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 14, 2026 (Session 29 — Pulse owner command center + morning polish).*
+## Session 30 — Owner dashboard v2/v3, Clients/Staff split, logo + color polish (Jun 15, 2026 morning)
+
+**What landed:** Full owner-dashboard warm-premium revamp (v2 → v3 bubbles), demo banner removed, **dedicated `/clients` and `/staff` pages**, iterative UX from Jenny feedback, **PulseMark** logo (concentric arcs), **slate blue auth over-limit** color. All pushed to `main`; production at `d1a818e`.
+
+**Detailed log:** `templates/SESSION_LOG_20260615_morning.md`
+
+### Highlights
+
+1. **Dashboard** — Nav rail, single viewport, "Your practice today" with linked bubble groups; amber = notes, slate = auth over limit; headline "N things need your attention **today**".
+2. **Clients** — Grouped by BCBA (Annie / Blair / Jennifer); labeled columns (supervisor + technician); no redundant BCBA column; larger type.
+3. **Staff** — BCBAs / clinical supervisors / technicians sections with role-specific client counts.
+4. **Branding** — `PulseMark` replaces ECG glyph; favicon updated.
+5. **Deploy** — Manual Vercel deploy when GitHub webhook skipped a commit.
+
+### Commits (chronological, Jun 15)
+
+| Hash | Message |
+|------|---------|
+| `e7b59c2` | Remove demo banner |
+| `32b50cd` … `41c7099` | Owner dashboard v2/v3 + alignment fixes (6 commits) |
+| `cfb98a2` | Split clients and staff pages |
+| `e7ed5e8` | Simplify roster pages + practice today layout |
+| `7c18eca` | Hide scrollbar; tighten client rows |
+| `54582f9` | Care-team Pulse mark (superseded) |
+| `d1a818e` | Final mark, clients layout, slate limit color |
+
+### Not done / deferred
+
+- Per-client operational badges on Clients page (auth/notes flags).
+- Dedicated Sessions list page.
+- Token rollout to BCBA/Supervisor/Technician dashboard views.
+- Fix GitHub → Vercel auto-deploy reliability.
+
+---
+
+*Last updated: Jun 15, 2026 (Session 30 — owner dashboard v3 + Clients/Staff split).*
