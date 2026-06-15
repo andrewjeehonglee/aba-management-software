@@ -470,7 +470,7 @@ export function OwnerPracticeGrid({
       className={cn("animate-fade-rise animate-fade-rise-delay-1 flex min-h-0 flex-1 flex-col", className)}
       aria-label="Practice overview and action items"
     >
-      <div className="owner-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+      <div className="owner-scroll-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
         <div className="mb-3 shrink-0 short:mb-2">
           <h2 className="text-[14px] font-semibold uppercase tracking-[0.10em] text-muted">
             Your practice today

@@ -272,6 +272,13 @@
     background: var(--line);
     border-radius: 999px;
   }
+  .owner-scroll-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .owner-scroll-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
