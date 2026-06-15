@@ -20,11 +20,18 @@ const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
   auth: "Over their authorized hours",
 }
 
+function domainAccent(domain: Domain, severity: PulseSeverity): "neutral" | "warn" | "crit" {
+  if (domain === "auth" && severity === "crit") return "crit"
+  if (domain === "auth" && severity === "warn") return "warn"
+  if (domain === "hours" && severity === "warn") return "warn"
+  return "neutral"
+}
+
 function ConsequenceLines({ lines }: { lines: ReactNode[] }) {
   return (
     <div className="space-y-1">
       {lines.map((line, i) => (
-        <p key={i} className="text-[16px] leading-snug text-ink-soft">
+        <p key={i} className="text-[16px] leading-snug text-ink-soft [&_strong]:font-semibold [&_strong]:text-ink">
           {line}
         </p>
       ))}
@@ -36,18 +43,18 @@ function StackedMetric({
   value,
   label,
   period,
-  severity = "ok",
+  accent,
 }: {
   value: ReactNode
   label: string
   period: string
-  severity?: PulseSeverity
+  accent: "neutral" | "warn" | "crit"
 }) {
   const valueColor =
-    severity === "crit"
+    accent === "crit"
       ? "text-alert-strong"
-      : severity === "warn"
-        ? "text-alert"
+      : accent === "warn"
+        ? "text-ink"
         : "text-brand"
 
   return (
@@ -70,7 +77,7 @@ function OpsRow({
   metric,
   metricLabel,
   metricPeriod,
-  metricSeverity = "ok",
+  domain,
   isLast = false,
 }: {
   id?: string
@@ -81,9 +88,18 @@ function OpsRow({
   metric: ReactNode
   metricLabel: string
   metricPeriod: string
-  metricSeverity?: PulseSeverity
+  domain: Domain
   isLast?: boolean
 }) {
+  const accent = domainAccent(domain, tagSeverity === "ok" ? "ok" : tagSeverity)
+
+  const tagClass =
+    tagSeverity === "ok"
+      ? severityTagClass("ok")
+      : domain === "auth"
+        ? severityTagClass(tagSeverity)
+        : "bg-surface-2 text-ink-soft ring-1 ring-line"
+
   return (
     <div
       id={id}
@@ -98,7 +114,7 @@ function OpsRow({
           <span
             className={cn(
               "rounded-full px-2.5 py-0.5 text-[13px] font-semibold uppercase tracking-[0.08em]",
-              severityTagClass(tagSeverity),
+              tagClass,
             )}
           >
             {tag}
@@ -111,7 +127,7 @@ function OpsRow({
         value={metric}
         label={metricLabel}
         period={metricPeriod}
-        severity={metricSeverity}
+        accent={accent}
       />
     </div>
   )
@@ -130,14 +146,17 @@ function bubbleShortValue(displayValue: string): string {
 
 function WorklistBalloon({
   item,
+  domain,
   popping,
   onTap,
 }: {
   item: OwnerWorklistItem
+  domain: Domain
   popping: boolean
   onTap: (item: OwnerWorklistItem) => void
 }) {
-  const valueClass = item.severity === "crit" ? "text-alert-strong" : "text-alert"
+  const useClay = domain === "auth" && item.severity === "crit"
+  const valueClass = useClay ? "text-alert-strong" : "text-ink"
 
   return (
     <button
@@ -149,7 +168,10 @@ function WorklistBalloon({
       )}
     >
       <span
-        className={cn("size-2 shrink-0 rounded-full", severityDotClass(item.severity))}
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          useClay ? severityDotClass("crit") : "bg-muted",
+        )}
         aria-hidden
       />
       <span className="font-medium text-ink">{item.name}</span>
@@ -174,17 +196,26 @@ function LinkedBubbleGroup({
   linkedTag?: string
 }) {
   if (items.length === 0) {
-    return null
+    return <div className="hidden min-h-0 min-[1000px]:block" aria-hidden />
   }
 
+  const tagUsesClay = domain === "auth"
+
   return (
-    <div className={cn("py-4 short:py-3 min-[1000px]:border-l-2 min-[1000px]:border-alert/25 min-[1000px]:pl-4")}>
+    <div className="py-4 short:py-3 min-[1000px]:border-l-2 min-[1000px]:border-line min-[1000px]:pl-4">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p className="text-[16px] font-semibold uppercase tracking-[0.08em] text-ink">
           {WORKLIST_GROUP_LABELS[domain]}
         </p>
         {linkedTag && (
-          <span className="rounded-full bg-alert-soft px-2.5 py-0.5 text-[13px] font-semibold tabular-nums text-alert">
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-[13px] font-semibold tabular-nums",
+              tagUsesClay
+                ? "bg-alert-soft text-alert"
+                : "bg-surface-2 text-ink-soft ring-1 ring-line",
+            )}
+          >
             {linkedTag}
           </span>
         )}
@@ -194,6 +225,7 @@ function LinkedBubbleGroup({
           <WorklistBalloon
             key={item.id}
             item={item}
+            domain={domain}
             popping={poppingId === item.id}
             onTap={onTap}
           />
@@ -338,7 +370,7 @@ export function OwnerPracticeGrid({
   const hoursTagSeverity: PulseSeverity = flaggedCount > 0 ? "warn" : "ok"
 
   const authTag = overCount > 0 ? `${overCount} over limit` : "healthy"
-  const authTagSeverity: PulseSeverity = overCount > 0 ? "warn" : "ok"
+  const authTagSeverity: PulseSeverity = overCount > 0 ? "crit" : "ok"
 
   const notesLines: ReactNode[] =
     totalCompleted === 0
@@ -346,7 +378,7 @@ export function OwnerPracticeGrid({
       : unpayableCount > 0
         ? [
             <>
-              <strong className="font-semibold text-alert-strong">
+              <strong>
                 {unpayableCount} {unpayableCount === 1 ? "session can't" : "sessions can't"} be paid
               </strong>{" "}
               until their notes are in.
@@ -360,8 +392,7 @@ export function OwnerPracticeGrid({
       : flaggedCount > 0
         ? [
             <>
-              <strong className="font-semibold text-alert-strong">{flaggedCount} staff</strong> are below
-              the 50% direct-service requirement.
+              <strong>{flaggedCount} staff</strong> are below the 50% direct-service requirement.
             </>,
           ]
         : [`All ${staffCount} staff meet the 50% direct-service requirement.`]
@@ -370,7 +401,7 @@ export function OwnerPracticeGrid({
     overCount > 0
       ? [
           <>
-            <strong className="font-semibold text-alert-strong">
+            <strong>
               {overCount} {overCount === 1 ? "client has" : "clients have"}
             </strong>{" "}
             billed more hours than their authorization allows.
@@ -380,7 +411,20 @@ export function OwnerPracticeGrid({
         ? ["No client authorization usage logged yet this month."]
         : ["All clients are within their authorized hours this month."]
 
-  const domainRows = {
+  const domainRows: Record<
+    Domain,
+    {
+      id: string
+      title: string
+      tag: string
+      tagSeverity: PulseSeverity
+      lines: ReactNode[]
+      metric: ReactNode
+      metricLabel: string
+      metricPeriod: string
+      linkedTag?: string
+    }
+  > = {
     notes: {
       id: "notes-overdue",
       title: "Session notes",
@@ -390,7 +434,6 @@ export function OwnerPracticeGrid({
       metric: totalCompleted === 0 ? "—" : `${pctDocumented}%`,
       metricLabel: "of sessions documented",
       metricPeriod: `Pay period · ${periodLabel}`,
-      metricSeverity: (unpayableCount > 0 ? "warn" : "ok") as PulseSeverity,
       linkedTag: unpayableCount > 0 ? `${unpayableCount} overdue` : undefined,
     },
     hours: {
@@ -402,7 +445,6 @@ export function OwnerPracticeGrid({
       metric: flaggedCount,
       metricLabel: "staff below 50% direct",
       metricPeriod: monthLabel ? `Month of ${monthLabel}` : "This month",
-      metricSeverity: (flaggedCount > 0 ? "warn" : "ok") as PulseSeverity,
       linkedTag: flaggedCount > 0 ? `${flaggedCount} staff` : undefined,
     },
     auth: {
@@ -414,7 +456,6 @@ export function OwnerPracticeGrid({
       metric: overCount,
       metricLabel: "clients over authorized hours",
       metricPeriod: authMonthLabel ? `Month of ${authMonthLabel}` : "This month",
-      metricSeverity: (overCount > 0 ? "crit" : "ok") as PulseSeverity,
       linkedTag: overCount > 0 ? `${overCount} clients` : undefined,
     },
   }
@@ -425,48 +466,52 @@ export function OwnerPracticeGrid({
       aria-label="Practice overview and action items"
     >
       <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
-        <div className="grid grid-cols-1 min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:gap-x-8">
-          <h2 className="mb-2 text-[14px] font-semibold uppercase tracking-[0.10em] text-muted min-[1000px]:mb-3">
-            Your practice today
-          </h2>
-          <div className="hidden min-[1000px]:block" aria-hidden />
+        <h2 className="mb-3 text-[14px] font-semibold uppercase tracking-[0.10em] text-muted short:mb-2">
+          Your practice today
+        </h2>
 
-          {DOMAIN_ORDER.map((domain, index) => {
-            const row = domainRows[domain]
-            const isLast = index === DOMAIN_ORDER.length - 1
-            return (
-              <div key={domain} className="contents">
-                <div
-                  className={cn(
-                    "bg-surface",
-                    index === 0 && "rounded-t-[var(--radius)]",
-                    isLast && "rounded-b-[var(--radius)] shadow-card",
-                    index === 0 && "shadow-card",
-                  )}
-                >
-                  <OpsRow
-                    id={row.id}
-                    title={row.title}
-                    tag={row.tag}
-                    tagSeverity={row.tagSeverity}
-                    lines={row.lines}
-                    metric={row.metric}
-                    metricLabel={row.metricLabel}
-                    metricPeriod={row.metricPeriod}
-                    metricSeverity={row.metricSeverity}
-                    isLast={isLast}
-                  />
-                </div>
-                <LinkedBubbleGroup
+        {/* Mobile: stacked pairs. Desktop: explicit row grid so empty hours never steals auth's slot. */}
+        <div className="flex flex-col gap-0 min-[1000px]:grid min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:gap-x-8">
+          <div className="hidden min-[1000px]:block min-[1000px]:col-start-2 min-[1000px]:row-start-1" aria-hidden />
+
+          <div
+            className="rounded-[var(--radius)] bg-surface shadow-card min-[1000px]:col-start-1 min-[1000px]:row-start-1 min-[1000px]:row-span-3"
+          >
+            {DOMAIN_ORDER.map((domain, index) => {
+              const row = domainRows[domain]
+              return (
+                <OpsRow
+                  key={domain}
+                  id={row.id}
                   domain={domain}
-                  items={worklistByDomain[domain]}
-                  poppingId={poppingId}
-                  onTap={handleTap}
-                  linkedTag={row.linkedTag}
+                  title={row.title}
+                  tag={row.tag}
+                  tagSeverity={row.tagSeverity}
+                  lines={row.lines}
+                  metric={row.metric}
+                  metricLabel={row.metricLabel}
+                  metricPeriod={row.metricPeriod}
+                  isLast={index === DOMAIN_ORDER.length - 1}
                 />
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
+
+          {DOMAIN_ORDER.map((domain, index) => (
+            <div
+              key={`${domain}-bubbles`}
+              className="min-[1000px]:col-start-2"
+              style={{ gridRow: index + 1 }}
+            >
+              <LinkedBubbleGroup
+                domain={domain}
+                items={worklistByDomain[domain]}
+                poppingId={poppingId}
+                onTap={handleTap}
+                linkedTag={domainRows[domain].linkedTag}
+              />
+            </div>
+          ))}
         </div>
       </div>
     </section>

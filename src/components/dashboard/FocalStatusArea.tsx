@@ -1,7 +1,6 @@
 import { cn } from "@/lib/utils"
 import type { OwnerAttentionItem, OwnerAttentionSummary } from "@/lib/ownerDashboardStatus"
 import { firstName, timeGreeting } from "@/lib/ownerDashboardStatus"
-import { severityDotClass } from "@/lib/pulseSeverity"
 
 function scrollToAttention(targetId: string) {
   document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth", block: "nearest" })
@@ -34,7 +33,7 @@ function highlightBubbleCopy(item: OwnerAttentionItem): { value: string; unit: s
 
 function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
   const { value, unit } = highlightBubbleCopy(item)
-  const valueClass = item.severity === "crit" ? "text-alert-strong" : "text-alert"
+  const useClay = item.id === "auth" && item.severity === "crit"
 
   return (
     <button
@@ -43,11 +42,19 @@ function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
       className="flex flex-col rounded-[16px] border border-line/80 bg-surface-2/80 p-[18px] text-left transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand short:p-4"
     >
       <p className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
-        <span className={cn("size-2 shrink-0 rounded-full", severityDotClass(item.severity))} aria-hidden />
+        <span
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            useClay ? "bg-alert-strong" : "bg-muted",
+          )}
+          aria-hidden
+        />
         {BUBBLE_LABELS[item.id]}
       </p>
       <p className="mt-3 text-[20px] font-semibold leading-snug text-ink">
-        <span className={cn("tabular-nums", valueClass)}>{value}</span>{" "}
+        <span className={cn("tabular-nums", useClay ? "text-alert-strong" : "text-ink")}>
+          {value}
+        </span>{" "}
         <span className="font-medium text-ink-soft">{unit}</span>
       </p>
     </button>
@@ -83,10 +90,8 @@ export function FocalStatusArea({
       ) : (
         <div className="short:space-y-3 space-y-4">
           <p className="whitespace-nowrap text-[clamp(1.5rem,2.6vw,2.4375rem)] font-semibold leading-tight tracking-[-0.028em] text-ink">
-            <span className="text-alert">
-              {attentionCount} {attentionCount === 1 ? "thing" : "things"}
-            </span>{" "}
-            need your attention this morning.
+            {attentionCount} {attentionCount === 1 ? "thing" : "things"} need your attention this
+            morning.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {items.map((item) => (

@@ -107,15 +107,15 @@ export function OwnerNavRail({
   return (
     <>
       {/* Desktop rail */}
-      <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r border-line bg-bg px-3 py-5 min-[1000px]:flex">
-        <div className="mb-5 flex items-center gap-2.5 px-2">
+      <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r border-line bg-bg px-3 py-6 min-[1000px]:flex">
+        <div className="mb-8 flex items-center gap-2.5 px-2">
           <span className="text-xl font-semibold tracking-tight text-brand">Pulse</span>
           <PulseGlyph className="text-brand" />
         </div>
 
-        {accountBlock}
+        <div className="mb-8">{accountBlock}</div>
 
-        <nav className="mt-5 space-y-0.5" aria-label="Main">
+        <nav className="space-y-0.5" aria-label="Main">
           {NAV_ITEMS.map((item) => (
             <NavLinkItem
               key={item.label}
