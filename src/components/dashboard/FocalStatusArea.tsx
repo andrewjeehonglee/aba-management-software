@@ -34,7 +34,7 @@ function highlightBubbleCopy(item: OwnerAttentionItem): { value: string; unit: s
 function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
   const { value, unit } = highlightBubbleCopy(item)
   const useAmber = item.id === "notes"
-  const useSage = item.id === "auth"
+  const useLimit = item.id === "auth"
 
   return (
     <button
@@ -46,7 +46,7 @@ function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
         <span
           className={cn(
             "size-2 shrink-0 rounded-full",
-            useAmber ? "bg-alert" : useSage ? "bg-brand" : "bg-muted",
+            useAmber ? "bg-alert" : useLimit ? "bg-limit" : "bg-muted",
           )}
           aria-hidden
         />
@@ -56,7 +56,7 @@ function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
         <span
           className={cn(
             "tabular-nums",
-            useAmber ? "text-alert" : useSage ? "text-brand" : "text-ink",
+            useAmber ? "text-alert" : useLimit ? "text-limit" : "text-ink",
           )}
         >
           {value}

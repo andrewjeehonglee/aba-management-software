@@ -20,9 +20,9 @@ const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
   auth: "Over authorized limit",
 }
 
-function domainAccent(domain: Domain, tagSeverity: PulseSeverity): "neutral" | "amber" | "sage" {
+function domainAccent(domain: Domain, tagSeverity: PulseSeverity): "neutral" | "amber" | "limit" {
   if (domain === "notes" && tagSeverity !== "ok") return "amber"
-  if (domain === "auth" && tagSeverity !== "ok") return "sage"
+  if (domain === "auth" && tagSeverity !== "ok") return "limit"
   return "neutral"
 }
 
@@ -47,13 +47,13 @@ function StackedMetric({
   value: ReactNode
   label: string
   period: string
-  accent: "neutral" | "amber" | "sage"
+  accent: "neutral" | "amber" | "limit"
 }) {
   const valueColor =
     accent === "amber"
       ? "text-alert"
-      : accent === "sage"
-        ? "text-brand"
+      : accent === "limit"
+        ? "text-limit"
         : "text-brand"
 
   return (
@@ -98,7 +98,7 @@ function OpsRow({
       : domain === "notes"
         ? severityTagClass("warn")
         : domain === "auth"
-          ? "bg-accent-soft text-brand"
+          ? "bg-limit-soft text-limit"
           : "bg-surface-2 text-ink-soft ring-1 ring-line"
 
   return (
@@ -157,8 +157,8 @@ function WorklistBalloon({
   onTap: (item: OwnerWorklistItem) => void
 }) {
   const useAmber = domain === "notes"
-  const useSage = domain === "auth"
-  const valueClass = useAmber ? "text-alert" : useSage ? "text-brand" : "text-ink"
+  const useLimit = domain === "auth"
+  const valueClass = useAmber ? "text-alert" : useLimit ? "text-limit" : "text-ink"
 
   return (
     <button
@@ -172,7 +172,7 @@ function WorklistBalloon({
       <span
         className={cn(
           "size-2 shrink-0 rounded-full",
-          useAmber ? "bg-alert" : useSage ? "bg-brand" : "bg-muted",
+          useAmber ? "bg-alert" : useLimit ? "bg-limit" : "bg-muted",
         )}
         aria-hidden
       />
@@ -205,7 +205,7 @@ function LinkedBubbleGroup({
     domain === "notes"
       ? "bg-alert-soft text-alert"
       : domain === "auth"
-        ? "bg-accent-soft text-brand"
+        ? "bg-limit-soft text-limit"
         : "bg-surface-2 text-ink-soft ring-1 ring-line"
 
   return (

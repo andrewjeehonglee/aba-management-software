@@ -1,9 +1,9 @@
 /**
- * Pulse mark — practice awareness, not a vital-signs line.
+ * Pulse mark — practice awareness, not a vital-signs line or hazard symbol.
  *
- * - Arc: ongoing read on practice health (the “pulse” Jenny checks each morning)
- * - Triangle network: BCBA leads the care team (supervisor + technician)
- * - Center point: client at the center of every team
+ * - Center dot: the focal point of the practice (what needs attention today)
+ * - Concentric arcs: an ongoing read on practice health — like a gentle signal,
+ *   not an ECG spike or triangular warning mark
  */
 export function PulseMark({
   className,
@@ -23,21 +23,19 @@ export function PulseMark({
       aria-hidden
     >
       <path
-        d="M3.5 10a6.5 6.5 0 0 1 13 0"
+        d="M3 10a7 7 0 0 1 14 0"
         stroke="currentColor"
-        strokeWidth="1.5"
+        strokeWidth="1.45"
         strokeLinecap="round"
+        opacity="0.38"
       />
-      <circle cx="10" cy="6.2" r="1.85" fill="currentColor" />
-      <circle cx="6.35" cy="13.1" r="1.45" fill="currentColor" />
-      <circle cx="13.65" cy="13.1" r="1.45" fill="currentColor" />
       <path
-        d="M10 8.1v1.6M7.4 12.1l1.8-2.1M12.6 12.1l-1.8-2.1"
+        d="M5.75 10a4.25 4.25 0 0 1 8.5 0"
         stroke="currentColor"
-        strokeWidth="1.1"
+        strokeWidth="1.45"
         strokeLinecap="round"
       />
-      <circle cx="10" cy="10.9" r="0.95" fill="currentColor" opacity="0.5" />
+      <circle cx="10" cy="10" r="2.15" fill="currentColor" />
     </svg>
   )
 }
