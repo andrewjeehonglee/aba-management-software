@@ -7,7 +7,7 @@ import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
 import { formatPayPeriodCloseDate } from "@/lib/payPeriod"
 import type { OwnerWorklistItem } from "@/lib/ownerDashboardStatus"
-import { severityDotClass, severityTagClass } from "@/lib/pulseSeverity"
+import { severityTagClass } from "@/lib/pulseSeverity"
 import type { PulseSeverity } from "@/lib/pulseSeverity"
 
 type Domain = "notes" | "hours" | "auth"
@@ -20,10 +20,9 @@ const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
   auth: "Over their authorized hours",
 }
 
-function domainAccent(domain: Domain, severity: PulseSeverity): "neutral" | "warn" | "crit" {
-  if (domain === "auth" && severity === "crit") return "crit"
-  if (domain === "auth" && severity === "warn") return "warn"
-  if (domain === "hours" && severity === "warn") return "warn"
+function domainAccent(domain: Domain, tagSeverity: PulseSeverity): "neutral" | "amber" | "sage" {
+  if (domain === "notes" && tagSeverity !== "ok") return "amber"
+  if (domain === "auth" && tagSeverity !== "ok") return "sage"
   return "neutral"
 }
 
@@ -48,13 +47,13 @@ function StackedMetric({
   value: ReactNode
   label: string
   period: string
-  accent: "neutral" | "warn" | "crit"
+  accent: "neutral" | "amber" | "sage"
 }) {
   const valueColor =
-    accent === "crit"
-      ? "text-alert-strong"
-      : accent === "warn"
-        ? "text-ink"
+    accent === "amber"
+      ? "text-alert"
+      : accent === "sage"
+        ? "text-brand"
         : "text-brand"
 
   return (
@@ -96,15 +95,17 @@ function OpsRow({
   const tagClass =
     tagSeverity === "ok"
       ? severityTagClass("ok")
-      : domain === "auth"
-        ? severityTagClass(tagSeverity)
-        : "bg-surface-2 text-ink-soft ring-1 ring-line"
+      : domain === "notes"
+        ? severityTagClass("warn")
+        : domain === "auth"
+          ? "bg-accent-soft text-brand"
+          : "bg-surface-2 text-ink-soft ring-1 ring-line"
 
   return (
     <div
       id={id}
       className={cn(
-        "grid grid-cols-1 items-start gap-4 px-5 py-5 short:gap-3 short:px-4 short:py-4 lg:grid-cols-[1fr_auto] lg:gap-10",
+        "grid grid-cols-1 items-center gap-4 px-5 py-8 short:gap-3 short:px-4 short:py-6 lg:grid-cols-[1fr_auto] lg:gap-10",
         !isLast && "border-b border-line-soft",
       )}
     >
@@ -155,8 +156,9 @@ function WorklistBalloon({
   popping: boolean
   onTap: (item: OwnerWorklistItem) => void
 }) {
-  const useClay = domain === "auth" && item.severity === "crit"
-  const valueClass = useClay ? "text-alert-strong" : "text-ink"
+  const useAmber = domain === "notes"
+  const useSage = domain === "auth"
+  const valueClass = useAmber ? "text-alert" : useSage ? "text-brand" : "text-ink"
 
   return (
     <button
@@ -170,7 +172,7 @@ function WorklistBalloon({
       <span
         className={cn(
           "size-2 shrink-0 rounded-full",
-          useClay ? severityDotClass("crit") : "bg-muted",
+          useAmber ? "bg-alert" : useSage ? "bg-brand" : "bg-muted",
         )}
         aria-hidden
       />
@@ -196,13 +198,18 @@ function LinkedBubbleGroup({
   linkedTag?: string
 }) {
   if (items.length === 0) {
-    return <div className="hidden min-h-0 min-[1000px]:block" aria-hidden />
+    return <div className="hidden min-h-[120px] min-[1000px]:block" aria-hidden />
   }
 
-  const tagUsesClay = domain === "auth"
+  const linkedTagClass =
+    domain === "notes"
+      ? "bg-alert-soft text-alert"
+      : domain === "auth"
+        ? "bg-accent-soft text-brand"
+        : "bg-surface-2 text-ink-soft ring-1 ring-line"
 
   return (
-    <div className="py-4 short:py-3 min-[1000px]:border-l-2 min-[1000px]:border-line min-[1000px]:pl-4">
+    <div className="flex min-h-[120px] flex-col justify-center py-4 short:py-3 min-[1000px]:border-l-2 min-[1000px]:border-line min-[1000px]:pl-4 min-[1000px]:py-0">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <p className="text-[16px] font-semibold uppercase tracking-[0.08em] text-ink">
           {WORKLIST_GROUP_LABELS[domain]}
@@ -210,10 +217,8 @@ function LinkedBubbleGroup({
         {linkedTag && (
           <span
             className={cn(
-              "rounded-full px-2.5 py-0.5 text-[13px] font-semibold tabular-nums",
-              tagUsesClay
-                ? "bg-alert-soft text-alert"
-                : "bg-surface-2 text-ink-soft ring-1 ring-line",
+              "rounded-full px-2.5 py-0.5 text-[13px] font-semibold uppercase tracking-[0.08em] tabular-nums",
+              linkedTagClass,
             )}
           >
             {linkedTag}
@@ -465,23 +470,29 @@ export function OwnerPracticeGrid({
       className={cn("animate-fade-rise animate-fade-rise-delay-1 flex min-h-0 flex-1 flex-col", className)}
       aria-label="Practice overview and action items"
     >
-      <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
-        <h2 className="mb-3 text-[14px] font-semibold uppercase tracking-[0.10em] text-muted short:mb-2">
-          Your practice today
-        </h2>
+      <div className="owner-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+        <div className="mb-3 shrink-0 short:mb-2">
+          <h2 className="text-[14px] font-semibold uppercase tracking-[0.10em] text-muted">
+            Your practice today
+          </h2>
+          <p className="mt-1 text-[14px] text-muted">
+            16 clients · 3 BCBAs · 5 clinical supervisors · 6 technicians
+          </p>
+        </div>
 
-        {/* Mobile: stacked pairs. Desktop: explicit row grid so empty hours never steals auth's slot. */}
-        <div className="flex flex-col gap-0 min-[1000px]:grid min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:gap-x-8">
-          <div className="hidden min-[1000px]:block min-[1000px]:col-start-2 min-[1000px]:row-start-1" aria-hidden />
-
-          <div
-            className="rounded-[var(--radius)] bg-surface shadow-card min-[1000px]:col-start-1 min-[1000px]:row-start-1 min-[1000px]:row-span-3"
-          >
-            {DOMAIN_ORDER.map((domain, index) => {
-              const row = domainRows[domain]
-              return (
+        <div className="flex min-h-0 flex-1 flex-col min-[1000px]:rounded-[var(--radius)] min-[1000px]:bg-surface min-[1000px]:shadow-card">
+          {DOMAIN_ORDER.map((domain, index) => {
+            const row = domainRows[domain]
+            return (
+              <div
+                key={domain}
+                className={cn(
+                  "flex flex-col gap-4 max-[999px]:mb-3 max-[999px]:rounded-[var(--radius)] max-[999px]:bg-surface max-[999px]:shadow-card",
+                  "min-[1000px]:grid min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-stretch min-[1000px]:gap-x-8",
+                  index < DOMAIN_ORDER.length - 1 && "min-[1000px]:border-b min-[1000px]:border-line-soft",
+                )}
+              >
                 <OpsRow
-                  key={domain}
                   id={row.id}
                   domain={domain}
                   title={row.title}
@@ -491,27 +502,18 @@ export function OwnerPracticeGrid({
                   metric={row.metric}
                   metricLabel={row.metricLabel}
                   metricPeriod={row.metricPeriod}
-                  isLast={index === DOMAIN_ORDER.length - 1}
+                  isLast
                 />
-              )
-            })}
-          </div>
-
-          {DOMAIN_ORDER.map((domain, index) => (
-            <div
-              key={`${domain}-bubbles`}
-              className="min-[1000px]:col-start-2"
-              style={{ gridRow: index + 1 }}
-            >
-              <LinkedBubbleGroup
-                domain={domain}
-                items={worklistByDomain[domain]}
-                poppingId={poppingId}
-                onTap={handleTap}
-                linkedTag={domainRows[domain].linkedTag}
-              />
-            </div>
-          ))}
+                <LinkedBubbleGroup
+                  domain={domain}
+                  items={worklistByDomain[domain]}
+                  poppingId={poppingId}
+                  onTap={handleTap}
+                  linkedTag={row.linkedTag}
+                />
+              </div>
+            )
+          })}
         </div>
       </div>
     </section>

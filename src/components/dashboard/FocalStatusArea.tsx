@@ -33,7 +33,8 @@ function highlightBubbleCopy(item: OwnerAttentionItem): { value: string; unit: s
 
 function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
   const { value, unit } = highlightBubbleCopy(item)
-  const useClay = item.id === "auth" && item.severity === "crit"
+  const useAmber = item.id === "notes"
+  const useSage = item.id === "auth"
 
   return (
     <button
@@ -45,14 +46,19 @@ function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
         <span
           className={cn(
             "size-2 shrink-0 rounded-full",
-            useClay ? "bg-alert-strong" : "bg-muted",
+            useAmber ? "bg-alert" : useSage ? "bg-brand" : "bg-muted",
           )}
           aria-hidden
         />
         {BUBBLE_LABELS[item.id]}
       </p>
       <p className="mt-3 text-[20px] font-semibold leading-snug text-ink">
-        <span className={cn("tabular-nums", useClay ? "text-alert-strong" : "text-ink")}>
+        <span
+          className={cn(
+            "tabular-nums",
+            useAmber ? "text-alert" : useSage ? "text-brand" : "text-ink",
+          )}
+        >
           {value}
         </span>{" "}
         <span className="font-medium text-ink-soft">{unit}</span>
@@ -85,13 +91,15 @@ export function FocalStatusArea({
         <div className="h-12 max-w-xl animate-pulse rounded-[16px] bg-line-soft" aria-hidden />
       ) : attentionCount === 0 ? (
         <p className="text-[39px] font-semibold leading-tight tracking-[-0.028em] text-ink">
-          Nothing needs your attention this morning.
+          Nothing needs your attention today.
         </p>
       ) : (
         <div className="short:space-y-3 space-y-4">
           <p className="whitespace-nowrap text-[clamp(1.5rem,2.6vw,2.4375rem)] font-semibold leading-tight tracking-[-0.028em] text-ink">
-            {attentionCount} {attentionCount === 1 ? "thing" : "things"} need your attention this
-            morning.
+            <span className="text-alert">
+              {attentionCount} {attentionCount === 1 ? "thing" : "things"}
+            </span>{" "}
+            need your attention today.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {items.map((item) => (

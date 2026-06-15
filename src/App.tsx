@@ -5,7 +5,8 @@ import type { Session } from "@supabase/supabase-js"
 import { AuditPullPage } from "@/pages/AuditPullPage"
 import { ClientOverviewPage } from "@/pages/ClientOverviewPage"
 import { DashboardPage } from "@/pages/DashboardPage"
-import { RosterPage } from "@/pages/RosterPage"
+import { ClientsPage } from "@/pages/ClientsPage"
+import { StaffPage } from "@/pages/StaffPage"
 import { AuthPage } from "@/pages/AuthPage"
 import { LandingPage } from "@/pages/LandingPage"
 import { CreatePracticePage } from "@/pages/CreatePracticePage"
@@ -199,13 +200,22 @@ function App() {
       <Routes>
         <Route path="/" element={<DashboardPage practiceId={practice.practice_id} userRole={userRole} currentStaffId={currentStaffId} isDemo={isDemo} />} />
         <Route
-          path="/roster"
+          path="/clients"
           element={
             userRole.toLowerCase() === "owner"
-              ? <RosterPage practiceId={practice.practice_id} />
+              ? <ClientsPage practiceId={practice.practice_id} userRole={userRole} />
               : <Navigate to="/" replace />
           }
         />
+        <Route
+          path="/staff"
+          element={
+            userRole.toLowerCase() === "owner"
+              ? <StaffPage practiceId={practice.practice_id} userRole={userRole} />
+              : <Navigate to="/" replace />
+          }
+        />
+        <Route path="/roster" element={<Navigate to="/clients" replace />} />
         <Route
           path="/audit"
           element={

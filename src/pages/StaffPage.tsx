@@ -1,0 +1,186 @@
+import { useEffect, useMemo, useState } from "react"
+import { Link } from "react-router-dom"
+import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
+import { useOwnerShell } from "@/hooks/useOwnerShell"
+import { cn } from "@/lib/utils"
+import { getRosterRows } from "@/lib/rosterTable"
+import {
+  getRosterStaffManifest,
+  staffProfilePath,
+  type RosterStaffEntry,
+} from "@/lib/rosterScope"
+
+const ROLE_GROUPS: { label: string; role: RosterStaffEntry["role"]; description: string }[] = [
+  {
+    label: "BCBAs",
+    role: "bcba",
+    description: "Lead clinicians owning each caseload",
+  },
+  {
+    label: "Clinical supervisors",
+    role: "supervisor",
+    description: "Supervise technicians and support clinical quality",
+  },
+  {
+    label: "Technicians",
+    role: "technician",
+    description: "Direct service providers on client sessions",
+  },
+]
+
+function StaffMemberCard({
+  member,
+  clientCount,
+}: {
+  member: RosterStaffEntry
+  clientCount: number
+}) {
+  return (
+    <Link
+      to={staffProfilePath(member.externalCode)}
+      className="group flex flex-col rounded-[16px] border border-line bg-surface p-4 shadow-card transition-colors hover:border-brand/30 hover:bg-surface-2"
+    >
+      <p className="text-[17px] font-semibold text-ink group-hover:text-brand">{member.fullName}</p>
+      <p className="mt-1 text-[14px] text-muted">
+        {clientCount > 0
+          ? `${clientCount} client${clientCount === 1 ? "" : "s"} on caseload`
+          : "Practice-wide role"}
+      </p>
+    </Link>
+  )
+}
+
+export function StaffPage({
+  practiceId,
+  userRole,
+}: {
+  practiceId: string
+  userRole?: string
+}) {
+  const { ownerName, practiceName } = useOwnerShell(practiceId, userRole)
+  const [staff, setStaff] = useState<RosterStaffEntry[]>([])
+  const [clientCounts, setClientCounts] = useState<Map<string, number>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(false)
+
+    Promise.all([getRosterStaffManifest(practiceId), getRosterRows(practiceId)])
+      .then(([manifest, rows]) => {
+        if (cancelled) return
+        setStaff(manifest)
+        const counts = new Map<string, number>()
+        for (const row of rows) {
+          if (row.bcbaId) counts.set(row.bcbaId, (counts.get(row.bcbaId) ?? 0) + 1)
+          if (row.supervisorId) {
+            counts.set(row.supervisorId, (counts.get(row.supervisorId) ?? 0) + 1)
+          }
+          if (row.btId) counts.set(row.btId, (counts.get(row.btId) ?? 0) + 1)
+        }
+        setClientCounts(counts)
+      })
+      .catch(() => {
+        if (!cancelled) setError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [practiceId])
+
+  const roleCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const member of staff) {
+      map[member.role] = (map[member.role] ?? 0) + 1
+    }
+    return map
+  }, [staff])
+
+  const hasStaff = staff.length > 0
+
+  return (
+    <OwnerAppShell ownerName={ownerName} practiceName={practiceName}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <header className="mb-6 shrink-0 short:mb-4">
+          <h1 className="text-[clamp(1.75rem,3vw,2.25rem)] font-semibold tracking-[-0.02em] text-ink">
+            Staff
+          </h1>
+          <p className="mt-1.5 text-[16px] text-muted">
+            {hasStaff
+              ? `${staff.length} team members · ${roleCounts.bcba ?? 0} BCBAs · ${roleCounts.supervisor ?? 0} clinical supervisors · ${roleCounts.technician ?? 0} technicians`
+              : "Your practice team — BCBAs, clinical supervisors, and technicians"}
+          </p>
+        </header>
+
+        <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+          {loading && (
+            <p className="py-16 text-center text-[15px] text-muted animate-pulse">Loading staff…</p>
+          )}
+
+          {error && (
+            <div className="rounded-[var(--radius)] bg-surface p-8 text-center shadow-card">
+              <p className="text-[15px] text-alert">Could not load staff. Please refresh and try again.</p>
+            </div>
+          )}
+
+          {!loading && !error && !hasStaff && (
+            <div className="rounded-[var(--radius)] bg-surface p-8 shadow-card">
+              <h2 className="text-[17px] font-semibold text-ink">No staff imported yet</h2>
+              <p className="mt-2 text-[15px] text-muted">
+                Import your roster from{" "}
+                <code className="rounded bg-surface-2 px-1.5 py-0.5 text-[13px]">
+                  templates/roster_import.csv
+                </code>
+                .
+              </p>
+            </div>
+          )}
+
+          {!loading && !error && hasStaff && (
+            <div className="space-y-8">
+              {ROLE_GROUPS.map(({ label, role, description }) => {
+                const members = staff
+                  .filter((s) => s.role === role)
+                  .sort((a, b) => a.fullName.localeCompare(b.fullName))
+
+                if (members.length === 0) return null
+
+                return (
+                  <section key={role}>
+                    <div className="mb-4">
+                      <h2 className="text-[14px] font-semibold uppercase tracking-[0.10em] text-muted">
+                        {label}
+                      </h2>
+                      <p className="mt-1 text-[15px] text-muted">{description}</p>
+                    </div>
+                    <ul
+                      className={cn(
+                        "grid gap-3",
+                        role === "bcba" ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-3",
+                      )}
+                    >
+                      {members.map((member) => (
+                        <li key={member.id}>
+                          <StaffMemberCard
+                            member={member}
+                            clientCount={clientCounts.get(member.id) ?? 0}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </OwnerAppShell>
+  )
+}

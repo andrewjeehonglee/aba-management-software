@@ -61,8 +61,8 @@ function StaffBreadcrumb({ name }: { name: string }) {
         Dashboard
       </Link>
       <span aria-hidden="true">·</span>
-      <Link to="/roster" className="hover:text-foreground transition-colors">
-        Roster
+      <Link to="/staff" className="hover:text-foreground transition-colors">
+        Staff
       </Link>
       <span aria-hidden="true">·</span>
       <span className="text-foreground font-medium">{name}</span>

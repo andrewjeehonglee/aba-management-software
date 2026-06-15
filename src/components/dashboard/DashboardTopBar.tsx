@@ -51,7 +51,7 @@ export function DashboardTopBar({
         {role === "Owner" && (
           <>
             <Link
-              to="/roster"
+              to="/clients"
               aria-label="Caseload roster"
               title="Caseload roster"
               className="inline-flex items-center justify-center rounded-control p-2 text-brand transition-colors hover:bg-brand-weak"
