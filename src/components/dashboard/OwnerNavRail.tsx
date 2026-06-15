@@ -10,9 +10,7 @@ import {
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { markUserSignOut } from "@/lib/authDiagnostics"
-import { ownerInitials } from "@/lib/ownerDashboardStatus"
-
-type Role = "Technician" | "Supervisor" | "BCBA" | "Owner"
+import { firstName, ownerInitials } from "@/lib/ownerDashboardStatus"
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, match: (path: string) => path === "/" },
@@ -21,8 +19,6 @@ const NAV_ITEMS = [
   { label: "Sessions", href: "/roster", icon: CalendarDays, match: (path: string) => path.startsWith("/session/") },
   { label: "Audit", href: "/audit", icon: ClipboardList, match: (path: string) => path === "/audit" },
 ] as const
-
-const PREVIEW_ROLES: Role[] = ["Owner", "BCBA", "Supervisor", "Technician"]
 
 function PulseGlyph({ className }: { className?: string }) {
   return (
@@ -60,7 +56,7 @@ function NavLinkItem({
     <Link
       to={href}
       className={cn(
-        "flex items-center gap-3 rounded-[var(--radius-sm-token)] px-3 py-2.5 text-[13.5px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "flex items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         active
           ? "bg-surface text-ink shadow-card"
           : "text-ink-soft hover:bg-surface-2 hover:text-ink",
@@ -79,17 +75,9 @@ function NavLinkItem({
 export function OwnerNavRail({
   ownerName,
   practiceName,
-  role,
-  viewRole,
-  onViewRoleChange,
-  isDemo,
 }: {
   ownerName: string
   practiceName?: string | null
-  role: Role
-  viewRole: Role
-  onViewRoleChange: (role: Role) => void
-  isDemo?: boolean
 }) {
   const location = useLocation()
   const path = location.pathname
@@ -101,49 +89,17 @@ export function OwnerNavRail({
     await supabase.auth.signOut()
   }
 
-  const footer = (
-    <div className="mt-auto space-y-3 border-t border-line pt-4">
-      {isDemo && role === "Owner" && (
-        <div className="flex flex-wrap gap-1 rounded-[var(--radius-sm-token)] bg-surface-2 p-1">
-          {PREVIEW_ROLES.map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => onViewRoleChange(r)}
-              className={cn(
-                "rounded-[10px] px-2 py-1 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
-                viewRole === r
-                  ? "bg-surface text-brand shadow-card"
-                  : "text-muted hover:text-ink",
-              )}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <span
-          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-brand"
-          aria-hidden
-        >
-          {initials}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink">{ownerName.split(/\s+/)[0]}</p>
-          <p className="truncate text-xs text-muted">
-            {practiceLabel} · Owner
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void handleSignOut()}
-          className="shrink-0 rounded-[var(--radius-sm-token)] p-2 text-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          aria-label="Sign out"
-        >
-          <LogOut className="size-4" strokeWidth={1.75} />
-        </button>
+  const accountBlock = (
+    <div className="flex items-center gap-3 px-2">
+      <span
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-brand"
+        aria-hidden
+      >
+        {initials}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[15px] font-semibold text-ink">{firstName(ownerName)}</p>
+        <p className="truncate text-[13px] text-muted">{practiceLabel}</p>
       </div>
     </div>
   )
@@ -151,13 +107,15 @@ export function OwnerNavRail({
   return (
     <>
       {/* Desktop rail */}
-      <aside className="hidden min-h-0 w-[232px] shrink-0 flex-col border-r border-line bg-bg px-4 py-6 min-[981px]:flex">
-        <div className="mb-8 flex items-center gap-2.5 px-2">
+      <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r border-line bg-bg px-4 py-6 min-[1000px]:flex">
+        <div className="mb-6 flex items-center gap-2.5 px-2">
           <span className="text-lg font-semibold tracking-tight text-brand">Pulse</span>
           <PulseGlyph className="text-brand" />
         </div>
 
-        <nav className="space-y-1" aria-label="Main">
+        {accountBlock}
+
+        <nav className="mt-6 flex-1 space-y-1" aria-label="Main">
           {NAV_ITEMS.map((item) => (
             <NavLinkItem
               key={item.label}
@@ -169,14 +127,27 @@ export function OwnerNavRail({
           ))}
         </nav>
 
-        {footer}
+        <button
+          type="button"
+          onClick={() => void handleSignOut()}
+          className="mt-4 flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-[13px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          <LogOut className="size-[18px] shrink-0" strokeWidth={1.75} />
+          Sign out
+        </button>
       </aside>
 
       {/* Mobile / tablet top bar */}
-      <header className="flex min-h-0 shrink-0 items-center justify-between gap-3 border-b border-line bg-bg px-4 py-3 min-[981px]:hidden">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-semibold text-brand">Pulse</span>
-          <PulseGlyph className="text-brand" />
+      <header className="flex min-h-0 shrink-0 items-center justify-between gap-3 border-b border-line bg-bg px-4 py-3 min-[1000px]:hidden">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold text-brand">Pulse</span>
+            <PulseGlyph className="text-brand" />
+          </div>
+          <div className="hidden min-w-0 sm:block">
+            <p className="truncate text-sm font-semibold text-ink">{firstName(ownerName)}</p>
+            <p className="truncate text-xs text-muted">{practiceLabel}</p>
+          </div>
         </div>
         <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Main">
           {NAV_ITEMS.map((item) => {

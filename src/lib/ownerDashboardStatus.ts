@@ -80,7 +80,7 @@ export async function getOwnerAttentionSummary(options?: {
       worklist.push({
         id: `notes-${row.staffId}`,
         group: "notes",
-        groupLabel: "Notes overdue — unpayable sessions",
+        groupLabel: "Notes to wrap up",
         name: row.staffName,
         displayValue: sessionLabel(sessionCount),
         severity: "warn",

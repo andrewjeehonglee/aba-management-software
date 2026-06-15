@@ -120,7 +120,7 @@
     --radius-sm-token: 12px;
     --radius-card: var(--radius);
     --radius-control: var(--radius-sm-token);
-    --shadow-card: 0 1px 2px rgba(44, 40, 34, 0.04), 0 8px 24px -12px rgba(44, 40, 34, 0.10);
+    --shadow-card: 0 1px 2px rgba(44, 40, 34, 0.04), 0 10px 30px -14px rgba(44, 40, 34, 0.12);
     --shadow-card-flagged: var(--shadow-card);
 
     /* ── Legacy Pulse aliases ──────────────────────────────────────────────── */
@@ -209,6 +209,30 @@
   }
 }
 
+@keyframes bubble-pop {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes bubble-pop-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -226,10 +250,13 @@
     animation: fade-rise 0.45s ease-out both;
   }
   .animate-fade-rise-delay-1 {
-    animation-delay: 60ms;
+    animation-delay: 80ms;
   }
   .animate-fade-rise-delay-2 {
-    animation-delay: 120ms;
+    animation-delay: 160ms;
+  }
+  .animate-bubble-pop {
+    animation: bubble-pop 360ms ease-in forwards;
   }
   .tabular-nums {
     font-variant-numeric: tabular-nums;
@@ -254,5 +281,8 @@
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+  .animate-bubble-pop {
+    animation: bubble-pop-fade 360ms ease-in forwards !important;
   }
 }

@@ -1,13 +1,14 @@
-import { ChevronRight } from "lucide-react"
-import { Link } from "react-router-dom"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import type { OwnerWorklistItem } from "@/lib/ownerDashboardStatus"
+import { severityDotClass } from "@/lib/pulseSeverity"
 
 const GROUP_ORDER = ["notes", "auth", "hours"] as const
 const GROUP_LABELS: Record<string, string> = {
-  notes: "Notes overdue — unpayable sessions",
-  auth: "Authorization — over limit",
-  hours: "Hours — below direct mix",
+  notes: "Notes to wrap up",
+  auth: "Over their authorized hours",
+  hours: "Below direct mix",
 }
 
 function groupItems(items: OwnerWorklistItem[]): Map<string, OwnerWorklistItem[]> {
@@ -20,32 +21,47 @@ function groupItems(items: OwnerWorklistItem[]): Map<string, OwnerWorklistItem[]
   return map
 }
 
-function WorklistRow({ item }: { item: OwnerWorklistItem }) {
-  const valueClass =
-    item.severity === "crit" ? "text-alert-strong" : "text-alert"
+function bubbleShortValue(displayValue: string): string {
+  const sessions = displayValue.match(/^(\d+)\s*session/i)
+  if (sessions) return sessions[1]!
+  const hrs = displayValue.match(/^(\d+)\s*hrs?/i)
+  if (hrs) return `${hrs[1]} hrs`
+  const pct = displayValue.match(/^(\d+)%/)
+  if (pct) return pct[0]!
+  const num = displayValue.match(/^(\d+)/)
+  return num?.[1] ?? displayValue
+}
 
-  const inner = (
-    <>
-      <span className="min-w-0 flex-1 truncate font-medium text-ink">{item.name}</span>
-      <span className={cn("shrink-0 tabular-nums text-[13.5px] font-semibold", valueClass)}>
-        {item.displayValue}
+function WorklistBubble({
+  item,
+  popping,
+  onTap,
+}: {
+  item: OwnerWorklistItem
+  popping: boolean
+  onTap: (item: OwnerWorklistItem) => void
+}) {
+  const valueClass = item.severity === "crit" ? "text-alert-strong" : "text-alert"
+
+  return (
+    <button
+      type="button"
+      onClick={() => onTap(item)}
+      className={cn(
+        "inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-surface px-[15px] py-[9px] text-[14px] shadow-card transition-[transform,box-shadow,opacity] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        popping && "animate-bubble-pop pointer-events-none",
+      )}
+    >
+      <span
+        className={cn("size-1.5 shrink-0 rounded-full", severityDotClass(item.severity))}
+        aria-hidden
+      />
+      <span className="font-medium text-ink">{item.name}</span>
+      <span className={cn("font-semibold tabular-nums", valueClass)}>
+        {bubbleShortValue(item.displayValue)}
       </span>
-      <ChevronRight className="size-4 shrink-0 text-muted" aria-hidden />
-    </>
+    </button>
   )
-
-  const className =
-    "flex w-full items-center gap-3 rounded-[var(--radius-sm-token)] px-3 py-2.5 text-left text-[13.5px] transition-colors hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-
-  if (item.href) {
-    return (
-      <Link to={item.href} className={className}>
-        {inner}
-      </Link>
-    )
-  }
-
-  return <div className={className}>{inner}</div>
 }
 
 export function WorklistRail({
@@ -57,54 +73,84 @@ export function WorklistRail({
   loading: boolean
   className?: string
 }) {
-  const grouped = groupItems(items)
+  const navigate = useNavigate()
+  const [clearedIds, setClearedIds] = useState<Set<string>>(new Set())
+  const [poppingId, setPoppingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setClearedIds(new Set())
+    setPoppingId(null)
+  }, [items])
+
+  const visibleItems = useMemo(
+    () => items.filter((item) => !clearedIds.has(item.id)),
+    [items, clearedIds],
+  )
+
+  const grouped = groupItems(visibleItems)
+
+  const handleTap = useCallback(
+    (item: OwnerWorklistItem) => {
+      if (poppingId) return
+      setPoppingId(item.id)
+      window.setTimeout(() => {
+        setClearedIds((prev) => new Set([...prev, item.id]))
+        setPoppingId(null)
+        if (item.href) navigate(item.href)
+      }, 360)
+    },
+    [navigate, poppingId],
+  )
 
   return (
-    <aside
+    <section
       className={cn(
-        "animate-fade-rise animate-fade-rise-delay-2 flex min-h-0 flex-col overflow-hidden rounded-[var(--radius)] bg-surface shadow-card",
+        "animate-fade-rise animate-fade-rise-delay-2 flex min-h-0 flex-col",
         className,
       )}
       aria-labelledby="worklist-heading"
     >
-      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line-soft px-5 py-4 short:px-4 short:py-3">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
-            Needs you
-          </p>
-          <h2 id="worklist-heading" className="mt-1 text-[15px] font-semibold text-ink">
-            Clear these first
-          </h2>
-        </div>
-        {!loading && items.length > 0 && (
+      <div className="flex shrink-0 items-center justify-between gap-3 short:mb-3 mb-4">
+        <h2
+          id="worklist-heading"
+          className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted"
+        >
+          Needs you
+        </h2>
+        {!loading && visibleItems.length > 0 && (
           <span className="rounded-full bg-alert-soft px-3 py-1 text-[12px] font-semibold tabular-nums text-alert">
-            {items.length} {items.length === 1 ? "item" : "items"}
+            {visibleItems.length} in all
           </span>
         )}
       </div>
 
-      <div className="owner-scroll min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
         {loading ? (
-          <div className="space-y-3 px-2 py-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded-[var(--radius-sm-token)] bg-line-soft" />
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-9 w-28 animate-pulse rounded-full bg-line-soft" />
             ))}
           </div>
-        ) : items.length === 0 ? (
-          <p className="px-3 py-6 text-[13.5px] text-muted">Nothing needs your attention right now.</p>
+        ) : visibleItems.length === 0 ? (
+          <p className="text-[14px] text-muted">Nothing needs your attention right now.</p>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5 short:space-y-4">
             {GROUP_ORDER.map((groupKey) => {
               const groupItemsList = grouped.get(groupKey)
               if (!groupItemsList?.length) return null
               return (
                 <section key={groupKey}>
-                  <p className="px-2.5 pb-2 text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
+                  <p className="mb-2.5 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
                     {GROUP_LABELS[groupKey] ?? groupItemsList[0]!.groupLabel}
                   </p>
-                  <div className="space-y-0.5">
+                  <div className="flex flex-wrap gap-2">
                     {groupItemsList.map((item) => (
-                      <WorklistRow key={item.id} item={item} />
+                      <WorklistBubble
+                        key={item.id}
+                        item={item}
+                        popping={poppingId === item.id}
+                        onTap={handleTap}
+                      />
                     ))}
                   </div>
                 </section>
@@ -113,6 +159,10 @@ export function WorklistRail({
           </div>
         )}
       </div>
-    </aside>
+
+      {!loading && visibleItems.length > 0 && (
+        <p className="mt-3 shrink-0 text-[12px] text-muted">Tap one to clear it.</p>
+      )}
+    </section>
   )
 }

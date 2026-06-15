@@ -10,6 +10,7 @@ import {
 import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar"
 import { FocalStatusArea } from "@/components/dashboard/FocalStatusArea"
 import { OwnerNavRail } from "@/components/dashboard/OwnerNavRail"
+import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
 import { PracticeTodaySurface } from "@/components/dashboard/PracticeTodaySurface"
 import { WorklistRail } from "@/components/dashboard/WorklistRail"
 import { supabase } from "@/lib/supabase"
@@ -58,6 +59,12 @@ function normaliseRole(raw: string): Role {
     technician: "Technician",
   }
   return map[raw.toLowerCase()] ?? "Technician"
+}
+
+function formatEyebrowDate(date: Date = new Date()): string {
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(date)
+  const monthDay = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" }).format(date)
+  return `${weekday.toUpperCase()} · ${monthDay.toUpperCase()}`
 }
 
 export function DashboardPage({
@@ -362,7 +369,7 @@ export function DashboardPage({
       className={cn(
         "bg-bg text-foreground",
         isOwnerView
-          ? "grid h-dvh overflow-hidden min-[981px]:grid-cols-[232px_1fr] max-[980px]:grid-rows-[auto_1fr]"
+          ? "grid h-dvh overflow-hidden min-[1000px]:grid-cols-[236px_1fr] max-[999px]:grid-rows-[auto_1fr]"
           : "flex min-h-svh flex-col",
       )}
     >
@@ -371,20 +378,25 @@ export function DashboardPage({
           <OwnerNavRail
             ownerName={ownerPersonaName}
             practiceName={practiceName}
-            role={role}
-            viewRole={viewRole}
-            onViewRoleChange={setViewRole}
-            isDemo={isDemo}
           />
-          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden px-5 py-6 sm:px-8 sm:py-8 short:py-5 min-[981px]:px-10 min-[981px]:py-10">
-            <div className="mx-auto flex h-full w-full max-w-[1180px] min-h-0 flex-col">
+          <main className="flex min-h-0 min-w-0 flex-col overflow-hidden px-5 py-6 short:py-5 min-[1000px]:px-[52px] min-[1000px]:py-8">
+            <div className="mx-auto flex h-full w-full max-w-[1400px] min-h-0 flex-col">
+              <div className="mb-5 flex shrink-0 items-center justify-between gap-4 short:mb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.10em] text-muted">
+                  {formatEyebrowDate()}
+                </p>
+                {role === "Owner" && (
+                  <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
+                )}
+              </div>
+
               <FocalStatusArea
                 userName={ownerPersonaName}
                 attention={attention}
                 rosterReady={rosterReady}
               />
 
-              <div className="mt-6 grid min-h-0 flex-1 grid-cols-1 gap-6 short:mt-4 min-[981px]:grid-cols-[1.45fr_1fr] min-[981px]:gap-6">
+              <div className="mt-6 grid min-h-0 flex-1 grid-cols-1 gap-6 short:mt-4 min-[1000px]:grid-cols-[1.55fr_1fr] min-[1000px]:gap-6">
                 <PracticeTodaySurface
                   refreshKey={notesRefreshKey + staffRefreshKey}
                   staffIds={rosterScope?.staffIds}
