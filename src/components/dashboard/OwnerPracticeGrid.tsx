@@ -24,7 +24,7 @@ function ConsequenceLines({ lines }: { lines: ReactNode[] }) {
   return (
     <div className="space-y-1">
       {lines.map((line, i) => (
-        <p key={i} className="text-[15px] leading-snug text-ink-soft">
+        <p key={i} className="text-[16px] leading-snug text-ink-soft">
           {line}
         </p>
       ))}
@@ -55,8 +55,8 @@ function StackedMetric({
       <p className={cn("text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums", valueColor)}>
         {value}
       </p>
-      <p className="mt-1.5 text-[15px] text-ink-soft">{label}</p>
-      <p className="mt-0.5 text-[13px] text-muted">{period}</p>
+      <p className="mt-1.5 text-[16px] text-ink-soft">{label}</p>
+      <p className="mt-0.5 text-[14px] text-muted">{period}</p>
     </div>
   )
 }
@@ -94,10 +94,10 @@ function OpsRow({
     >
       <div className="min-w-0 space-y-2.5">
         <div className="flex flex-wrap items-center gap-2.5">
-          <h3 className="text-[16px] font-semibold text-ink">{title}</h3>
+          <h3 className="text-[17px] font-semibold text-ink">{title}</h3>
           <span
             className={cn(
-              "rounded-full px-2.5 py-0.5 text-[12px] font-semibold uppercase tracking-[0.08em]",
+              "rounded-full px-2.5 py-0.5 text-[13px] font-semibold uppercase tracking-[0.08em]",
               severityTagClass(tagSeverity),
             )}
           >
@@ -144,7 +144,7 @@ function WorklistBalloon({
       type="button"
       onClick={() => onTap(item)}
       className={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-[18px_18px_18px_6px] border border-line bg-surface px-3.5 py-2 text-[15px] shadow-card transition-[transform,box-shadow,opacity] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        "inline-flex max-w-full items-center gap-1 rounded-[18px_18px_18px_6px] border border-line bg-surface px-3.5 py-2.5 text-[16px] shadow-card transition-[transform,box-shadow,opacity] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         popping && "animate-bubble-pop pointer-events-none",
       )}
     >
@@ -174,21 +174,17 @@ function LinkedBubbleGroup({
   linkedTag?: string
 }) {
   if (items.length === 0) {
-    return (
-      <div className="flex min-h-[72px] items-center py-4">
-        <p className="text-[14px] text-muted">Nothing here right now.</p>
-      </div>
-    )
+    return null
   }
 
   return (
-    <div className={cn("py-4 short:py-3", items.length > 0 && "min-[1000px]:border-l-2 min-[1000px]:border-alert/25 min-[1000px]:pl-4")}>
-      <div className="mb-2.5 flex flex-wrap items-center gap-2">
-        <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">
+    <div className={cn("py-4 short:py-3 min-[1000px]:border-l-2 min-[1000px]:border-alert/25 min-[1000px]:pl-4")}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <p className="text-[16px] font-semibold uppercase tracking-[0.08em] text-ink">
           {WORKLIST_GROUP_LABELS[domain]}
         </p>
         {linkedTag && (
-          <span className="rounded-full bg-alert-soft px-2 py-0.5 text-[12px] font-semibold tabular-nums text-alert">
+          <span className="rounded-full bg-alert-soft px-2.5 py-0.5 text-[13px] font-semibold tabular-nums text-alert">
             {linkedTag}
           </span>
         )}
@@ -226,7 +222,6 @@ export function OwnerPracticeGrid({
   clientIds,
   includeCaseloadStaff,
   worklistItems,
-  worklistLoading,
   className,
 }: {
   refreshKey?: number
@@ -234,7 +229,7 @@ export function OwnerPracticeGrid({
   clientIds?: string[]
   includeCaseloadStaff?: boolean
   worklistItems: OwnerWorklistItem[]
-  worklistLoading: boolean
+  worklistLoading?: boolean
   className?: string
 }) {
   const navigate = useNavigate()
@@ -430,20 +425,11 @@ export function OwnerPracticeGrid({
       aria-label="Practice overview and action items"
     >
       <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
-        <div className="grid grid-cols-1 min-[1000px]:grid-cols-[1.55fr_1fr] min-[1000px]:gap-x-6">
-          <h2 className="mb-2 text-[13px] font-semibold uppercase tracking-[0.10em] text-muted min-[1000px]:mb-3">
+        <div className="grid grid-cols-1 min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:gap-x-8">
+          <h2 className="mb-2 text-[14px] font-semibold uppercase tracking-[0.10em] text-muted min-[1000px]:mb-3">
             Your practice today
           </h2>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 min-[1000px]:mb-3 min-[1000px]:justify-end">
-            <h2 className="text-[13px] font-semibold uppercase tracking-[0.10em] text-muted">
-              Needs you
-            </h2>
-            {!worklistLoading && visibleWorklist.length > 0 && (
-              <span className="rounded-full bg-alert-soft px-3 py-1 text-[13px] font-semibold tabular-nums text-alert">
-                {visibleWorklist.length} in all
-              </span>
-            )}
-          </div>
+          <div className="hidden min-[1000px]:block" aria-hidden />
 
           {DOMAIN_ORDER.map((domain, index) => {
             const row = domainRows[domain]
@@ -483,12 +469,6 @@ export function OwnerPracticeGrid({
           })}
         </div>
       </div>
-
-      {!worklistLoading && visibleWorklist.length > 0 && (
-        <p className="mt-2 shrink-0 text-right text-[13px] text-muted">
-          Tap a name to open their detail.
-        </p>
-      )}
     </section>
   )
 }

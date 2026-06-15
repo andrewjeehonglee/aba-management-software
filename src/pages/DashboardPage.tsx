@@ -381,7 +381,7 @@ export function DashboardPage({
           <main className="flex min-h-0 min-w-0 flex-col overflow-hidden px-5 py-6 short:py-5 min-[1000px]:px-[52px] min-[1000px]:py-8">
             <div className="mx-auto flex h-full w-full max-w-[1400px] min-h-0 flex-col">
               <div className="mb-5 flex shrink-0 items-center justify-between gap-4 short:mb-4">
-                <p className="text-[13px] font-semibold uppercase tracking-[0.10em] text-muted">
+                <p className="text-[15px] font-semibold uppercase tracking-[0.10em] text-muted">
                   {formatEyebrowDate()}
                 </p>
                 {role === "Owner" && (
