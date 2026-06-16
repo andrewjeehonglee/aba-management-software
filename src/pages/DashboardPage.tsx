@@ -238,14 +238,24 @@ export function DashboardPage({
         return
       }
 
+      if (viewRole === "Supervisor") {
+        const options = await getRosterStaffByRole(practiceId!, "supervisor")
+        setPreviewOptions(options)
+        const preferred = options.find((s) => s.fullName === preferredName)
+        setPreviewStaffId((prev) => {
+          if (prev && options.some((s) => s.id === prev)) return prev
+          return preferred?.id ?? options[0]?.id ?? null
+        })
+        return
+      }
+
       if (anchorBcbaId) {
-        const caseloadRole = viewRole === "Supervisor" ? "supervisor" : "technician"
-        const staff = await getCaseloadStaffForBcba(practiceId!, anchorBcbaId, caseloadRole)
+        const staff = await getCaseloadStaffForBcba(practiceId!, anchorBcbaId, "technician")
         const options: RosterStaffEntry[] = staff.map((s) => ({
           id: s.staffId,
           fullName: s.fullName,
           externalCode: s.externalCode,
-          role: caseloadRole,
+          role: "technician",
         }))
         setPreviewOptions(options)
         const preferred = options.find((s) => s.fullName === preferredName)
