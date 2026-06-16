@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { getAuthUtilizationByMonth } from "@/lib/authUtilization"
+import { BCBA_AUTH_MONITOR_THRESHOLD, type BcbaTileState } from "@/lib/bcbaTileState"
 import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
@@ -7,6 +8,7 @@ import { firstName } from "@/lib/ownerDashboardStatus"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 import { getSupervisionForStaffIds, supabase } from "@/lib/supabase"
 import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
+import type { AttentionBubbleTone } from "@/components/dashboard/AttentionBubble"
 import {
   BcbaDashboardTile,
   BcbaDashboardTileError,
@@ -25,6 +27,27 @@ function shortClientLabel(name: string): string {
       .slice(0, 4)
   }
   return trimmed.length <= 5 ? trimmed : trimmed.slice(0, 4)
+}
+
+function payPeriodBlock(label: string) {
+  if (!label) {
+    return (
+      <>
+        <span className="block">Pay period</span>
+        <span className="block">—</span>
+      </>
+    )
+  }
+  return (
+    <>
+      <span className="block">Pay period</span>
+      <span className="block">{label}</span>
+    </>
+  )
+}
+
+function monthBlock(label: string) {
+  return <span className="block">{label || "—"}</span>
 }
 
 export function BcbaDashboardTiles({
@@ -160,42 +183,63 @@ export function BcbaDashboardTiles({
 
   const notesPeriod = notes?.payPeriodLabel ?? ""
   const overdueTotal = notes?.totalOverdue ?? 0
+  const missingTotal = notes?.totalMissing ?? 0
   const pctDocumented = notes?.totalCompleted ? (notes?.pctDocumented ?? 0) : null
-  const notesFlagged = (notes?.byStaff ?? []).filter((s) => s.overdueCount > 0)
-  const notesBubbles: BcbaBubbleItem[] = notesFlagged.map((row) => ({
-    id: row.staffId,
-    name: firstName(row.staffName),
-    value: String(row.overdueCount),
-    tone: "amber",
-    href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
-  }))
+
+  let notesState: BcbaTileState = "healthy"
+  if (overdueTotal > 0) notesState = "urgent"
+  else if (missingTotal > 0) notesState = "monitor"
+
+  const notesPopover: BcbaBubbleItem[] = (notes?.byStaff ?? [])
+    .filter((row) => row.overdueCount > 0 || row.missingCount > 0)
+    .map((row) => ({
+      id: row.staffId,
+      name: firstName(row.staffName),
+      value: row.overdueCount > 0 ? String(row.overdueCount) : String(row.missingCount),
+      tone: (row.overdueCount > 0 ? "urgent" : "monitor") as AttentionBubbleTone,
+      href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
+    }))
 
   const hoursMonth = hours?.monthLabel ?? ""
   const hoursFlagged = (hours?.byStaff ?? []).filter((r) => r.flagged)
-  const hoursBubbles: BcbaBubbleItem[] = hoursFlagged.map((row) => ({
+  const hoursState: BcbaTileState = hoursFlagged.length > 0 ? "urgent" : "healthy"
+  const hoursPopover: BcbaBubbleItem[] = hoursFlagged.map((row) => ({
     id: row.staffId,
     name: firstName(row.staffName),
     value: `${Math.round(row.directPct * 100)}%`,
-    tone: "limit",
+    tone: "urgent",
     href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
   }))
 
   const supervisionFlagged = supervision.filter((r) => r.supervisionPct < SUPERVISION_THRESHOLD)
-  const supervisionBubbles: BcbaBubbleItem[] = supervisionFlagged.map((row) => ({
+  const supervisionState: BcbaTileState =
+    supervisionFlagged.length > 0 ? "urgent" : "healthy"
+  const supervisionPopover: BcbaBubbleItem[] = supervisionFlagged.map((row) => ({
     id: row.staffId,
     name: firstName(row.staffName),
     value: `${row.supervisionPct.toFixed(1)}%`,
-    tone: "limit",
+    tone: "urgent",
     href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
   }))
 
   const authMonth = auth?.monthLabel ?? ""
-  const authOver = (auth?.byClient ?? []).filter((r) => r.overAuthorized)
-  const authBubbles: BcbaBubbleItem[] = authOver.map((row) => ({
+  const authAttention = (auth?.byClient ?? []).filter(
+    (row) => row.utilizationPct >= BCBA_AUTH_MONITOR_THRESHOLD,
+  )
+  const authHasUrgent = authAttention.some((row) => row.utilizationPct > 100)
+  const authHasMonitor = authAttention.some(
+    (row) =>
+      row.utilizationPct >= BCBA_AUTH_MONITOR_THRESHOLD && row.utilizationPct <= 100,
+  )
+  let authState: BcbaTileState = "healthy"
+  if (authHasUrgent) authState = "urgent"
+  else if (authHasMonitor) authState = "monitor"
+
+  const authPopover: BcbaBubbleItem[] = authAttention.map((row) => ({
     id: row.authId,
     name: shortClientLabel(row.clientName),
-    value: `${row.overHours} hrs over`,
-    tone: "limit",
+    value: `${row.utilizationPct}%`,
+    tone: row.utilizationPct > 100 ? "urgent" : "monitor",
     href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
   }))
 
@@ -204,54 +248,39 @@ export function BcbaDashboardTiles({
       <BcbaDashboardTile
         id="notes-overdue"
         title="Session notes"
-        tag={overdueTotal > 0 ? `${overdueTotal} overdue` : "healthy"}
-        tagSeverity={overdueTotal > 0 ? "warn" : "ok"}
-        period={notesPeriod ? `Pay period · ${notesPeriod}` : "This pay period"}
+        state={notesState}
+        period={payPeriodBlock(notesPeriod)}
         metric={pctDocumented === null ? "—" : `${pctDocumented}%`}
         unit="documented"
-        metricSeverity={overdueTotal > 0 ? "warn" : "ok"}
-        calmLine="All documented"
-        bubbles={notesBubbles}
+        popoverItems={notesPopover}
+        popoverEmptyLabel="All documented"
       />
       <BcbaDashboardTile
         id="hours-by-staff"
         title="Staff hours"
-        tag={hoursFlagged.length > 0 ? `${hoursFlagged.length} below direct` : "healthy"}
-        tagSeverity={hoursFlagged.length > 0 ? "flag" : "ok"}
-        period={hoursMonth ? `Month · ${hoursMonth}` : "This month"}
+        state={hoursState}
+        period={monthBlock(hoursMonth)}
         metric={hoursFlagged.length}
         unit="below 50% direct"
-        metricSeverity={hoursFlagged.length > 0 ? "flag" : "ok"}
-        calmLine="All caught up"
-        bubbles={hoursBubbles}
+        popoverItems={hoursPopover}
       />
       <BcbaDashboardTile
         id="supervision-compliance"
         title="Supervision compliance"
-        tag={
-          supervisionFlagged.length > 0
-            ? `${supervisionFlagged.length} below threshold`
-            : "healthy"
-        }
-        tagSeverity={supervisionFlagged.length > 0 ? "flag" : "ok"}
-        period={supervisionMonthLabel ? `Month · ${supervisionMonthLabel}` : "This month"}
+        state={supervisionState}
+        period={monthBlock(supervisionMonthLabel)}
         metric={supervisionFlagged.length}
         unit={`below ${SUPERVISION_THRESHOLD}% supervision`}
-        metricSeverity={supervisionFlagged.length > 0 ? "flag" : "ok"}
-        calmLine="All caught up"
-        bubbles={supervisionBubbles}
+        popoverItems={supervisionPopover}
       />
       <BcbaDashboardTile
         id="auth-utilization"
         title="Authorization utilization"
-        tag={authOver.length > 0 ? `${authOver.length} over limit` : "healthy"}
-        tagSeverity={authOver.length > 0 ? "flag" : "ok"}
-        period={authMonth ? `Month · ${authMonth}` : "This month"}
-        metric={authOver.length}
-        unit="over authorized limit"
-        metricSeverity={authOver.length > 0 ? "flag" : "ok"}
-        calmLine="All caught up"
-        bubbles={authBubbles}
+        state={authState}
+        period={monthBlock(authMonth)}
+        metric={authAttention.length}
+        unit="need attention"
+        popoverItems={authPopover}
       />
     </>
   )

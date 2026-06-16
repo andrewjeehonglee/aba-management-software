@@ -1,24 +1,24 @@
 import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
 
-export type AttentionBubbleTone = "ok" | "amber" | "limit"
+export type AttentionBubbleTone = "healthy" | "monitor" | "urgent"
 
 const DOT: Record<AttentionBubbleTone, string> = {
-  ok: "bg-brand",
-  amber: "bg-alert",
-  limit: "bg-limit",
+  healthy: "bg-[#4F6B59]",
+  monitor: "bg-[#C99A3B]",
+  urgent: "bg-[#B0492F]",
 }
 
 const VALUE: Record<AttentionBubbleTone, string> = {
-  ok: "text-ink",
-  amber: "text-alert",
-  limit: "text-limit",
+  healthy: "text-[#4F6B59]",
+  monitor: "text-[#C99A3B]",
+  urgent: "text-[#B0492F]",
 }
 
 export function AttentionBubble({
   name,
   value,
-  tone = "amber",
+  tone = "monitor",
   href,
   onClick,
   popping,

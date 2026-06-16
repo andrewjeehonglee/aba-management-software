@@ -164,8 +164,11 @@ export function SessionCalendar({
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(anchorDate, i))
 
+  const compactSummaryHeader = embedded && monthOnly && summaryMonthCells
+
   const controls = (
     <>
+      {!compactSummaryHeader && (
       <div className={`flex items-center justify-between gap-2 ${embedded ? "" : "mt-0"}`}>
         {!embedded && <CardTitle>Session Calendar</CardTitle>}
         {embedded && !monthOnly && (
@@ -191,7 +194,13 @@ export function SessionCalendar({
           </div>
         )}
       </div>
-      <div className="flex items-center justify-between gap-2 mt-1">
+      )}
+      <div
+        className={cn(
+          "flex items-center justify-between gap-2",
+          compactSummaryHeader ? "mb-2" : "mt-1",
+        )}
+      >
         <button
           onClick={() => navigate(-1)}
           aria-label={view === "week" ? "Previous week" : "Previous month"}
@@ -199,7 +208,12 @@ export function SessionCalendar({
         >
           <ChevronLeft className="size-4" aria-hidden="true" />
         </button>
-        <span className={`font-medium text-center ${inlineDayContent ? "text-base font-semibold" : "text-sm"}`}>
+        <span
+          className={cn(
+            "text-center font-semibold text-ink",
+            compactSummaryHeader ? "text-base" : inlineDayContent ? "text-base" : "text-sm",
+          )}
+        >
           {view === "week" ? formatWeekRange(anchorDate) : formatMonthYear(anchorDate)}
         </span>
         <button
@@ -243,11 +257,9 @@ export function SessionCalendar({
 
   if (embedded) {
     return (
-      <div className={cn(className, summaryMonthCells && "flex min-h-0 flex-1 flex-col")}>
+      <div className={cn(className, summaryMonthCells && "flex flex-col")}>
         {controls}
-        <div className={cn("mt-3", summaryMonthCells && "flex min-h-0 flex-1 flex-col")}>
-          {body}
-        </div>
+        <div className={cn(compactSummaryHeader ? "mt-0" : "mt-3")}>{body}</div>
       </div>
     )
   }
@@ -592,9 +604,9 @@ function MonthView({
     : null
 
   return (
-    <div className={summaryMonthCells ? "flex min-h-0 flex-1 flex-col" : undefined}>
+    <div>
       {/* Day-of-week header row */}
-      <div className="mb-1.5 grid grid-cols-7">
+      <div className="mb-2 grid grid-cols-7">
         {DOW_LABELS.map((d) => (
           <div
             key={d}
@@ -607,16 +619,12 @@ function MonthView({
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className={summaryMonthCells ? "flex min-h-0 flex-1 flex-col gap-1" : "space-y-0.5"}>
+      {/* Calendar grid — natural height so all week-rows render (no flex clip) */}
+      <div className={summaryMonthCells ? "space-y-1.5" : "space-y-0.5"}>
         {grid.map((week, wi) => (
           <div
             key={wi}
-            className={
-              summaryMonthCells
-                ? "grid min-h-[5.25rem] flex-1 grid-cols-7 gap-1 sm:min-h-[5.75rem]"
-                : "grid grid-cols-7 gap-0.5"
-            }
+            className={summaryMonthCells ? "grid grid-cols-7 gap-1.5" : "grid grid-cols-7 gap-0.5"}
           >
             {week.map((day, di) => {
               if (!day) {
@@ -625,7 +633,7 @@ function MonthView({
                     key={di}
                     className={
                       summaryMonthCells
-                        ? "min-h-[5.25rem] sm:min-h-[5.75rem]"
+                        ? "min-h-[7rem]"
                         : inlineDayContent
                           ? "h-32"
                           : "h-9"
@@ -656,14 +664,14 @@ function MonthView({
                     disabled={!hasData}
                     aria-label={`${day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${count} session${count !== 1 ? "s" : ""}`}
                     className={`
-                      flex min-h-[5.25rem] flex-col rounded-lg border border-line/80 p-1.5 text-left transition-colors sm:min-h-[5.75rem]
+                      flex min-h-[7rem] flex-col rounded-lg border border-line/80 p-2 text-left transition-colors
                       ${isExpanded ? "bg-surface-2 ring-1 ring-line" : ""}
                       ${isToday ? "border-brand ring-1 ring-brand/25" : ""}
                       ${hasData ? "cursor-pointer hover:bg-surface-2/90" : "cursor-default"}
                     `}
                   >
                     <span
-                      className={`text-xl font-bold tabular-nums leading-none sm:text-[1.35rem] ${
+                      className={`text-2xl font-bold tabular-nums leading-none ${
                         isToday ? "text-brand" : "text-ink"
                       }`}
                     >
@@ -672,31 +680,29 @@ function MonthView({
                     {hasData ? (
                       <>
                         <p
-                          className={`mt-1 text-[11px] font-semibold tabular-nums leading-tight ${
-                            summaryStatus === "attention" ? "text-alert" : "text-brand"
+                          className={`mt-1.5 text-xs font-semibold tabular-nums leading-tight ${
+                            summaryStatus === "attention" ? "text-[#C99A3B]" : "text-[#4F6B59]"
                           }`}
                         >
                           {count} session{count !== 1 ? "s" : ""}
                         </p>
-                        <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                        <div className="mt-1.5 flex flex-col gap-1">
                           {topSessions.map((s) => (
                             <span
                               key={s.id}
-                              className="truncate rounded-md bg-surface-2 px-1 py-0.5 text-[10px] font-medium tabular-nums text-ink-soft"
+                              className="truncate rounded-md bg-surface-2 px-1.5 py-1 text-[13px] font-medium tabular-nums text-ink-soft"
                             >
                               {shortSessionChipLabel(s, displayMode)} · {formatTime(s.time)}
                             </span>
                           ))}
                           {remaining > 0 && (
-                            <span className="text-[10px] font-medium text-muted">
+                            <span className="text-xs font-medium text-muted">
                               +{remaining} more
                             </span>
                           )}
                         </div>
                       </>
-                    ) : (
-                      <div className="flex-1" aria-hidden />
-                    )}
+                    ) : null}
                   </button>
                 )
               }

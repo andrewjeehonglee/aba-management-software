@@ -431,50 +431,47 @@ export function DashboardPage({
             practiceName={practiceName}
           />
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 min-[1000px]:px-[52px] min-[1000px]:py-6">
-            <div className="mx-auto flex min-h-full w-full max-w-[min(100%,1680px)] flex-1 flex-col gap-4">
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
+            <div className="mx-auto w-full max-w-[min(100%,1680px)] flex flex-col gap-4 pb-2">
+              <div className="flex shrink-0 flex-wrap items-start justify-between gap-4">
                 <p className="text-[15px] font-semibold tracking-[0.04em] text-muted">
                   {formatBcbaEyebrowDate()}
                 </p>
-                {isDemo && role === "Owner" ? (
-                  <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
-                ) : role !== "Owner" ? (
-                  <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-muted">
-                    {role}
-                  </span>
-                ) : null}
+                <div className="flex flex-col items-end gap-2">
+                  {isDemo && role === "Owner" ? (
+                    <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
+                  ) : role !== "Owner" ? (
+                    <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-muted">
+                      {role}
+                    </span>
+                  ) : null}
+                  {isOwnerPreview && previewOptions.length > 0 && (
+                    <Select
+                      value={previewStaffId ?? undefined}
+                      onValueChange={(v) => setPreviewStaffId(v ?? null)}
+                    >
+                      <SelectTrigger className="h-8 w-[180px] text-xs">
+                        <SelectValue placeholder="Select BCBA">
+                          {selectedPreviewStaff?.fullName ?? "Select BCBA"}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {previewOptions.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.fullName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
               </div>
 
               <p className="shrink-0 text-[21px] font-normal text-ink-soft">
                 {timeGreeting()}, {firstName(bcbaPersonaName)}.
               </p>
 
-              {isOwnerPreview && previewOptions.length > 0 && (
-                <div className="flex shrink-0 flex-wrap items-center gap-2 text-sm">
-                  <span className="text-muted">View as BCBA:</span>
-                  <Select
-                    value={previewStaffId ?? undefined}
-                    onValueChange={(v) => setPreviewStaffId(v ?? null)}
-                  >
-                    <SelectTrigger className="h-8 w-[180px] text-xs">
-                      <SelectValue placeholder="Select BCBA">
-                        {selectedPreviewStaff?.fullName ?? "Select BCBA"}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {previewOptions.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.fullName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
               <DashboardCalendarTile
                 variant="v3"
-                className="min-h-0 flex-1"
                 viewRole="BCBA"
                 isOwnerPreview={isOwnerPreview}
                 currentStaffId={isOwnerPreview ? effectiveStaffId : (currentStaffId ?? null)}
