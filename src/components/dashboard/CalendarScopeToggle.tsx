@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils"
 
 export type CalendarSessionScope = "self" | "team"
 
-const OPTIONS: { value: CalendarSessionScope; label: string }[] = [
+const DEFAULT_OPTIONS: { value: CalendarSessionScope; label: string }[] = [
   { value: "self", label: "My sessions" },
   { value: "team", label: "My team" },
 ]
@@ -11,13 +11,22 @@ export function CalendarScopeToggle({
   scope,
   onScopeChange,
   className,
+  scopeLabels,
   "aria-label": ariaLabel = "Whose sessions to show",
 }: {
   scope: CalendarSessionScope
   onScopeChange: (scope: CalendarSessionScope) => void
   className?: string
+  scopeLabels?: { self: string; team: string }
   "aria-label"?: string
 }) {
+  const options = scopeLabels
+    ? [
+        { value: "self" as const, label: scopeLabels.self },
+        { value: "team" as const, label: scopeLabels.team },
+      ]
+    : DEFAULT_OPTIONS
+
   return (
     <div
       className={cn(
@@ -27,7 +36,7 @@ export function CalendarScopeToggle({
       role="tablist"
       aria-label={ariaLabel}
     >
-      {OPTIONS.map(({ value, label }) => {
+      {options.map(({ value, label }) => {
         const active = scope === value
         return (
           <button

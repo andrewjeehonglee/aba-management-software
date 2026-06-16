@@ -13,10 +13,8 @@ import { OwnerNavRail } from "@/components/dashboard/OwnerNavRail"
 import { OwnerPracticeGrid } from "@/components/dashboard/OwnerPracticeGrid"
 import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
 import { supabase } from "@/lib/supabase"
-import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
 import { BcbaDashboardTiles } from "@/components/dashboard/BcbaDashboardTiles"
-import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { MyHoursTile } from "@/components/MyHoursTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
@@ -99,7 +97,8 @@ export function DashboardPage({
   const [searchParams, setSearchParams] = useSearchParams()
   const isOwnerView = viewRole === "Owner"
   const isBcbaDashboard = viewRole === "BCBA"
-  const isBcbaOrSupervisor = viewRole === "BCBA" || viewRole === "Supervisor"
+  const isSupervisorDashboard = viewRole === "Supervisor"
+  const isLeadV3Dashboard = isBcbaDashboard || isSupervisorDashboard
   const isTechnician = viewRole === "Technician"
   const isOwnerPreview = role === "Owner" && !isOwnerView
 
@@ -371,20 +370,33 @@ export function DashboardPage({
     viewRole === "BCBA" ? "BCBA" : viewRole === "Supervisor" ? "Supervisor" : "Technician"
 
   const ownerPersonaName = resolveOwnerDisplayName(userRole, ownerDisplayName)
-  const bcbaPersonaName =
+  const leadPersonaName =
     (isOwnerPreview ? selectedPreviewStaff?.fullName : null) ||
     staffDisplayName ||
-    PREVIEW_DEFAULTS.BCBA
+    PREVIEW_DEFAULTS[viewRole as CalendarRole]
   const bcbaNotesStaffIds =
     effectiveStaffId != null
       ? [...new Set([effectiveStaffId, ...scopeTeamStaffIds])]
       : []
+  const supervisorNotesStaffIds =
+    effectiveStaffId != null
+      ? [...new Set([effectiveStaffId, ...scopeSuperviseeIds])]
+      : scopeSuperviseeIds
+  const leadNotesStaffIds = isSupervisorDashboard
+    ? supervisorNotesStaffIds
+    : bcbaNotesStaffIds
+  const leadHoursStaffIds = isSupervisorDashboard ? scopeSuperviseeIds : scopeTeamStaffIds
+  const leadCalendarRole = viewRole as CalendarRole
+  const leadCalendarScopeLabels = isSupervisorDashboard
+    ? { self: "My schedule", team: "Include supervisees" }
+    : { self: "My sessions", team: "My team" }
+  const leadPreviewPlaceholder = isSupervisorDashboard ? "Select Supervisor" : "Select BCBA"
 
   return (
     <div
       className={cn(
         "bg-bg text-foreground",
-        isOwnerView || isBcbaDashboard
+        isOwnerView || isLeadV3Dashboard
           ? "grid h-dvh overflow-hidden min-[1000px]:grid-cols-[236px_1fr] max-[999px]:grid-rows-[auto_1fr]"
           : "flex min-h-svh flex-col",
       )}
@@ -424,10 +436,10 @@ export function DashboardPage({
             </div>
           </main>
         </>
-      ) : isBcbaDashboard ? (
+      ) : isLeadV3Dashboard ? (
         <>
           <OwnerNavRail
-            ownerName={bcbaPersonaName}
+            ownerName={leadPersonaName}
             practiceName={practiceName}
           />
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-6 min-[1000px]:px-[52px] min-[1000px]:py-5">
@@ -438,7 +450,7 @@ export function DashboardPage({
                     {formatBcbaEyebrowDate()}
                   </p>
                   <p className="text-[21px] font-normal leading-tight text-ink-soft">
-                    {timeGreeting()}, {firstName(bcbaPersonaName)}.
+                    {timeGreeting()}, {firstName(leadPersonaName)}.
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
@@ -455,8 +467,8 @@ export function DashboardPage({
                       onValueChange={(v) => setPreviewStaffId(v ?? null)}
                     >
                       <SelectTrigger className="h-8 w-[180px] text-xs">
-                        <SelectValue placeholder="Select BCBA">
-                          {selectedPreviewStaff?.fullName ?? "Select BCBA"}
+                        <SelectValue placeholder={leadPreviewPlaceholder}>
+                          {selectedPreviewStaff?.fullName ?? leadPreviewPlaceholder}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -472,27 +484,29 @@ export function DashboardPage({
               </div>
 
               <DashboardCalendarTile
-                key={effectiveStaffId ?? "bcba-calendar"}
+                key={`${leadCalendarRole}-${effectiveStaffId ?? "lead-calendar"}`}
                 variant="v3"
-                viewRole="BCBA"
+                viewRole={leadCalendarRole}
                 isOwnerPreview={isOwnerPreview}
                 currentStaffId={isOwnerPreview ? effectiveStaffId : (currentStaffId ?? null)}
                 previewStaffId={isOwnerPreview ? effectiveStaffId : null}
-                staffDisplayName={bcbaPersonaName}
+                staffDisplayName={leadPersonaName}
                 practiceId={practiceId}
+                scopeLabels={leadCalendarScopeLabels}
               />
 
               {!scopeLoading && effectiveStaffId && (
                 <div className="grid shrink-0 gap-4 lg:grid-cols-4">
                   <BcbaDashboardTiles
                     key={effectiveStaffId}
+                    audience={isSupervisorDashboard ? "supervisor" : "bcba"}
                     refreshKey={notesRefreshKey + staffRefreshKey}
-                    notesStaffIds={bcbaNotesStaffIds}
-                    hoursStaffIds={scopeTeamStaffIds}
+                    notesStaffIds={leadNotesStaffIds}
+                    hoursStaffIds={leadHoursStaffIds}
                     superviseeStaffIds={scopeSuperviseeIds}
                     clientIds={scopeClientIds}
-                    includeZeroHourStaff
-                    includeCaseloadStaff
+                    includeZeroHourStaff={!isSupervisorDashboard}
+                    includeCaseloadStaff={!isSupervisorDashboard}
                   />
                 </div>
               )}
@@ -542,25 +556,6 @@ export function DashboardPage({
             staffDisplayName={staffDisplayName}
             practiceId={practiceId}
           />
-
-          {!scopeLoading && effectiveStaffId && isBcbaOrSupervisor && viewRole === "Supervisor" && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <NotesOverdueTile
-                refreshKey={notesRefreshKey}
-                staffIds={scopeSuperviseeIds}
-                clientIds={scopeClientIds}
-              />
-              <HoursByStaffTile
-                refreshKey={staffRefreshKey}
-                staffIds={scopeSuperviseeIds}
-                clientIds={scopeClientIds}
-              />
-              <AuthorizationUtilizationTile clientIds={scopeClientIds} />
-              <SupervisionComplianceTile
-                staffIds={scopeSuperviseeIds}
-              />
-            </div>
-          )}
 
           {!scopeLoading && effectiveStaffId && isTechnician && (
             <div className="grid gap-4 lg:grid-cols-3">

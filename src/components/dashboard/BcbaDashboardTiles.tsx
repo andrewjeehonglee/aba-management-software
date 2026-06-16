@@ -51,6 +51,7 @@ function monthBlock(label: string) {
 }
 
 export function BcbaDashboardTiles({
+  audience = "bcba",
   refreshKey,
   notesStaffIds,
   hoursStaffIds,
@@ -59,6 +60,7 @@ export function BcbaDashboardTiles({
   includeZeroHourStaff,
   includeCaseloadStaff,
 }: {
+  audience?: "bcba" | "supervisor"
   refreshKey?: number
   notesStaffIds: string[]
   hoursStaffIds: string[]
@@ -242,6 +244,10 @@ export function BcbaDashboardTiles({
     href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
   }))
 
+  const hoursUnit =
+    audience === "supervisor" ? "supervisees below 50% direct" : "staff below 50% direct"
+  const supervisionUnit = audience === "supervisor" ? "supervisees" : "staff"
+
   return (
     <>
       <BcbaDashboardTile
@@ -260,7 +266,7 @@ export function BcbaDashboardTiles({
         state={hoursState}
         period={monthBlock(hoursMonth)}
         metric={hoursFlagged.length}
-        unit="staff below 50% direct"
+        unit={hoursUnit}
         popoverItems={hoursPopover}
       />
       <BcbaDashboardTile
@@ -269,7 +275,7 @@ export function BcbaDashboardTiles({
         state={supervisionState}
         period={monthBlock(supervisionMonthLabel)}
         metric={supervisionFlagged.length}
-        unit="staff"
+        unit={supervisionUnit}
         popoverItems={supervisionPopover}
       />
       <BcbaDashboardTile

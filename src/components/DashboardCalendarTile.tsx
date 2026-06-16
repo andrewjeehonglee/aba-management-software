@@ -28,6 +28,7 @@ interface DashboardCalendarTileProps {
   className?: string
   /** v3 = owner warm-premium chrome; default = legacy card */
   variant?: "default" | "v3"
+  scopeLabels?: { self: string; team: string }
 }
 
 export function DashboardCalendarTile({
@@ -39,6 +40,7 @@ export function DashboardCalendarTile({
   practiceId,
   className,
   variant = "default",
+  scopeLabels,
 }: DashboardCalendarTileProps) {
   const isV3 = variant === "v3"
   const showScopeToggle = viewRole === "BCBA" || viewRole === "Supervisor"
@@ -150,7 +152,11 @@ export function DashboardCalendarTile({
             Monthly calendar
           </h2>
           {showScopeToggle && (
-            <CalendarScopeToggle scope={scope} onScopeChange={setScope} />
+            <CalendarScopeToggle
+              scope={scope}
+              onScopeChange={setScope}
+              scopeLabels={scopeLabels}
+            />
           )}
         </div>
         {calendarBody}
@@ -172,6 +178,7 @@ export function DashboardCalendarTile({
             <CalendarScopeToggle
               scope={scope}
               onScopeChange={setScope}
+              scopeLabels={scopeLabels}
               aria-label="Schedule scope"
             />
           </div>
