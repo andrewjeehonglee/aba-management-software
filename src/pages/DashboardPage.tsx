@@ -14,11 +14,11 @@ import { OwnerPracticeGrid } from "@/components/dashboard/OwnerPracticeGrid"
 import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
-import { BcbaCaseloadPanel } from "@/components/BcbaCaseloadPanel"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { MyHoursTile } from "@/components/MyHoursTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
+import { StaffHoursComplianceTile } from "@/components/StaffHoursComplianceTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import {
   getStaffFullName,
@@ -35,8 +35,10 @@ import {
 import { getCaseloadStaffForBcba } from "@/lib/rosterTable"
 import { setRolePreview } from "@/lib/rolePreview"
 import {
+  firstName,
   getOwnerAttentionSummary,
   resolveOwnerDisplayName,
+  timeGreeting,
   type OwnerAttentionSummary,
 } from "@/lib/ownerDashboardStatus"
 import { cn } from "@/lib/utils"
@@ -66,6 +68,12 @@ function formatEyebrowDate(date: Date = new Date()): string {
   return `${weekday.toUpperCase()} · ${monthDay.toUpperCase()}`
 }
 
+function formatBcbaEyebrowDate(date: Date = new Date()): string {
+  const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date)
+  const monthDay = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" }).format(date)
+  return `${weekday} · ${monthDay}`
+}
+
 export function DashboardPage({
   practiceId,
   userRole,
@@ -90,6 +98,7 @@ export function DashboardPage({
 
   const [searchParams, setSearchParams] = useSearchParams()
   const isOwnerView = viewRole === "Owner"
+  const isBcbaDashboard = viewRole === "BCBA"
   const isBcbaOrSupervisor = viewRole === "BCBA" || viewRole === "Supervisor"
   const isTechnician = viewRole === "Technician"
   const isOwnerPreview = role === "Owner" && !isOwnerView
@@ -362,12 +371,20 @@ export function DashboardPage({
     viewRole === "BCBA" ? "BCBA" : viewRole === "Supervisor" ? "Supervisor" : "Technician"
 
   const ownerPersonaName = resolveOwnerDisplayName(userRole, ownerDisplayName)
+  const bcbaPersonaName =
+    (isOwnerPreview ? selectedPreviewStaff?.fullName : null) ||
+    staffDisplayName ||
+    PREVIEW_DEFAULTS.BCBA
+  const bcbaNotesStaffIds =
+    effectiveStaffId != null
+      ? [...new Set([effectiveStaffId, ...scopeTeamStaffIds])]
+      : []
 
   return (
     <div
       className={cn(
         "bg-bg text-foreground",
-        isOwnerView
+        isOwnerView || isBcbaDashboard
           ? "grid h-dvh overflow-hidden min-[1000px]:grid-cols-[236px_1fr] max-[999px]:grid-rows-[auto_1fr]"
           : "flex min-h-svh flex-col",
       )}
@@ -404,6 +421,92 @@ export function DashboardPage({
                 worklistItems={attention.worklist}
                 worklistLoading={attention.loading && !attention.resolved}
               />
+            </div>
+          </main>
+        </>
+      ) : isBcbaDashboard ? (
+        <>
+          <OwnerNavRail
+            ownerName={bcbaPersonaName}
+            practiceName={practiceName}
+          />
+          <main className="flex min-h-0 min-w-0 flex-col overflow-y-auto px-4 py-6 sm:px-6 min-[1000px]:px-[52px] min-[1000px]:py-8">
+            <div className="mx-auto w-full max-w-[min(100%,1680px)] space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <p className="text-[15px] font-semibold tracking-[0.04em] text-muted">
+                  {formatBcbaEyebrowDate()}
+                </p>
+                {isDemo && role === "Owner" ? (
+                  <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
+                ) : role !== "Owner" ? (
+                  <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-muted">
+                    {role}
+                  </span>
+                ) : null}
+              </div>
+
+              <p className="text-[21px] font-normal text-ink-soft">
+                {timeGreeting()}, {firstName(bcbaPersonaName)}.
+              </p>
+
+              {isOwnerPreview && previewOptions.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted">View as BCBA:</span>
+                  <Select
+                    value={previewStaffId ?? undefined}
+                    onValueChange={(v) => setPreviewStaffId(v ?? null)}
+                  >
+                    <SelectTrigger className="h-8 w-[180px] text-xs">
+                      <SelectValue placeholder="Select BCBA">
+                        {selectedPreviewStaff?.fullName ?? "Select BCBA"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {previewOptions.map((member) => (
+                        <SelectItem key={member.id} value={member.id}>
+                          {member.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <DashboardCalendarTile
+                variant="v3"
+                viewRole="BCBA"
+                isOwnerPreview={isOwnerPreview}
+                currentStaffId={isOwnerPreview ? effectiveStaffId : (currentStaffId ?? null)}
+                previewStaffId={isOwnerPreview ? effectiveStaffId : null}
+                staffDisplayName={bcbaPersonaName}
+                practiceId={practiceId}
+              />
+
+              {!scopeLoading && effectiveStaffId && (
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <NotesOverdueTile
+                    variant="pulse"
+                    compact
+                    refreshKey={notesRefreshKey}
+                    staffIds={bcbaNotesStaffIds}
+                    clientIds={scopeClientIds}
+                    includeCaseloadStaff
+                  />
+                  <StaffHoursComplianceTile
+                    compact
+                    refreshKey={staffRefreshKey}
+                    staffIds={scopeTeamStaffIds}
+                    superviseeStaffIds={scopeSuperviseeIds}
+                    clientIds={scopeClientIds}
+                    includeZeroHourStaff
+                  />
+                  <AuthorizationUtilizationTile
+                    variant="pulse"
+                    compact
+                    clientIds={scopeClientIds}
+                  />
+                </div>
+              )}
             </div>
           </main>
         </>
@@ -451,32 +554,21 @@ export function DashboardPage({
             practiceId={practiceId}
           />
 
-          {isOwnerPreview && viewRole === "BCBA" && effectiveStaffId && practiceId && (
-            <BcbaCaseloadPanel
-              practiceId={practiceId}
-              bcbaStaffId={effectiveStaffId}
-              bcbaName={selectedPreviewStaff?.fullName ?? staffDisplayName}
-            />
-          )}
-
-          {!scopeLoading && effectiveStaffId && isBcbaOrSupervisor && (
+          {!scopeLoading && effectiveStaffId && isBcbaOrSupervisor && viewRole === "Supervisor" && (
             <div className="grid gap-4 lg:grid-cols-2">
               <NotesOverdueTile
                 refreshKey={notesRefreshKey}
-                staffIds={viewRole === "BCBA" ? scopeTeamStaffIds : scopeSuperviseeIds}
+                staffIds={scopeSuperviseeIds}
                 clientIds={scopeClientIds}
-                includeCaseloadStaff={viewRole === "BCBA"}
               />
               <HoursByStaffTile
                 refreshKey={staffRefreshKey}
-                staffIds={viewRole === "BCBA" ? scopeTeamStaffIds : scopeSuperviseeIds}
+                staffIds={scopeSuperviseeIds}
                 clientIds={scopeClientIds}
-                includeZeroHourStaff={viewRole === "BCBA"}
               />
               <AuthorizationUtilizationTile clientIds={scopeClientIds} />
               <SupervisionComplianceTile
                 staffIds={scopeSuperviseeIds}
-                includeAllCaseloadStaff={viewRole === "BCBA"}
               />
             </div>
           )}

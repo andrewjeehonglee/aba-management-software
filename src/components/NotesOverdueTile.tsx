@@ -62,13 +62,16 @@ function PulseNotesTile({
   loading,
   error,
   onRetry,
+  compact,
 }: {
   className?: string
   summary: Awaited<ReturnType<typeof getNotesStatus>> | null
   loading: boolean
   error: string | null
   onRetry: () => void
+  compact?: boolean
 }) {
+  const tileSize = compact ? "compact" : "default"
   if (loading) return <PulseTileSkeleton />
 
   const overdue = summary?.totalOverdue ?? 0
@@ -97,6 +100,7 @@ function PulseNotesTile({
         period={`This pay period · ${periodLabel}`}
         metric="—"
         unit="documented"
+        size={tileSize}
         support="No sessions logged yet this period — nothing to document or pay."
       />
     )
@@ -123,6 +127,7 @@ function PulseNotesTile({
       period={`This pay period · ${periodLabel}`}
       metric={`${pctDocumented}%`}
       unit="documented"
+      size={tileSize}
       support={support}
     />
   )
@@ -136,6 +141,7 @@ export function NotesOverdueTile({
   selfMode,
   includeCaseloadStaff,
   variant = "default",
+  compact,
 }: {
   className?: string
   teamFilter?: string
@@ -145,6 +151,7 @@ export function NotesOverdueTile({
   selfMode?: boolean
   includeCaseloadStaff?: boolean
   variant?: "default" | "pulse"
+  compact?: boolean
 }) {
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -177,6 +184,7 @@ export function NotesOverdueTile({
         loading={loading}
         error={error}
         onRetry={() => setRetryTick((k) => k + 1)}
+        compact={compact}
       />
     )
   }

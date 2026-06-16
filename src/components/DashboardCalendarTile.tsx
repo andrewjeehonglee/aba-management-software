@@ -8,6 +8,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { SessionCalendar } from "@/components/SessionCalendar"
+import {
+  CalendarScopeToggle,
+  type CalendarSessionScope,
+} from "@/components/dashboard/CalendarScopeToggle"
 import { loadDashboardCalendarSessions } from "@/lib/dashboardCalendar"
 import { cn } from "@/lib/utils"
 import type { Session } from "@/types/session"
@@ -22,6 +26,8 @@ interface DashboardCalendarTileProps {
   staffDisplayName?: string
   practiceId?: string
   className?: string
+  /** v3 = owner warm-premium chrome; default = legacy card */
+  variant?: "default" | "v3"
 }
 
 export function DashboardCalendarTile({
@@ -32,9 +38,14 @@ export function DashboardCalendarTile({
   staffDisplayName,
   practiceId,
   className,
+  variant = "default",
 }: DashboardCalendarTileProps) {
-  const showSuperviseeToggle = viewRole === "BCBA" || viewRole === "Supervisor"
-  const [includeSupervisees, setIncludeSupervisees] = useState(showSuperviseeToggle)
+  const isV3 = variant === "v3"
+  const showScopeToggle = viewRole === "BCBA" || viewRole === "Supervisor"
+  const defaultScope: CalendarSessionScope = isV3 ? "self" : "team"
+
+  const [scope, setScope] = useState<CalendarSessionScope>(defaultScope)
+  const includeSupervisees = scope === "team"
   const [monthDate, setMonthDate] = useState(() => new Date())
   const [monthLabel, setMonthLabel] = useState<string>("")
   const [sessions, setSessions] = useState<Session[]>([])
@@ -43,8 +54,8 @@ export function DashboardCalendarTile({
   const [resolvedStaff, setResolvedStaff] = useState(false)
 
   useEffect(() => {
-    setIncludeSupervisees(viewRole === "BCBA" || viewRole === "Supervisor")
-  }, [viewRole])
+    setScope(isV3 ? "self" : showScopeToggle ? "team" : "self")
+  }, [viewRole, isV3, showScopeToggle])
 
   useEffect(() => {
     setLoading(true)
@@ -62,90 +73,115 @@ export function DashboardCalendarTile({
       .then((result) => {
         setMonthLabel(result.monthLabel)
         setSessions(result.sessions)
-        setResolvedStaff(
-          isOwnerPreview || currentStaffId !== null,
-        )
+        setResolvedStaff(isOwnerPreview || currentStaffId !== null)
       })
       .catch((err) => setError(err.message ?? "Failed to load schedule"))
       .finally(() => setLoading(false))
-  }, [currentStaffId, previewStaffId, viewRole, isOwnerPreview, includeSupervisees, monthDate, practiceId])
+  }, [
+    currentStaffId,
+    previewStaffId,
+    viewRole,
+    isOwnerPreview,
+    includeSupervisees,
+    monthDate,
+    practiceId,
+  ])
 
   const needsStaffLink = !loading && !error && !isOwnerPreview && !currentStaffId
 
+  const calendarBody = (
+    <>
+      {loading && (
+        <p className={cn("text-center text-sm text-muted", isV3 ? "py-8" : "py-10")}>
+          Loading…
+        </p>
+      )}
+      {error && (
+        <p className={cn("text-center text-sm text-destructive", isV3 ? "py-8" : "py-10")}>
+          {error}
+        </p>
+      )}
+      {needsStaffLink && (
+        <div
+          className={cn(
+            "flex flex-col items-center gap-2 rounded-md border border-dashed border-line text-center",
+            isV3 ? "py-8" : "py-10",
+          )}
+        >
+          <CalendarDays className="size-8 text-brand" />
+          <p className="max-w-xs text-sm text-muted">
+            Link your staff profile to see your schedule.
+          </p>
+        </div>
+      )}
+      {!loading && !error && !needsStaffLink && resolvedStaff && sessions.length === 0 && !isV3 && (
+        <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-line py-10 text-center">
+          <CalendarDays className="size-8 text-brand" />
+          <p className="text-sm text-muted">No sessions scheduled this month.</p>
+        </div>
+      )}
+      {!loading && !error && !needsStaffLink && (resolvedStaff || isOwnerPreview) && (
+        <SessionCalendar
+          sessions={sessions}
+          defaultView="month"
+          displayMode="client"
+          showStaffLabel={includeSupervisees}
+          embedded
+          monthOnly
+          inlineDayContent={!isV3}
+          onMonthChange={setMonthDate}
+        />
+      )}
+    </>
+  )
+
+  if (isV3) {
+    return (
+      <section
+        className={cn(
+          "rounded-[var(--radius)] bg-surface p-5 shadow-card sm:p-6",
+          className,
+        )}
+        aria-label="Monthly calendar"
+      >
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-[13px] font-semibold uppercase tracking-[0.10em] text-muted">
+              Monthly calendar
+            </h2>
+            {monthLabel && (
+              <p className="mt-0.5 text-sm text-subtle">{monthLabel}</p>
+            )}
+          </div>
+          {showScopeToggle && (
+            <CalendarScopeToggle scope={scope} onScopeChange={setScope} />
+          )}
+        </div>
+        {calendarBody}
+      </section>
+    )
+  }
+
   return (
-    <Card size="sm" className={cn("w-full flex flex-col", className)}>
+    <Card size="sm" className={cn("flex w-full flex-col", className)}>
       <CardHeader>
         <div className="space-y-0.5">
           <CardTitle>{staffDisplayName || "My Schedule"}</CardTitle>
           {monthLabel && (
-            <CardDescription className="text-sm">
-              This month: {monthLabel}
-            </CardDescription>
+            <CardDescription className="text-sm">This month: {monthLabel}</CardDescription>
           )}
         </div>
-        {showSuperviseeToggle && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={() => setIncludeSupervisees(false)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                !includeSupervisees
-                  ? "border-brand bg-brand text-white"
-                  : "border-border text-muted hover:border-brand hover:text-brand",
-              )}
-            >
-              My schedule
-            </button>
-            <button
-              type="button"
-              onClick={() => setIncludeSupervisees(true)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                includeSupervisees
-                  ? "border-brand bg-brand text-white"
-                  : "border-border text-muted hover:border-brand hover:text-brand",
-              )}
-            >
-              Include supervisees
-            </button>
+        {showScopeToggle && (
+          <div className="mt-2">
+            <CalendarScopeToggle
+              scope={scope}
+              onScopeChange={setScope}
+              aria-label="Schedule scope"
+            />
           </div>
         )}
       </CardHeader>
-      <CardContent className="flex-1">
-        {loading && (
-          <p className="py-10 text-center text-sm text-muted-foreground">Loading…</p>
-        )}
-        {error && (
-          <p className="py-10 text-center text-sm text-destructive">{error}</p>
-        )}
-        {needsStaffLink && (
-          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
-            <CalendarDays className="w-8 h-8 text-brand" />
-            <p className="text-sm text-muted-foreground max-w-xs">
-              Link your staff profile to see your schedule.
-            </p>
-          </div>
-        )}
-        {!loading && !error && !needsStaffLink && resolvedStaff && sessions.length === 0 && (
-          <div className="flex flex-col items-center gap-2 rounded-md border border-dashed border-border py-10 text-center">
-            <CalendarDays className="w-8 h-8 text-brand" />
-            <p className="text-sm text-muted-foreground">No sessions scheduled this month.</p>
-          </div>
-        )}
-        {!loading && !error && !needsStaffLink && (resolvedStaff || isOwnerPreview) && (
-          <SessionCalendar
-            sessions={sessions}
-            defaultView="month"
-            displayMode="client"
-            showStaffLabel={includeSupervisees}
-            embedded
-            monthOnly
-            inlineDayContent
-            onMonthChange={setMonthDate}
-          />
-        )}
-      </CardContent>
+      <CardContent className="flex-1">{calendarBody}</CardContent>
     </Card>
   )
 }

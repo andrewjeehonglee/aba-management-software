@@ -100,6 +100,7 @@ function PulseAuthTile({
   error,
   onRetry,
   clientIds,
+  compact,
 }: {
   className?: string
   summary: Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null
@@ -107,7 +108,9 @@ function PulseAuthTile({
   error: string | null
   onRetry: () => void
   clientIds?: string[]
+  compact?: boolean
 }) {
+  const tileSize = compact ? "compact" : "default"
   if (loading) return <PulseTileSkeleton />
 
   const monthLabel = summary?.monthLabel ?? ""
@@ -138,6 +141,7 @@ function PulseAuthTile({
         period={`This month · ${monthLabel}`}
         metric="0"
         unit="clients over authorized limit"
+        size={tileSize}
         support={
           clientIds?.length
             ? "No authorization records for this caseload yet."
@@ -147,8 +151,8 @@ function PulseAuthTile({
     )
   }
 
-  const status = overCount > 0 ? "crit" : approachingCount > 0 ? "warn" : "ok"
-  const metricSeverity = overCount > 0 ? "crit" : "ok"
+  const status = overCount > 0 ? "flag" : approachingCount > 0 ? "warn" : "ok"
+  const metricSeverity = overCount > 0 ? "flag" : "ok"
 
   const support =
     overCount > 0 || approachingCount > 0 ? (
@@ -187,6 +191,7 @@ function PulseAuthTile({
       metric={overCount}
       unit="clients over authorized limit"
       metricSeverity={metricSeverity}
+      size={tileSize}
       support={support}
     />
   )
@@ -197,11 +202,13 @@ export function AuthorizationUtilizationTile({
   teamFilter,
   clientIds,
   variant = "default",
+  compact,
 }: {
   className?: string
   teamFilter?: TeamFilter
   clientIds?: string[]
   variant?: "default" | "pulse"
+  compact?: boolean
 }) {
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
   const [loading, setLoading] = useState(true)
@@ -226,6 +233,7 @@ export function AuthorizationUtilizationTile({
         error={error}
         onRetry={() => setRetryTick((k) => k + 1)}
         clientIds={clientIds}
+        compact={compact}
       />
     )
   }
