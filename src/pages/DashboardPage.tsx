@@ -472,6 +472,7 @@ export function DashboardPage({
               </div>
 
               <DashboardCalendarTile
+                key={effectiveStaffId ?? "bcba-calendar"}
                 variant="v3"
                 viewRole="BCBA"
                 isOwnerPreview={isOwnerPreview}
@@ -484,6 +485,7 @@ export function DashboardPage({
               {!scopeLoading && effectiveStaffId && (
                 <div className="grid shrink-0 gap-4 lg:grid-cols-4">
                   <BcbaDashboardTiles
+                    key={effectiveStaffId}
                     refreshKey={notesRefreshKey + staffRefreshKey}
                     notesStaffIds={bcbaNotesStaffIds}
                     hoursStaffIds={scopeTeamStaffIds}

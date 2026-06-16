@@ -256,7 +256,7 @@ export function BcbaDashboardTiles({
       />
       <BcbaDashboardTile
         id="hours-by-staff"
-        title="Direct Care"
+        title="Hours by staff"
         state={hoursState}
         period={monthBlock(hoursMonth)}
         metric={hoursFlagged.length}
@@ -265,7 +265,7 @@ export function BcbaDashboardTiles({
       />
       <BcbaDashboardTile
         id="supervision-compliance"
-        title="Supervision"
+        title="Supervision compliance"
         state={supervisionState}
         period={monthBlock(supervisionMonthLabel)}
         metric={supervisionFlagged.length}
