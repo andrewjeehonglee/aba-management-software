@@ -256,11 +256,11 @@ export function BcbaDashboardTiles({
       />
       <BcbaDashboardTile
         id="hours-by-staff"
-        title="Direct service"
+        title="Direct Care"
         state={hoursState}
         period={monthBlock(hoursMonth)}
         metric={hoursFlagged.length}
-        unit="staff"
+        unit="staff below 50% direct"
         popoverItems={hoursPopover}
       />
       <BcbaDashboardTile

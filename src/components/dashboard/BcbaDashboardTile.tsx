@@ -45,7 +45,7 @@ export function BcbaDashboardTile({
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-base font-semibold text-ink">{title}</h3>
+        <h3 className="text-lg font-semibold text-ink">{title}</h3>
         <span className={cn("shrink-0 text-sm font-semibold", metricClass)}>
           {stateLabel}
         </span>
@@ -65,7 +65,7 @@ export function BcbaDashboardTile({
         <span className="text-sm font-medium text-muted">{unit}</span>
       </div>
 
-      <div className="mt-auto pt-3 text-right text-[11px] font-medium leading-snug text-subtle">
+      <div className="mt-auto pt-3 text-right text-[13px] font-medium leading-snug text-subtle">
         {period}
       </div>
     </div>

@@ -218,7 +218,7 @@ export function SessionCalendar({
         <span
           className={cn(
             "text-center font-semibold text-ink",
-            compactSummaryHeader ? "text-base" : inlineDayContent ? "text-base" : "text-sm",
+            compactSummaryHeader ? "text-xl" : inlineDayContent ? "text-base" : "text-sm",
           )}
         >
           {view === "week" ? formatWeekRange(anchorDate) : formatMonthYear(anchorDate)}
@@ -551,8 +551,8 @@ function SummaryMonthDayCell({
   const hasData = count > 0
   const isToday = iso === todayISO
   const summaryStatus = daySummaryStatus(active, iso, todayISO)
-  const topSessions = active.slice(0, 2)
-  const remaining = count - topSessions.length
+  const firstSession = active[0]
+  const remaining = count > 1 ? count - 1 : 0
 
   const dayLabel = day.toLocaleDateString("en-US", {
     weekday: "long",
@@ -591,18 +591,17 @@ function SummaryMonthDayCell({
             >
               {count} session{count !== 1 ? "s" : ""}
             </p>
-            <div className="mt-1.5 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-              {topSessions.map((s) => (
-                <span
-                  key={s.id}
-                  className="truncate rounded-md bg-surface-2 px-1.5 py-1 text-[13px] font-medium tabular-nums text-ink-soft"
-                >
-                  {shortSessionChipLabel(s, displayMode)} · {formatTime(s.time)}
+            <div className="mt-1.5 min-h-0 flex-1">
+              {firstSession ? (
+                <span className="block truncate rounded-md bg-surface-2 px-1.5 py-1 text-[13px] font-medium leading-snug tabular-nums text-ink-soft">
+                  {shortSessionChipLabel(firstSession, displayMode)} · {formatTime(firstSession.time)}
                 </span>
-              ))}
-              {remaining > 0 && (
-                <span className="text-xs font-medium text-muted">+{remaining} more</span>
-              )}
+              ) : null}
+              {remaining > 0 ? (
+                <span className="mt-1 block text-xs font-medium leading-none text-muted">
+                  +{remaining} more
+                </span>
+              ) : null}
             </div>
           </>
         ) : (
