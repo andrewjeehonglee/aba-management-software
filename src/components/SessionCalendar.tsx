@@ -5,6 +5,7 @@ import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatTime } from "@/lib/sessions"
 import { staffProfilePath } from "@/lib/rosterScope"
+import { cn } from "@/lib/utils"
 import type { Session, SessionStatus } from "@/types/session"
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -106,6 +107,8 @@ interface SessionCalendarProps {
   embedded?: boolean
   monthOnly?: boolean
   inlineDayContent?: boolean
+  /** BCBA v3 month grid: count + status + compact chips (no dots). */
+  summaryMonthCells?: boolean
   className?: string
   onMonthChange?: (anchorDate: Date) => void
 }
@@ -118,6 +121,7 @@ export function SessionCalendar({
   embedded = false,
   monthOnly = false,
   inlineDayContent = false,
+  summaryMonthCells = false,
   className,
   onMonthChange,
 }: SessionCalendarProps) {
@@ -228,6 +232,7 @@ export function SessionCalendar({
           displayMode={displayMode}
           showStaffLabel={showStaffLabel}
           inlineDayContent={inlineDayContent}
+          summaryMonthCells={summaryMonthCells}
           onDayClick={(iso) =>
             setExpandedDay((prev) => (prev === iso ? null : iso))
           }
@@ -238,9 +243,11 @@ export function SessionCalendar({
 
   if (embedded) {
     return (
-      <div className={className}>
+      <div className={cn(className, summaryMonthCells && "flex min-h-0 flex-1 flex-col")}>
         {controls}
-        <div className="mt-3">{body}</div>
+        <div className={cn("mt-3", summaryMonthCells && "flex min-h-0 flex-1 flex-col")}>
+          {body}
+        </div>
       </div>
     )
   }
@@ -470,6 +477,41 @@ function WeekView({
 
 const DOW_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
 
+function shortSessionChipLabel(s: Session, displayMode: SessionCalendarDisplayMode): string {
+  if (displayMode === "client") {
+    const name = s.clientName.trim()
+    const parts = name.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) {
+      return parts
+        .map((p) => p[0] ?? "")
+        .join("")
+        .slice(0, 4)
+    }
+    return name.length <= 5 ? name : name.slice(0, 4)
+  }
+  return s.staffName.split(/\s+/)[0] ?? s.staffName
+}
+
+function activeDaySessions(daySessions: Session[]): Session[] {
+  return daySessions.filter((s) => !isMuted(s))
+}
+
+function daySummaryStatus(
+  active: Session[],
+  dateISO: string,
+  todayISO: string,
+): "none" | "ok" | "attention" {
+  if (active.length === 0) return "none"
+  if (active.every((s) => s.status === "completed")) return "ok"
+  if (
+    dateISO <= todayISO &&
+    active.some((s) => s.status === "scheduled" || s.status === "in-progress")
+  ) {
+    return "attention"
+  }
+  return "ok"
+}
+
 function InlineDaySessionCard({
   session: s,
   displayMode,
@@ -521,6 +563,7 @@ function MonthView({
   displayMode,
   showStaffLabel,
   inlineDayContent,
+  summaryMonthCells,
   onDayClick,
 }: {
   sessions: Session[]
@@ -530,6 +573,7 @@ function MonthView({
   displayMode: SessionCalendarDisplayMode
   showStaffLabel: boolean
   inlineDayContent?: boolean
+  summaryMonthCells?: boolean
   onDayClick: (iso: string) => void
 }) {
   // Sessions for the currently expanded day (if any).
@@ -548,14 +592,14 @@ function MonthView({
     : null
 
   return (
-    <div>
+    <div className={summaryMonthCells ? "flex min-h-0 flex-1 flex-col" : undefined}>
       {/* Day-of-week header row */}
-      <div className="grid grid-cols-7 mb-1.5">
+      <div className="mb-1.5 grid grid-cols-7">
         {DOW_LABELS.map((d) => (
           <div
             key={d}
             className={`py-1 text-center font-medium text-muted-foreground ${
-              inlineDayContent ? "text-xs sm:text-sm" : "text-[10px]"
+              inlineDayContent || summaryMonthCells ? "text-xs sm:text-sm" : "text-[10px]"
             }`}
           >
             {d}
@@ -564,15 +608,28 @@ function MonthView({
       </div>
 
       {/* Calendar grid */}
-      <div className="space-y-0.5">
+      <div className={summaryMonthCells ? "flex min-h-0 flex-1 flex-col gap-1" : "space-y-0.5"}>
         {grid.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 gap-0.5">
+          <div
+            key={wi}
+            className={
+              summaryMonthCells
+                ? "grid min-h-[5.25rem] flex-1 grid-cols-7 gap-1 sm:min-h-[5.75rem]"
+                : "grid grid-cols-7 gap-0.5"
+            }
+          >
             {week.map((day, di) => {
               if (!day) {
                 return (
                   <div
                     key={di}
-                    className={inlineDayContent ? "h-32" : "h-9"}
+                    className={
+                      summaryMonthCells
+                        ? "min-h-[5.25rem] sm:min-h-[5.75rem]"
+                        : inlineDayContent
+                          ? "h-32"
+                          : "h-9"
+                    }
                     aria-hidden="true"
                   />
                 )
@@ -580,10 +637,69 @@ function MonthView({
 
               const iso = localISO(day)
               const daySessions = sessionsOnDay(sessions, iso)
-              const count = daySessions.length
+              const active = activeDaySessions(daySessions)
+              const count = active.length
               const isToday = iso === todayISO
               const isExpanded = expandedDay === iso
               const hasData = count > 0
+              const summaryStatus = daySummaryStatus(active, iso, todayISO)
+
+              if (summaryMonthCells) {
+                const topSessions = active.slice(0, 2)
+                const remaining = count - topSessions.length
+
+                return (
+                  <button
+                    key={iso}
+                    type="button"
+                    onClick={() => hasData && onDayClick(iso)}
+                    disabled={!hasData}
+                    aria-label={`${day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${count} session${count !== 1 ? "s" : ""}`}
+                    className={`
+                      flex min-h-[5.25rem] flex-col rounded-lg border border-line/80 p-1.5 text-left transition-colors sm:min-h-[5.75rem]
+                      ${isExpanded ? "bg-surface-2 ring-1 ring-line" : ""}
+                      ${isToday ? "border-brand ring-1 ring-brand/25" : ""}
+                      ${hasData ? "cursor-pointer hover:bg-surface-2/90" : "cursor-default"}
+                    `}
+                  >
+                    <span
+                      className={`text-xl font-bold tabular-nums leading-none sm:text-[1.35rem] ${
+                        isToday ? "text-brand" : "text-ink"
+                      }`}
+                    >
+                      {day.getDate()}
+                    </span>
+                    {hasData ? (
+                      <>
+                        <p
+                          className={`mt-1 text-[11px] font-semibold tabular-nums leading-tight ${
+                            summaryStatus === "attention" ? "text-alert" : "text-brand"
+                          }`}
+                        >
+                          {count} session{count !== 1 ? "s" : ""}
+                        </p>
+                        <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+                          {topSessions.map((s) => (
+                            <span
+                              key={s.id}
+                              className="truncate rounded-md bg-surface-2 px-1 py-0.5 text-[10px] font-medium tabular-nums text-ink-soft"
+                            >
+                              {shortSessionChipLabel(s, displayMode)} · {formatTime(s.time)}
+                            </span>
+                          ))}
+                          {remaining > 0 && (
+                            <span className="text-[10px] font-medium text-muted">
+                              +{remaining} more
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1" aria-hidden />
+                    )}
+                  </button>
+                )
+              }
 
               if (inlineDayContent) {
                 return (
@@ -666,8 +782,8 @@ function MonthView({
         ))}
       </div>
 
-      {/* Expanded day panel — appears below the grid when a day is selected */}
-      {!inlineDayContent && expandedDay && (
+      {/* Expanded day panel — full detail on click */}
+      {(summaryMonthCells || !inlineDayContent) && expandedDay && (
         <div className="mt-4 border-t border-border pt-4">
           <p className="mb-3 text-xs font-semibold text-muted-foreground">
             {expandedLabel}

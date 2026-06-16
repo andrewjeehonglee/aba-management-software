@@ -129,6 +129,8 @@ export function DashboardCalendarTile({
           embedded
           monthOnly
           inlineDayContent={!isV3}
+          summaryMonthCells={isV3}
+          className={isV3 ? "flex min-h-0 flex-1 flex-col" : undefined}
           onMonthChange={setMonthDate}
         />
       )}
@@ -139,12 +141,12 @@ export function DashboardCalendarTile({
     return (
       <section
         className={cn(
-          "rounded-[var(--radius)] bg-surface p-5 shadow-card sm:p-6",
+          "flex min-h-0 flex-1 flex-col rounded-[var(--radius)] bg-surface p-5 shadow-card sm:p-6",
           className,
         )}
         aria-label="Monthly calendar"
       >
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-4 flex shrink-0 flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-[13px] font-semibold uppercase tracking-[0.10em] text-muted">
               Monthly calendar
@@ -157,7 +159,7 @@ export function DashboardCalendarTile({
             <CalendarScopeToggle scope={scope} onScopeChange={setScope} />
           )}
         </div>
-        {calendarBody}
+        <div className="flex min-h-0 flex-1 flex-col">{calendarBody}</div>
       </section>
     )
   }

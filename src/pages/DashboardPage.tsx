@@ -15,10 +15,10 @@ import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
 import { supabase } from "@/lib/supabase"
 import { AuthorizationUtilizationTile } from "@/components/AuthorizationUtilizationTile"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
+import { BcbaDashboardTiles } from "@/components/dashboard/BcbaDashboardTiles"
 import { HoursByStaffTile } from "@/components/HoursByStaffTile"
 import { MyHoursTile } from "@/components/MyHoursTile"
 import { NotesOverdueTile } from "@/components/NotesOverdueTile"
-import { StaffHoursComplianceTile } from "@/components/StaffHoursComplianceTile"
 import { SupervisionComplianceTile } from "@/components/SupervisionComplianceTile"
 import {
   getStaffFullName,
@@ -430,9 +430,9 @@ export function DashboardPage({
             ownerName={bcbaPersonaName}
             practiceName={practiceName}
           />
-          <main className="flex min-h-0 min-w-0 flex-col overflow-y-auto px-4 py-6 sm:px-6 min-[1000px]:px-[52px] min-[1000px]:py-8">
-            <div className="mx-auto w-full max-w-[min(100%,1680px)] space-y-5">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 min-[1000px]:px-[52px] min-[1000px]:py-6">
+            <div className="mx-auto flex min-h-full w-full max-w-[min(100%,1680px)] flex-1 flex-col gap-4">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-4">
                 <p className="text-[15px] font-semibold tracking-[0.04em] text-muted">
                   {formatBcbaEyebrowDate()}
                 </p>
@@ -445,12 +445,12 @@ export function DashboardPage({
                 ) : null}
               </div>
 
-              <p className="text-[21px] font-normal text-ink-soft">
+              <p className="shrink-0 text-[21px] font-normal text-ink-soft">
                 {timeGreeting()}, {firstName(bcbaPersonaName)}.
               </p>
 
               {isOwnerPreview && previewOptions.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2 text-sm">
+                <div className="flex shrink-0 flex-wrap items-center gap-2 text-sm">
                   <span className="text-muted">View as BCBA:</span>
                   <Select
                     value={previewStaffId ?? undefined}
@@ -474,6 +474,7 @@ export function DashboardPage({
 
               <DashboardCalendarTile
                 variant="v3"
+                className="min-h-0 flex-1"
                 viewRole="BCBA"
                 isOwnerPreview={isOwnerPreview}
                 currentStaffId={isOwnerPreview ? effectiveStaffId : (currentStaffId ?? null)}
@@ -483,27 +484,15 @@ export function DashboardPage({
               />
 
               {!scopeLoading && effectiveStaffId && (
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <NotesOverdueTile
-                    variant="pulse"
-                    compact
-                    refreshKey={notesRefreshKey}
-                    staffIds={bcbaNotesStaffIds}
-                    clientIds={scopeClientIds}
-                    includeCaseloadStaff
-                  />
-                  <StaffHoursComplianceTile
-                    compact
-                    refreshKey={staffRefreshKey}
-                    staffIds={scopeTeamStaffIds}
+                <div className="grid shrink-0 gap-4 lg:grid-cols-4">
+                  <BcbaDashboardTiles
+                    refreshKey={notesRefreshKey + staffRefreshKey}
+                    notesStaffIds={bcbaNotesStaffIds}
+                    hoursStaffIds={scopeTeamStaffIds}
                     superviseeStaffIds={scopeSuperviseeIds}
                     clientIds={scopeClientIds}
                     includeZeroHourStaff
-                  />
-                  <AuthorizationUtilizationTile
-                    variant="pulse"
-                    compact
-                    clientIds={scopeClientIds}
+                    includeCaseloadStaff
                   />
                 </div>
               )}
