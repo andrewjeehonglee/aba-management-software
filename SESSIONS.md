@@ -1757,4 +1757,40 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 15, 2026 (Session 30 — owner dashboard v3 + Clients/Staff split).*
+## Session 31 — BCBA dashboard v1–v4 + Clinical Supervisor v3 (Jun 16, 2026 afternoon)
+
+**What landed:** Full **BCBA dashboard** from scratch through four polish passes (OwnerNavRail, v3 calendar, four summary tiles with popovers, day modal, typography, deeper canvas). Extended to **Blair + Annie** with per-BCBA scoping and seed SQL. Shipped **Clinical Supervisor dashboard v3** (Phase B #2) with narrower caseload scope and supervisor copy. Fixed supervisor preview dropdown to show all **5** clinical supervisors (Carmen was missing). All pushed to `main`; **HEAD `ca32a1e`**.
+
+**Detailed log:** `templates/SESSION_LOG_20260616_afternoon.md`
+
+### Highlights
+
+1. **BCBA dashboard** — v3 warm-premium chrome matching owner; calendar self/team toggle; four tiles (notes, hours, supervision, auth); click-number popovers; 90% auth threshold for BCBA only.
+2. **Calendar UX** — Fixed clipped popovers → centered day modal; uniform 7rem day cells; one session line + "+N more".
+3. **Tile metrics** — Count-based (incomplete notes, flagged staff, clients) with noun units; titles **Hours by staff** + **Supervision compliance** per Jenny vocabulary.
+4. **All three BCBAs** — Jennifer / Blair / Annie preview with scoped data; `seed_blair_annie_bcba_dashboard.sql`.
+5. **Supervisor dashboard** — Same chrome, different scope (supervisee BTs + clinical_supervisor clients); calendar labels "My schedule / Include supervisees".
+6. **System token** — `--bg: #EAE4D8` (deeper warm canvas, system-wide).
+
+### Commits (chronological, Jun 16 afternoon)
+
+| Hash | Message |
+|------|---------|
+| `bf2800f` | BCBA v1 — nav rail, calendar toggle, merged tile |
+| `393e691` | BCBA v2 — four tiles, summary calendar, bubbles |
+| `e489aba` | BCBA v3 — hero calendar, popovers, three-state colors |
+| `a91e221` | Spacing, popover position, metric labels |
+| `6bcd33f` | Day modal, uniform cells, count-based tiles |
+| `07f8dd8` | v4 polish — typography, canvas, calendar cell fix |
+| `a17ce0a` | Hours by staff / Supervision compliance titles; Blair/Annie seed |
+| `9768bf8` | Supervisor dashboard v3 (Phase B #2) |
+| `ca32a1e` | All 5 supervisors in preview dropdown |
+
+### Not done / deferred
+
+- Phase B #3 — Technician dashboard v3.
+- Owner dashboard structural changes (intentionally untouched except `--bg`).
+
+---
+
+*Last updated: Jun 16, 2026 (Session 31 — BCBA + Supervisor dashboard v3).*
