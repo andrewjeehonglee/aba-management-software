@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Link } from "react-router-dom"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
@@ -524,6 +524,127 @@ function daySummaryStatus(
   return "ok"
 }
 
+function SummaryMonthDayCell({
+  day,
+  iso,
+  todayISO,
+  active,
+  displayMode,
+  showStaffLabel,
+}: {
+  day: Date
+  iso: string
+  todayISO: string
+  active: Session[]
+  displayMode: SessionCalendarDisplayMode
+  showStaffLabel: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const count = active.length
+  const hasData = count > 0
+  const isToday = iso === todayISO
+  const summaryStatus = daySummaryStatus(active, iso, todayISO)
+  const topSessions = active.slice(0, 2)
+  const remaining = count - topSessions.length
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(event: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false)
+    }
+    document.addEventListener("mousedown", onPointerDown)
+    document.addEventListener("keydown", onKeyDown)
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown)
+      document.removeEventListener("keydown", onKeyDown)
+    }
+  }, [open])
+
+  const dayLabel = day.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  })
+
+  return (
+    <div className="relative min-h-[7rem]" ref={rootRef}>
+      <button
+        type="button"
+        onClick={() => hasData && setOpen((prev) => !prev)}
+        disabled={!hasData}
+        aria-expanded={open}
+        aria-label={`${day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${count} session${count !== 1 ? "s" : ""}`}
+        className={`
+          flex min-h-[7rem] w-full flex-col rounded-lg border border-line/80 p-2 text-left transition-colors
+          ${open ? "bg-surface-2 ring-1 ring-line" : ""}
+          ${isToday ? "border-brand ring-1 ring-brand/25" : ""}
+          ${hasData ? "cursor-pointer hover:bg-surface-2/90" : "cursor-default"}
+        `}
+      >
+        <div className="relative inline-block self-start">
+          <span
+            className={`text-2xl font-bold tabular-nums leading-none ${
+              isToday ? "text-brand" : "text-ink"
+            }`}
+          >
+            {day.getDate()}
+          </span>
+          {open && (
+            <div
+              role="dialog"
+              aria-label={dayLabel}
+              onClick={(event) => event.stopPropagation()}
+              className="absolute bottom-full right-0 z-50 mb-1.5 w-[min(20rem,calc(100vw-2rem))] max-h-[min(26rem,55vh)] overflow-y-auto rounded-[var(--radius)] border border-line bg-surface p-3 shadow-card"
+            >
+              <p className="mb-2 text-xs font-semibold text-muted">{dayLabel}</p>
+              <div className="space-y-2">
+                {active.map((s) => (
+                  <SessionCard
+                    key={s.id}
+                    session={s}
+                    displayMode={displayMode}
+                    showStaffLabel={showStaffLabel}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        {hasData ? (
+          <>
+            <p
+              className={`mt-1.5 text-xs font-semibold tabular-nums leading-tight ${
+                summaryStatus === "attention" ? "text-[#C99A3B]" : "text-[#4F6B59]"
+              }`}
+            >
+              {count} session{count !== 1 ? "s" : ""}
+            </p>
+            <div className="mt-1.5 flex flex-col gap-1">
+              {topSessions.map((s) => (
+                <span
+                  key={s.id}
+                  className="truncate rounded-md bg-surface-2 px-1.5 py-1 text-[13px] font-medium tabular-nums text-ink-soft"
+                >
+                  {shortSessionChipLabel(s, displayMode)} · {formatTime(s.time)}
+                </span>
+              ))}
+              {remaining > 0 && (
+                <span className="text-xs font-medium text-muted">+{remaining} more</span>
+              )}
+            </div>
+          </>
+        ) : null}
+      </button>
+    </div>
+  )
+}
+
 function InlineDaySessionCard({
   session: s,
   displayMode,
@@ -650,60 +771,18 @@ function MonthView({
               const isToday = iso === todayISO
               const isExpanded = expandedDay === iso
               const hasData = count > 0
-              const summaryStatus = daySummaryStatus(active, iso, todayISO)
 
               if (summaryMonthCells) {
-                const topSessions = active.slice(0, 2)
-                const remaining = count - topSessions.length
-
                 return (
-                  <button
+                  <SummaryMonthDayCell
                     key={iso}
-                    type="button"
-                    onClick={() => hasData && onDayClick(iso)}
-                    disabled={!hasData}
-                    aria-label={`${day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${count} session${count !== 1 ? "s" : ""}`}
-                    className={`
-                      flex min-h-[7rem] flex-col rounded-lg border border-line/80 p-2 text-left transition-colors
-                      ${isExpanded ? "bg-surface-2 ring-1 ring-line" : ""}
-                      ${isToday ? "border-brand ring-1 ring-brand/25" : ""}
-                      ${hasData ? "cursor-pointer hover:bg-surface-2/90" : "cursor-default"}
-                    `}
-                  >
-                    <span
-                      className={`text-2xl font-bold tabular-nums leading-none ${
-                        isToday ? "text-brand" : "text-ink"
-                      }`}
-                    >
-                      {day.getDate()}
-                    </span>
-                    {hasData ? (
-                      <>
-                        <p
-                          className={`mt-1.5 text-xs font-semibold tabular-nums leading-tight ${
-                            summaryStatus === "attention" ? "text-[#C99A3B]" : "text-[#4F6B59]"
-                          }`}
-                        >
-                          {count} session{count !== 1 ? "s" : ""}
-                        </p>
-                        <div className="mt-1.5 flex flex-col gap-1">
-                          {topSessions.map((s) => (
-                            <span
-                              key={s.id}
-                              className="truncate rounded-md bg-surface-2 px-1.5 py-1 text-[13px] font-medium tabular-nums text-ink-soft"
-                            >
-                              {shortSessionChipLabel(s, displayMode)} · {formatTime(s.time)}
-                            </span>
-                          ))}
-                          {remaining > 0 && (
-                            <span className="text-xs font-medium text-muted">
-                              +{remaining} more
-                            </span>
-                          )}
-                        </div>
-                      </>
-                    ) : null}
-                  </button>
+                    day={day}
+                    iso={iso}
+                    todayISO={todayISO}
+                    active={active}
+                    displayMode={displayMode}
+                    showStaffLabel={showStaffLabel}
+                  />
                 )
               }
 
@@ -788,8 +867,8 @@ function MonthView({
         ))}
       </div>
 
-      {/* Expanded day panel — full detail on click */}
-      {(summaryMonthCells || !inlineDayContent) && expandedDay && (
+      {/* Expanded day panel — full detail on click (not used in BCBA summary grid) */}
+      {!summaryMonthCells && !inlineDayContent && expandedDay && (
         <div className="mt-4 border-t border-border pt-4">
           <p className="mb-3 text-xs font-semibold text-muted-foreground">
             {expandedLabel}

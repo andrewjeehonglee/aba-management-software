@@ -16,12 +16,15 @@ export function MetricPopover({
   items,
   emptyLabel = "All caught up",
   ariaLabel = "Show details",
+  placement = "top-right",
 }: {
   metric: ReactNode
   metricClassName?: string
   items: MetricPopoverItem[]
   emptyLabel?: string
   ariaLabel?: string
+  /** Where the detail panel opens relative to the metric trigger. */
+  placement?: "top-right" | "below"
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
@@ -62,7 +65,12 @@ export function MetricPopover({
         <div
           role="dialog"
           aria-label="Details"
-          className="absolute left-0 top-full z-50 mt-2 min-w-[min(100%,14rem)] max-w-[20rem] rounded-[var(--radius)] border border-line bg-surface p-3 shadow-card"
+          className={cn(
+            "z-50 min-w-[min(100%,14rem)] max-w-[20rem] rounded-[var(--radius)] border border-line bg-surface p-3 shadow-card",
+            placement === "top-right"
+              ? "absolute bottom-full right-0 mb-2"
+              : "absolute left-0 top-full mt-2",
+          )}
         >
           {items.length === 0 ? (
             <p className="text-sm text-muted">{emptyLabel}</p>

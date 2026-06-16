@@ -251,7 +251,7 @@ export function BcbaDashboardTiles({
         state={notesState}
         period={payPeriodBlock(notesPeriod)}
         metric={pctDocumented === null ? "—" : `${pctDocumented}%`}
-        unit="documented"
+        unit="documentation rate"
         popoverItems={notesPopover}
         popoverEmptyLabel="All documented"
       />
@@ -261,7 +261,7 @@ export function BcbaDashboardTiles({
         state={hoursState}
         period={monthBlock(hoursMonth)}
         metric={hoursFlagged.length}
-        unit="below 50% direct"
+        unit="direct-service gaps"
         popoverItems={hoursPopover}
       />
       <BcbaDashboardTile
@@ -270,7 +270,7 @@ export function BcbaDashboardTiles({
         state={supervisionState}
         period={monthBlock(supervisionMonthLabel)}
         metric={supervisionFlagged.length}
-        unit={`below ${SUPERVISION_THRESHOLD}% supervision`}
+        unit="supervision gaps"
         popoverItems={supervisionPopover}
       />
       <BcbaDashboardTile
@@ -279,7 +279,7 @@ export function BcbaDashboardTiles({
         state={authState}
         period={monthBlock(authMonth)}
         metric={authAttention.length}
-        unit="need attention"
+        unit="authorization alerts"
         popoverItems={authPopover}
       />
     </>

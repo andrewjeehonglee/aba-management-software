@@ -430,45 +430,47 @@ export function DashboardPage({
             ownerName={bcbaPersonaName}
             practiceName={practiceName}
           />
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-5 sm:px-6 min-[1000px]:px-[52px] min-[1000px]:py-6">
-            <div className="mx-auto w-full max-w-[min(100%,1680px)] flex flex-col gap-4 pb-2">
-              <div className="flex shrink-0 flex-wrap items-start justify-between gap-4">
-                <p className="text-[15px] font-semibold tracking-[0.04em] text-muted">
-                  {formatBcbaEyebrowDate()}
-                </p>
-                <div className="flex flex-col items-end gap-2">
-                  {isDemo && role === "Owner" ? (
-                    <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
-                  ) : role !== "Owner" ? (
-                    <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-muted">
-                      {role}
-                    </span>
-                  ) : null}
-                  {isOwnerPreview && previewOptions.length > 0 && (
-                    <Select
-                      value={previewStaffId ?? undefined}
-                      onValueChange={(v) => setPreviewStaffId(v ?? null)}
-                    >
-                      <SelectTrigger className="h-8 w-[180px] text-xs">
-                        <SelectValue placeholder="Select BCBA">
-                          {selectedPreviewStaff?.fullName ?? "Select BCBA"}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {previewOptions.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.fullName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-6 min-[1000px]:px-[52px] min-[1000px]:py-5">
+            <div className="mx-auto w-full max-w-[min(100%,1680px)] flex flex-col gap-2 pb-2">
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <p className="text-[15px] font-semibold tracking-[0.04em] text-muted leading-tight">
+                    {formatBcbaEyebrowDate()}
+                  </p>
+                  <div className="flex flex-col items-end gap-1.5">
+                    {isDemo && role === "Owner" ? (
+                      <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
+                    ) : role !== "Owner" ? (
+                      <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-muted">
+                        {role}
+                      </span>
+                    ) : null}
+                    {isOwnerPreview && previewOptions.length > 0 && (
+                      <Select
+                        value={previewStaffId ?? undefined}
+                        onValueChange={(v) => setPreviewStaffId(v ?? null)}
+                      >
+                        <SelectTrigger className="h-8 w-[180px] text-xs">
+                          <SelectValue placeholder="Select BCBA">
+                            {selectedPreviewStaff?.fullName ?? "Select BCBA"}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {previewOptions.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              <p className="shrink-0 text-[21px] font-normal text-ink-soft">
-                {timeGreeting()}, {firstName(bcbaPersonaName)}.
-              </p>
+                <p className="text-[21px] font-normal leading-tight text-ink-soft">
+                  {timeGreeting()}, {firstName(bcbaPersonaName)}.
+                </p>
+              </div>
 
               <DashboardCalendarTile
                 variant="v3"
