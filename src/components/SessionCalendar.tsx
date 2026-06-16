@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Link } from "react-router-dom"
 import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { formatTime } from "@/lib/sessions"
 import { staffProfilePath } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
@@ -540,31 +547,12 @@ function SummaryMonthDayCell({
   showStaffLabel: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
   const count = active.length
   const hasData = count > 0
   const isToday = iso === todayISO
   const summaryStatus = daySummaryStatus(active, iso, todayISO)
   const topSessions = active.slice(0, 2)
   const remaining = count - topSessions.length
-
-  useEffect(() => {
-    if (!open) return
-    function onPointerDown(event: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false)
-    }
-    document.addEventListener("mousedown", onPointerDown)
-    document.addEventListener("keydown", onKeyDown)
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown)
-      document.removeEventListener("keydown", onKeyDown)
-    }
-  }, [open])
 
   const dayLabel = day.toLocaleDateString("en-US", {
     weekday: "long",
@@ -573,49 +561,27 @@ function SummaryMonthDayCell({
   })
 
   return (
-    <div className="relative min-h-[7rem]" ref={rootRef}>
+    <>
       <button
         type="button"
-        onClick={() => hasData && setOpen((prev) => !prev)}
+        onClick={() => hasData && setOpen(true)}
         disabled={!hasData}
-        aria-expanded={open}
+        aria-haspopup="dialog"
         aria-label={`${day.toLocaleDateString("en-US", { month: "short", day: "numeric" })}: ${count} session${count !== 1 ? "s" : ""}`}
         className={`
-          flex min-h-[7rem] w-full flex-col rounded-lg border border-line/80 p-2 text-left transition-colors
-          ${open ? "bg-surface-2 ring-1 ring-line" : ""}
+          flex h-[7rem] w-full flex-col rounded-lg border border-line/80 p-2 text-left transition-colors
+          ${open ? "bg-surface-2 ring-1 ring-line" : "bg-surface"}
           ${isToday ? "border-brand ring-1 ring-brand/25" : ""}
           ${hasData ? "cursor-pointer hover:bg-surface-2/90" : "cursor-default"}
         `}
       >
-        <div className="relative inline-block self-start">
-          <span
-            className={`text-2xl font-bold tabular-nums leading-none ${
-              isToday ? "text-brand" : "text-ink"
-            }`}
-          >
-            {day.getDate()}
-          </span>
-          {open && (
-            <div
-              role="dialog"
-              aria-label={dayLabel}
-              onClick={(event) => event.stopPropagation()}
-              className="absolute bottom-full right-0 z-50 mb-1.5 w-[min(20rem,calc(100vw-2rem))] max-h-[min(26rem,55vh)] overflow-y-auto rounded-[var(--radius)] border border-line bg-surface p-3 shadow-card"
-            >
-              <p className="mb-2 text-xs font-semibold text-muted">{dayLabel}</p>
-              <div className="space-y-2">
-                {active.map((s) => (
-                  <SessionCard
-                    key={s.id}
-                    session={s}
-                    displayMode={displayMode}
-                    showStaffLabel={showStaffLabel}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <span
+          className={`text-2xl font-bold tabular-nums leading-none ${
+            isToday ? "text-brand" : "text-ink"
+          }`}
+        >
+          {day.getDate()}
+        </span>
         {hasData ? (
           <>
             <p
@@ -625,7 +591,7 @@ function SummaryMonthDayCell({
             >
               {count} session{count !== 1 ? "s" : ""}
             </p>
-            <div className="mt-1.5 flex flex-col gap-1">
+            <div className="mt-1.5 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
               {topSessions.map((s) => (
                 <span
                   key={s.id}
@@ -639,9 +605,32 @@ function SummaryMonthDayCell({
               )}
             </div>
           </>
-        ) : null}
+        ) : (
+          <span className="flex-1" aria-hidden="true" />
+        )}
       </button>
-    </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-h-[min(32rem,85vh)] overflow-hidden border-line bg-surface p-0 sm:max-w-md">
+          <DialogHeader className="border-b border-line px-4 py-3 pr-12">
+            <DialogTitle className="text-base font-semibold text-ink">{dayLabel}</DialogTitle>
+            <DialogDescription className="text-sm text-muted">
+              {count} session{count !== 1 ? "s" : ""} scheduled
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[min(24rem,60vh)] space-y-2 overflow-y-auto px-4 py-3">
+            {active.map((s) => (
+              <SessionCard
+                key={s.id}
+                session={s}
+                displayMode={displayMode}
+                showStaffLabel={showStaffLabel}
+              />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -754,7 +743,7 @@ function MonthView({
                     key={di}
                     className={
                       summaryMonthCells
-                        ? "min-h-[7rem]"
+                        ? "h-[7rem] rounded-lg border border-line/40 bg-surface/50"
                         : inlineDayContent
                           ? "h-32"
                           : "h-9"

@@ -184,21 +184,20 @@ export function BcbaDashboardTiles({
   const notesPeriod = notes?.payPeriodLabel ?? ""
   const overdueTotal = notes?.totalOverdue ?? 0
   const missingTotal = notes?.totalMissing ?? 0
-  const pctDocumented = notes?.totalCompleted ? (notes?.pctDocumented ?? 0) : null
+  const incompleteNotesTotal = overdueTotal + missingTotal
 
   let notesState: BcbaTileState = "healthy"
   if (overdueTotal > 0) notesState = "urgent"
   else if (missingTotal > 0) notesState = "monitor"
 
-  const notesPopover: BcbaBubbleItem[] = (notes?.byStaff ?? [])
-    .filter((row) => row.overdueCount > 0 || row.missingCount > 0)
-    .map((row) => ({
-      id: row.staffId,
-      name: firstName(row.staffName),
-      value: row.overdueCount > 0 ? String(row.overdueCount) : String(row.missingCount),
-      tone: (row.overdueCount > 0 ? "urgent" : "monitor") as AttentionBubbleTone,
-      href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
-    }))
+  const notesPopover: BcbaBubbleItem[] = [
+    ...(missingTotal > 0
+      ? [{ id: "missing", name: "Missing notes", value: String(missingTotal), tone: "monitor" as AttentionBubbleTone }]
+      : []),
+    ...(overdueTotal > 0
+      ? [{ id: "overdue", name: "Overdue notes", value: String(overdueTotal), tone: "urgent" as AttentionBubbleTone }]
+      : []),
+  ]
 
   const hoursMonth = hours?.monthLabel ?? ""
   const hoursFlagged = (hours?.byStaff ?? []).filter((r) => r.flagged)
@@ -250,27 +249,27 @@ export function BcbaDashboardTiles({
         title="Session notes"
         state={notesState}
         period={payPeriodBlock(notesPeriod)}
-        metric={pctDocumented === null ? "—" : `${pctDocumented}%`}
-        unit="documentation rate"
+        metric={incompleteNotesTotal}
+        unit="incomplete notes"
         popoverItems={notesPopover}
-        popoverEmptyLabel="All documented"
+        popoverEmptyLabel="All notes complete"
       />
       <BcbaDashboardTile
         id="hours-by-staff"
-        title="Staff hours"
+        title="Direct service"
         state={hoursState}
         period={monthBlock(hoursMonth)}
         metric={hoursFlagged.length}
-        unit="direct-service gaps"
+        unit="staff"
         popoverItems={hoursPopover}
       />
       <BcbaDashboardTile
         id="supervision-compliance"
-        title="Supervision compliance"
+        title="Supervision"
         state={supervisionState}
         period={monthBlock(supervisionMonthLabel)}
         metric={supervisionFlagged.length}
-        unit="supervision gaps"
+        unit="staff"
         popoverItems={supervisionPopover}
       />
       <BcbaDashboardTile
@@ -279,7 +278,7 @@ export function BcbaDashboardTiles({
         state={authState}
         period={monthBlock(authMonth)}
         metric={authAttention.length}
-        unit="authorization alerts"
+        unit="clients"
         popoverItems={authPopover}
       />
     </>
