@@ -4,14 +4,26 @@ import { Link } from "react-router-dom"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
 import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
-import { resolvePreviewStaffId } from "@/lib/dashboardScope"
 import { getBcbaSummaries, getRosterRows, type BcbaSummary, type RosterRow } from "@/lib/rosterTable"
-import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
+import { clientProfilePath, getRosterStaffByRole, staffProfilePath, type RosterStaffEntry } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
 
 type ViewRole = "Owner" | "BCBA" | "Supervisor" | "Technician"
 type GroupMode = "bcba" | "az"
+
+const PREVIEW_DEFAULTS: Record<Exclude<ViewRole, "Owner">, string> = {
+  BCBA: "Jennifer",
+  Supervisor: "Hilary",
+  Technician: "Jazmine",
+}
 
 const TEAM_GRID =
   "grid w-full max-w-[38rem] grid-cols-[minmax(4.5rem,5.25rem)_minmax(6.5rem,8.5rem)_minmax(6.5rem,8.5rem)] items-center gap-x-3 sm:max-w-[42rem] sm:grid-cols-[5.5rem_9rem_9rem] sm:gap-x-4"
@@ -239,6 +251,7 @@ export function ClientsPage({
     isAccountOwner ? "Owner" : (accountRole === "bcba" ? "BCBA" : accountRole === "supervisor" ? "Supervisor" : "Technician"),
   )
   const [previewStaffId, setPreviewStaffId] = useState<string | null>(null)
+  const [previewOptions, setPreviewOptions] = useState<RosterStaffEntry[]>([])
   const [groupMode, setGroupMode] = useState<GroupMode>("bcba")
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -248,6 +261,7 @@ export function ClientsPage({
   const [error, setError] = useState(false)
 
   const isDemoOwnerPreview = isDemo && isAccountOwner && viewRole !== "Owner"
+  const isOwnerPreview = isDemoOwnerPreview
   const showOwnerGrouping = isAccountOwner && viewRole === "Owner" && !isDemoOwnerPreview
 
   const effectiveScopeRole = isDemoOwnerPreview
@@ -255,18 +269,34 @@ export function ClientsPage({
     : accountRole
 
   useEffect(() => {
-    if (!isDemoOwnerPreview) {
+    if (!isOwnerPreview) {
+      setPreviewOptions([])
       setPreviewStaffId(null)
       return
     }
 
-    const calendarRole =
-      viewRole === "BCBA" ? "BCBA" : viewRole === "Supervisor" ? "Supervisor" : "Technician"
+    const roleMap: Record<Exclude<ViewRole, "Owner">, "bcba" | "supervisor" | "technician"> = {
+      BCBA: "bcba",
+      Supervisor: "supervisor",
+      Technician: "technician",
+    }
+    const dbRole = roleMap[viewRole as Exclude<ViewRole, "Owner">]
+    const preferredName = PREVIEW_DEFAULTS[viewRole as Exclude<ViewRole, "Owner">]
 
-    resolvePreviewStaffId(calendarRole, practiceId)
-      .then((id) => setPreviewStaffId(id))
-      .catch(() => setPreviewStaffId(null))
-  }, [isDemoOwnerPreview, viewRole, practiceId])
+    getRosterStaffByRole(practiceId, dbRole)
+      .then((options) => {
+        setPreviewOptions(options)
+        const preferred = options.find((s) => s.fullName === preferredName)
+        setPreviewStaffId((prev) => {
+          if (prev && options.some((s) => s.id === prev)) return prev
+          return preferred?.id ?? options[0]?.id ?? null
+        })
+      })
+      .catch(() => {
+        setPreviewOptions([])
+        setPreviewStaffId(null)
+      })
+  }, [practiceId, isOwnerPreview, viewRole])
 
   useEffect(() => {
     let cancelled = false
@@ -355,9 +385,21 @@ export function ClientsPage({
       : `${allRows.length} active client${allRows.length === 1 ? "" : "s"}`
     : `${allRows.length} client${allRows.length === 1 ? "" : "s"}`
 
+  const selectedPreviewStaff = previewOptions.find((s) => s.id === previewStaffId)
+  const previewPlaceholder =
+    viewRole === "Technician"
+      ? "Select Technician"
+      : viewRole === "Supervisor"
+        ? "Select Supervisor"
+        : "Select BCBA"
+  const shellPersonaName =
+    isOwnerPreview && selectedPreviewStaff?.fullName
+      ? selectedPreviewStaff.fullName
+      : ownerName
+
   return (
     <OwnerAppShell
-      ownerName={ownerName}
+      ownerName={shellPersonaName}
       practiceName={practiceName}
       maxWidthClass="max-w-[min(100%,1680px)]"
     >
@@ -372,17 +414,38 @@ export function ClientsPage({
                 {hasRoster ? subtitle : "Active client care teams"}
               </p>
             </div>
-            {isDemo && isAccountOwner ? (
-              <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
-            ) : !isAccountOwner ? (
-              <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-muted shadow-card">
-                {accountRole === "bcba"
-                  ? "BCBA"
-                  : accountRole === "supervisor"
-                    ? "Supervisor"
-                    : "Technician"}
-              </span>
-            ) : null}
+            <div className="flex flex-col items-end gap-1.5">
+              {isDemo && isAccountOwner ? (
+                <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
+              ) : !isAccountOwner ? (
+                <span className="inline-flex shrink-0 items-center rounded-full border border-line bg-surface-2 px-3 py-1.5 text-[12px] font-semibold text-muted shadow-card">
+                  {accountRole === "bcba"
+                    ? "BCBA"
+                    : accountRole === "supervisor"
+                      ? "Supervisor"
+                      : "Technician"}
+                </span>
+              ) : null}
+              {isOwnerPreview && previewOptions.length > 0 && (
+                <Select
+                  value={previewStaffId ?? undefined}
+                  onValueChange={(v) => setPreviewStaffId(v ?? null)}
+                >
+                  <SelectTrigger className="h-8 w-[180px] text-xs">
+                    <SelectValue placeholder={previewPlaceholder}>
+                      {selectedPreviewStaff?.fullName ?? previewPlaceholder}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {previewOptions.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
           </div>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
