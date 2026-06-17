@@ -7,9 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { FocalStatusArea } from "@/components/dashboard/FocalStatusArea"
+import { OwnerDashboard } from "@/components/dashboard/OwnerDashboard"
 import { OwnerNavRail } from "@/components/dashboard/OwnerNavRail"
-import { OwnerPracticeGrid } from "@/components/dashboard/OwnerPracticeGrid"
 import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
 import { supabase } from "@/lib/supabase"
 import { DashboardCalendarTile } from "@/components/DashboardCalendarTile"
@@ -29,10 +28,8 @@ import {
 import { setRolePreview } from "@/lib/rolePreview"
 import {
   firstName,
-  getOwnerAttentionSummary,
   resolveOwnerDisplayName,
   timeGreeting,
-  type OwnerAttentionSummary,
 } from "@/lib/ownerDashboardStatus"
 import { cn } from "@/lib/utils"
 
@@ -113,17 +110,8 @@ export function DashboardPage({
   const [previewStaffId, setPreviewStaffId] = useState<string | null>(null)
   const [practiceName, setPracticeName] = useState<string | null>(null)
   const [ownerDisplayName, setOwnerDisplayName] = useState<string | null>(null)
-  const [attention, setAttention] = useState<OwnerAttentionSummary>({
-    attentionCount: 0,
-    worstSeverity: "ok",
-    items: [],
-    worklist: [],
-    loading: true,
-    resolved: false,
-  })
 
   const rosterReady = rosterTechnicianIds.length > 0
-  const rosterScopeKey = `${rosterTechnicianIds.join(",")}|${rosterClientIds.join(",")}`
 
   useEffect(() => {
     if (searchParams.get("refresh") === "notes") {
@@ -263,37 +251,6 @@ export function DashboardPage({
       : null
 
   useEffect(() => {
-    if (!isOwnerView || !rosterReady) return
-
-    let cancelled = false
-    setAttention((prev) => ({ ...prev, loading: true }))
-
-    getOwnerAttentionSummary({
-      staffIds: rosterTechnicianIds,
-      clientIds: rosterClientIds,
-    })
-      .then((summary) => {
-        if (cancelled) return
-        setAttention({ ...summary, loading: false, resolved: true })
-      })
-      .catch(() => {
-        if (cancelled) return
-        setAttention((prev) => ({
-          attentionCount: 0,
-          worstSeverity: "ok",
-          items: [],
-          worklist: [],
-          loading: false,
-          resolved: prev.resolved,
-        }))
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [isOwnerView, rosterReady, rosterScopeKey, notesRefreshKey, staffRefreshKey])
-
-  useEffect(() => {
     if (isOwnerView) {
       setEffectiveStaffId(null)
       setStaffDisplayName("")
@@ -396,22 +353,18 @@ export function DashboardPage({
                 )}
               </div>
 
-              <FocalStatusArea
-                userName={ownerPersonaName}
-                attention={attention}
-                rosterReady={rosterReady}
-              />
-
-              <OwnerPracticeGrid
-                className="mt-4 min-h-0 flex-1 short:mt-3"
-                refreshKey={notesRefreshKey + staffRefreshKey}
-                staffIds={rosterScope?.staffIds}
-                clientIds={rosterScope?.clientIds}
-                activeClientCount={rosterClientIds.length}
-                includeCaseloadStaff
-                worklistItems={attention.worklist}
-                worklistLoading={attention.loading && !attention.resolved}
-              />
+              {practiceId && (
+                <OwnerDashboard
+                  className="mt-2 min-h-0 flex-1 short:mt-1"
+                  practiceId={practiceId}
+                  userName={ownerPersonaName}
+                  staffIds={rosterScope?.staffIds ?? []}
+                  clientIds={rosterScope?.clientIds ?? []}
+                  includeCaseloadStaff
+                  refreshKey={notesRefreshKey + staffRefreshKey}
+                  rosterReady={rosterReady}
+                />
+              )}
             </div>
           </main>
         </>
