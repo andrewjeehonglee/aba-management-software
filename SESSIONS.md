@@ -1793,4 +1793,40 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 16, 2026 (Session 31 — BCBA + Supervisor dashboard v3).*
+## Session 32 — Unified tile metrics + Owner dashboard layout polish (Jun 16, 2026 evening)
+
+**What landed:** **`dashboardTileMetrics.ts`** as single source for tile titles, requirements, states, and descriptors across Owner / BCBA / Supervisor / Technician. **Owner dashboard** refined through multiple layout passes: three domains (notes, hours, auth — **no supervision**), attention headline without domain subtitle, plain-text practice stats, compact metric cards, **viewport-height row distribution**. **Clients page** care-team chips and owner preview. **5% supervision** rule unified. All pushed to `main`; **HEAD `a69527e`**.
+
+**Detailed log:** `templates/SESSION_LOG_20260616_evening.md`
+
+### Highlights
+
+1. **Unified metrics** — `buildNotesTileViewModel`, `buildDirectHoursTileViewModel`, etc.; descriptor copy without duplicate counts.
+2. **Owner tiles** — Three row bands (Session notes, Direct hours, Authorized hours); worklist bubbles per domain.
+3. **Header** — `{N} things need your attention today` only; practice line matches date eyebrow size.
+4. **Layout** — Rows spread across viewport (`justify-between` + `flex-1` bands); nav rail `1px ink/10` divider.
+5. **Clients** — Avatar care-team chips; BCBA grouping; owner staff selector on Clients.
+
+### Commits (chronological, Jun 16 evening)
+
+| Hash | Message |
+|------|---------|
+| `b3e34cc` | Unify dashboard tile metrics across all roles |
+| `0a69bad` | De-duplicate tile copy; align state colors |
+| `5b49cc0` | Tighten metric labels per product copy |
+| `fe09f2c` | 5% supervision minimum consistently |
+| `e6b5223` | Remove owner supervision tile; dedupe units |
+| `10fbfc5` | Owner header layout; practice banner |
+| `e760041` | Restore session notes + three-row layout |
+| `d73d8f4` | Practice header + tighter tiles |
+| `b23db94` | Nav divider + tile padding |
+| `a69527e` | Spread rows across viewport height |
+
+### Not done / deferred
+
+- Hardcoded practice stats (3 BCBA / 5 supervisors / 6 technicians).
+- Further owner whitespace micro-tuning (user sign-off: diminishing returns).
+
+---
+
+*Last updated: Jun 16, 2026 (Session 32 — unified metrics + owner layout polish).*
