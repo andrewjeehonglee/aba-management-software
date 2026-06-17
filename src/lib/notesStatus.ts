@@ -33,6 +33,7 @@ export interface NotesStatusItem {
   sessionId: string
   scheduledAt: string
   clientName: string
+  clientCode: string | null
   bucket: "missing" | "overdue"
 }
 
@@ -241,6 +242,7 @@ export async function getNotesStatus(
     )
 
     const clientName = `${session.clients.first_name} ${session.clients.last_name}`
+    const clientCode = session.clients.external_code?.trim() || null
     const existing = byStaffMap.get(session.staff_id)
 
     if (existing) {
@@ -250,6 +252,7 @@ export async function getNotesStatus(
         sessionId: session.id,
         scheduledAt: session.scheduled_at,
         clientName,
+        clientCode,
         bucket,
       })
     } else {
@@ -264,6 +267,7 @@ export async function getNotesStatus(
           sessionId: session.id,
           scheduledAt: session.scheduled_at,
           clientName,
+          clientCode,
           bucket,
         }],
       })

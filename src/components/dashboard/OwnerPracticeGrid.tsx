@@ -3,10 +3,17 @@ import type { ReactNode } from "react"
 import { useNavigate } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { getAuthUtilizationByMonth } from "@/lib/authUtilization"
+import {
+  buildAuthorizationTileViewModel,
+  buildDirectHoursTileViewModel,
+  buildNotesTileViewModel,
+  TILE_DEFINITIONS,
+} from "@/lib/dashboardTileMetrics"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
 import { formatPayPeriodCloseDate } from "@/lib/payPeriod"
 import type { OwnerWorklistItem } from "@/lib/ownerDashboardStatus"
+import { BCBA_STATE_LABEL, type BcbaTileState } from "@/lib/bcbaTileState"
 import { severityTagClass } from "@/lib/pulseSeverity"
 import type { PulseSeverity } from "@/lib/pulseSeverity"
 
@@ -17,7 +24,13 @@ const DOMAIN_ORDER: Domain[] = ["notes", "hours", "auth"]
 const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
   notes: "Incomplete notes",
   hours: "Below 50% direct",
-  auth: "Over authorized limit",
+  auth: "Running low on hours",
+}
+
+function tileStateToPulse(state: BcbaTileState): PulseSeverity {
+  if (state === "urgent") return "crit"
+  if (state === "monitor") return "warn"
+  return "ok"
 }
 
 function domainAccent(domain: Domain, tagSeverity: PulseSeverity): "neutral" | "amber" | "limit" {
@@ -355,66 +368,43 @@ export function OwnerPracticeGrid({
     )
   }
 
-  const unpayableCount = (notes?.totalMissing ?? 0) + (notes?.totalOverdue ?? 0)
-  const pctDocumented = notes?.pctDocumented ?? 0
+  const notesView = notes ? buildNotesTileViewModel(notes) : null
+  const hoursView = hours ? buildDirectHoursTileViewModel(hours) : null
+  const authView = auth ? buildAuthorizationTileViewModel(auth.byClient) : null
+
+  const notesTag = notesView ? BCBA_STATE_LABEL[notesView.state] : "Healthy"
+  const notesTagSeverity = notesView ? tileStateToPulse(notesView.state) : "ok"
+
+  const hoursTag = hoursView ? BCBA_STATE_LABEL[hoursView.state] : "Healthy"
+  const hoursTagSeverity = hoursView ? tileStateToPulse(hoursView.state) : "ok"
+
+  const authTag = authView ? BCBA_STATE_LABEL[authView.state] : "Healthy"
+  const authTagSeverity = authView ? tileStateToPulse(authView.state) : "ok"
+
   const periodLabel = notes?.payPeriodLabel ?? formatPayPeriodCloseDate()
-  const totalCompleted = notes?.totalCompleted ?? 0
-
-  const allStaff = hours?.byStaff ?? []
-  const flaggedCount = allStaff.filter((row) => row.flagged).length
-  const staffCount = allStaff.length
   const monthLabel = hours?.monthLabel ?? ""
-
-  const overCount = auth?.overCount ?? 0
   const authMonthLabel = auth?.monthLabel ?? ""
 
-  const notesTag = unpayableCount > 0 ? `${unpayableCount} overdue` : "healthy"
-  const notesTagSeverity: PulseSeverity = unpayableCount > 0 ? "warn" : "ok"
+  const notesLines: ReactNode[] = notesView
+    ? [
+        <>{notesView.requirement}</>,
+        notesView.metric > 0 ? <>{notesView.descriptor}</> : null,
+      ].filter(Boolean)
+    : ["Loading session notes…"]
 
-  const hoursTag = flaggedCount > 0 ? `${flaggedCount} below direct` : "healthy"
-  const hoursTagSeverity: PulseSeverity = flaggedCount > 0 ? "warn" : "ok"
+  const hoursLines: ReactNode[] = hoursView
+    ? [
+        <>{hoursView.requirement}</>,
+        hoursView.metric > 0 ? <>{hoursView.descriptor}</> : null,
+      ].filter(Boolean)
+    : ["Loading direct hours…"]
 
-  const authTag = overCount > 0 ? `${overCount} over limit` : "healthy"
-  const authTagSeverity: PulseSeverity = overCount > 0 ? "crit" : "ok"
-
-  const notesLines: ReactNode[] =
-    totalCompleted === 0
-      ? ["No sessions logged yet this period."]
-      : unpayableCount > 0
-        ? [
-            <>
-              <strong>
-                {unpayableCount} {unpayableCount === 1 ? "session can't" : "sessions can't"} be paid
-              </strong>{" "}
-              until their notes are in.
-            </>,
-          ]
-        : ["All sessions documented and payable this period."]
-
-  const hoursLines: ReactNode[] =
-    staffCount === 0
-      ? ["No billable hours logged yet."]
-      : flaggedCount > 0
-        ? [
-            <>
-              <strong>{flaggedCount} staff</strong> are below the 50% direct-service requirement.
-            </>,
-          ]
-        : [`All ${staffCount} staff meet the 50% direct-service requirement.`]
-
-  const authLines: ReactNode[] =
-    overCount > 0
-      ? [
-          <>
-            <strong>
-              {overCount} {overCount === 1 ? "client has" : "clients have"}
-            </strong>{" "}
-            billed more hours than their authorization allows.
-          </>,
-        ]
-      : (auth?.totalClients ?? 0) === 0
-        ? ["No client authorization usage logged yet this month."]
-        : ["All clients are within their authorized hours this month."]
+  const authLines: ReactNode[] = authView
+    ? [
+        <>{authView.requirement}</>,
+        authView.metric > 0 ? <>{authView.descriptor}</> : null,
+      ].filter(Boolean)
+    : ["Loading authorization…"]
 
   const domainRows: Record<
     Domain,
@@ -431,37 +421,37 @@ export function OwnerPracticeGrid({
     }
   > = {
     notes: {
-      id: "notes-overdue",
-      title: "Session notes",
+      id: TILE_DEFINITIONS.notes.id,
+      title: TILE_DEFINITIONS.notes.title,
       tag: notesTag,
       tagSeverity: notesTagSeverity,
       lines: notesLines,
-      metric: totalCompleted === 0 ? "—" : `${pctDocumented}%`,
-      metricLabel: "of sessions documented",
+      metric: notesView?.metric ?? "—",
+      metricLabel: notesView?.descriptor ?? "All notes complete",
       metricPeriod: `Pay period · ${periodLabel}`,
-      linkedTag: unpayableCount > 0 ? `${unpayableCount} overdue` : undefined,
+      linkedTag: notesView && notesView.metric > 0 ? String(notesView.metric) : undefined,
     },
     hours: {
-      id: "hours-by-staff",
-      title: "Hours by staff",
+      id: TILE_DEFINITIONS.directHours.id,
+      title: TILE_DEFINITIONS.directHours.title,
       tag: hoursTag,
       tagSeverity: hoursTagSeverity,
       lines: hoursLines,
-      metric: flaggedCount,
-      metricLabel: "staff below 50% direct",
+      metric: hoursView?.metric ?? 0,
+      metricLabel: hoursView?.descriptor ?? "All staff on track",
       metricPeriod: monthLabel ? `Month of ${monthLabel}` : "This month",
-      linkedTag: flaggedCount > 0 ? `${flaggedCount} staff` : undefined,
+      linkedTag: hoursView && hoursView.metric > 0 ? String(hoursView.metric) : undefined,
     },
     auth: {
-      id: "auth-utilization",
-      title: "Authorization utilization",
+      id: TILE_DEFINITIONS.authorization.id,
+      title: TILE_DEFINITIONS.authorization.title,
       tag: authTag,
       tagSeverity: authTagSeverity,
       lines: authLines,
-      metric: overCount,
-      metricLabel: "clients over authorized hours",
+      metric: authView?.metric ?? 0,
+      metricLabel: authView?.descriptor ?? "All clients have runway",
       metricPeriod: authMonthLabel ? `Month of ${authMonthLabel}` : "This month",
-      linkedTag: overCount > 0 ? `${overCount} clients` : undefined,
+      linkedTag: authView && authView.metric > 0 ? String(authView.metric) : undefined,
     },
   }
 

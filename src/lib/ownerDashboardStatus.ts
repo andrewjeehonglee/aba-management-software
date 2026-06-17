@@ -1,4 +1,14 @@
 import { getAuthUtilizationByMonth } from "@/lib/authUtilization"
+import {
+  authRunwayState,
+  authRunwayValue,
+  buildAuthorizationTileViewModel,
+  buildDirectHoursTileViewModel,
+  buildNotesTileViewModel,
+  shortClientLabel,
+  sortAuthRunwayRows,
+  TILE_DEFINITIONS,
+} from "@/lib/dashboardTileMetrics"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { daysUntilPeriodEnd, formatPayPeriodCloseDate } from "@/lib/payPeriod"
 import type { PulseSeverity } from "@/lib/pulseSeverity"
@@ -62,104 +72,96 @@ export async function getOwnerAttentionSummary(options?: {
   const worklist: OwnerWorklistItem[] = []
   let worstSeverityLevel: PulseSeverity = "ok"
 
-  const unpayableCount = notes.totalMissing + notes.totalOverdue
-  if (unpayableCount > 0) {
+  const notesView = buildNotesTileViewModel(notes)
+  if (notesView.metric > 0) {
+    const notesSeverity: OwnerAttentionSeverity =
+      notesView.state === "urgent" ? "crit" : "warn"
     items.push({
       id: "notes",
-      scrollTargetId: "notes-overdue",
-      label: "Session notes",
-      detail: `${unpayableCount} ${unpayableCount === 1 ? "session" : "sessions"} unpayable`,
-      displayValue: `${unpayableCount} unpayable`,
-      severity: "warn",
+      scrollTargetId: TILE_DEFINITIONS.notes.id,
+      label: notesView.title,
+      detail: notesView.descriptor,
+      displayValue: String(notesView.metric),
+      severity: notesSeverity,
     })
-    worstSeverityLevel = worstSeverity(worstSeverityLevel, "warn")
+    worstSeverityLevel = worstSeverity(
+      worstSeverityLevel,
+      notesSeverity === "crit" ? "crit" : "warn",
+    )
 
     for (const row of notes.byStaff) {
       const sessionCount = row.missingCount + row.overdueCount
       if (sessionCount === 0) continue
+      const rowSeverity: OwnerAttentionSeverity =
+        row.overdueCount > 0 ? "crit" : "warn"
       worklist.push({
         id: `notes-${row.staffId}`,
         group: "notes",
         groupLabel: "Incomplete notes",
         name: row.staffName,
         displayValue: sessionLabel(sessionCount),
-        severity: "warn",
+        severity: rowSeverity,
         href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
       })
     }
   }
 
-  const flaggedStaff = hours.byStaff.filter((row) => row.flagged)
-
-  if (flaggedStaff.length > 0) {
+  const hoursView = buildDirectHoursTileViewModel(hours)
+  if (hoursView.metric > 0) {
     items.push({
       id: "hours",
-      scrollTargetId: "hours-by-staff",
-      label: "Hours by staff",
-      detail: `${flaggedStaff.length} below 50% direct`,
-      displayValue: `${flaggedStaff.length} below direct`,
+      scrollTargetId: TILE_DEFINITIONS.directHours.id,
+      label: hoursView.title,
+      detail: hoursView.descriptor,
+      displayValue: String(hoursView.metric),
       severity: "warn",
     })
     worstSeverityLevel = worstSeverity(worstSeverityLevel, "warn")
 
-    for (const row of flaggedStaff) {
+    for (const row of hours.byStaff.filter((r) => r.flagged)) {
       worklist.push({
         id: `hours-${row.staffId}`,
         group: "hours",
         groupLabel: "Below 50% direct",
         name: row.staffName,
-        displayValue: `${Math.round(row.directPct * 100)}% direct`,
+        displayValue: `${Math.round(row.directPct * 100)}%`,
         severity: "warn",
         href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
       })
     }
   }
 
-  if (auth.overCount > 0) {
+  const authView = buildAuthorizationTileViewModel(auth.byClient)
+  if (authView.metric > 0) {
+    const authSeverity: OwnerAttentionSeverity =
+      authView.state === "urgent" ? "crit" : "warn"
     items.push({
       id: "auth",
-      scrollTargetId: "auth-utilization",
-      label: "Authorizations",
-      detail: `${auth.overCount} ${auth.overCount === 1 ? "client" : "clients"} over limit`,
-      displayValue: `${auth.overCount} over limit`,
-      severity: "crit",
+      scrollTargetId: TILE_DEFINITIONS.authorization.id,
+      label: authView.title,
+      detail: authView.descriptor,
+      displayValue: String(authView.metric),
+      severity: authSeverity,
     })
-    worstSeverityLevel = worstSeverity(worstSeverityLevel, "crit")
-  } else if (auth.approachingCount > 0) {
-    items.push({
-      id: "auth",
-      scrollTargetId: "auth-utilization",
-      label: "Authorizations",
-      detail: `${auth.approachingCount} approaching limit`,
-      displayValue: `${auth.approachingCount} approaching`,
-      severity: "warn",
-    })
-    worstSeverityLevel = worstSeverity(worstSeverityLevel, "warn")
+    worstSeverityLevel = worstSeverity(
+      worstSeverityLevel,
+      authSeverity === "crit" ? "crit" : "warn",
+    )
   }
 
-  const authOver = auth.byClient.filter((row) => row.overAuthorized)
-  const authApproaching = auth.byClient.filter((row) => row.approaching)
+  const authFlagged = sortAuthRunwayRows(
+    auth.byClient.filter((row) => authRunwayState(row) !== "healthy"),
+  )
 
-  for (const row of authOver) {
+  for (const row of authFlagged) {
+    const runwayState = authRunwayState(row)
     worklist.push({
-      id: `auth-over-${row.authId}`,
+      id: `auth-${row.authId}`,
       group: "auth",
-      groupLabel: "Over authorized limit",
-      name: row.clientName,
-      displayValue: `${row.overHours} hrs over`,
-      severity: "crit",
-      href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-    })
-  }
-
-  for (const row of authApproaching) {
-    worklist.push({
-      id: `auth-approaching-${row.authId}`,
-      group: "auth",
-      groupLabel: "Over authorized limit",
-      name: row.clientName,
-      displayValue: `${row.hoursRemaining} hrs left`,
-      severity: "warn",
+      groupLabel: "Running low on hours",
+      name: shortClientLabel(row.clientName),
+      displayValue: authRunwayValue(row),
+      severity: runwayState === "urgent" ? "crit" : "warn",
       href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
     })
   }

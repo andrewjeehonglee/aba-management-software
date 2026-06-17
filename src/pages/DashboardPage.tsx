@@ -491,7 +491,6 @@ export function DashboardPage({
                 <div className="grid shrink-0 gap-4 lg:grid-cols-4">
                   <BcbaDashboardTiles
                     key={effectiveStaffId}
-                    audience={isSupervisorDashboard ? "supervisor" : "bcba"}
                     refreshKey={notesRefreshKey + staffRefreshKey}
                     notesStaffIds={leadNotesStaffIds}
                     hoursStaffIds={leadHoursStaffIds}

@@ -1,33 +1,21 @@
 import { useEffect, useState } from "react"
 import { getAuthUtilizationByMonth } from "@/lib/authUtilization"
-import { BCBA_AUTH_MONITOR_THRESHOLD, type BcbaTileState } from "@/lib/bcbaTileState"
 import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
+import {
+  buildAuthorizationTileViewModel,
+  buildDirectHoursTileViewModel,
+  buildNotesTileViewModel,
+  buildSupervisionTileViewModel,
+  type DashboardTileViewModel,
+} from "@/lib/dashboardTileMetrics"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
-import { firstName } from "@/lib/ownerDashboardStatus"
-import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 import { getSupervisionForStaffIds, supabase } from "@/lib/supabase"
-import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
-import type { AttentionBubbleTone } from "@/components/dashboard/AttentionBubble"
 import {
   BcbaDashboardTile,
   BcbaDashboardTileError,
   BcbaDashboardTileSkeleton,
-  type BcbaBubbleItem,
 } from "@/components/dashboard/BcbaDashboardTile"
-
-function shortClientLabel(name: string): string {
-  const trimmed = name.trim()
-  if (!trimmed) return "?"
-  const parts = trimmed.split(/\s+/).filter(Boolean)
-  if (parts.length >= 2) {
-    return parts
-      .map((p) => p[0] ?? "")
-      .join("")
-      .slice(0, 4)
-  }
-  return trimmed.length <= 5 ? trimmed : trimmed.slice(0, 4)
-}
 
 function payPeriodBlock(label: string) {
   if (!label) {
@@ -50,8 +38,30 @@ function monthBlock(label: string) {
   return <span className="block">{label || "—"}</span>
 }
 
+function MetricTile({
+  view,
+  period,
+}: {
+  view: DashboardTileViewModel
+  period: React.ReactNode
+}) {
+  return (
+    <BcbaDashboardTile
+      id={view.id}
+      title={view.title}
+      requirement={view.requirement}
+      state={view.state}
+      period={period}
+      metric={view.metric}
+      descriptor={view.descriptor}
+      popoverItems={view.popoverItems}
+      popoverGroups={view.popoverGroups}
+      popoverEmptyLabel={view.popoverEmptyLabel}
+    />
+  )
+}
+
 export function BcbaDashboardTiles({
-  audience = "bcba",
   refreshKey,
   notesStaffIds,
   hoursStaffIds,
@@ -60,7 +70,6 @@ export function BcbaDashboardTiles({
   includeZeroHourStaff,
   includeCaseloadStaff,
 }: {
-  audience?: "bcba" | "supervisor"
   refreshKey?: number
   notesStaffIds: string[]
   hoursStaffIds: string[]
@@ -183,110 +192,19 @@ export function BcbaDashboardTiles({
     )
   }
 
-  const notesPeriod = notes?.payPeriodLabel ?? ""
-  const overdueTotal = notes?.totalOverdue ?? 0
-  const missingTotal = notes?.totalMissing ?? 0
-  const incompleteNotesTotal = overdueTotal + missingTotal
+  if (!notes || !hours || !auth) return null
 
-  let notesState: BcbaTileState = "healthy"
-  if (overdueTotal > 0) notesState = "urgent"
-  else if (missingTotal > 0) notesState = "monitor"
-
-  const notesPopover: BcbaBubbleItem[] = [
-    ...(missingTotal > 0
-      ? [{ id: "missing", name: "Missing notes", value: String(missingTotal), tone: "monitor" as AttentionBubbleTone }]
-      : []),
-    ...(overdueTotal > 0
-      ? [{ id: "overdue", name: "Overdue notes", value: String(overdueTotal), tone: "urgent" as AttentionBubbleTone }]
-      : []),
-  ]
-
-  const hoursMonth = hours?.monthLabel ?? ""
-  const hoursFlagged = (hours?.byStaff ?? []).filter((r) => r.flagged)
-  const hoursState: BcbaTileState = hoursFlagged.length > 0 ? "urgent" : "healthy"
-  const hoursPopover: BcbaBubbleItem[] = hoursFlagged.map((row) => ({
-    id: row.staffId,
-    name: firstName(row.staffName),
-    value: `${Math.round(row.directPct * 100)}%`,
-    tone: "urgent",
-    href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
-  }))
-
-  const supervisionFlagged = supervision.filter((r) => r.supervisionPct < SUPERVISION_THRESHOLD)
-  const supervisionState: BcbaTileState =
-    supervisionFlagged.length > 0 ? "urgent" : "healthy"
-  const supervisionPopover: BcbaBubbleItem[] = supervisionFlagged.map((row) => ({
-    id: row.staffId,
-    name: firstName(row.staffName),
-    value: `${row.supervisionPct.toFixed(1)}%`,
-    tone: "urgent",
-    href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
-  }))
-
-  const authMonth = auth?.monthLabel ?? ""
-  const authAttention = (auth?.byClient ?? []).filter(
-    (row) => row.utilizationPct >= BCBA_AUTH_MONITOR_THRESHOLD,
-  )
-  const authHasUrgent = authAttention.some((row) => row.utilizationPct > 100)
-  const authHasMonitor = authAttention.some(
-    (row) =>
-      row.utilizationPct >= BCBA_AUTH_MONITOR_THRESHOLD && row.utilizationPct <= 100,
-  )
-  let authState: BcbaTileState = "healthy"
-  if (authHasUrgent) authState = "urgent"
-  else if (authHasMonitor) authState = "monitor"
-
-  const authPopover: BcbaBubbleItem[] = authAttention.map((row) => ({
-    id: row.authId,
-    name: shortClientLabel(row.clientName),
-    value: `${row.utilizationPct}%`,
-    tone: row.utilizationPct > 100 ? "urgent" : "monitor",
-    href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-  }))
-
-  const hoursUnit =
-    audience === "supervisor" ? "supervisees below 50% direct" : "staff below 50% direct"
-  const supervisionUnit = audience === "supervisor" ? "supervisees" : "staff"
+  const notesView = buildNotesTileViewModel(notes)
+  const hoursView = buildDirectHoursTileViewModel(hours)
+  const supervisionView = buildSupervisionTileViewModel(supervision)
+  const authView = buildAuthorizationTileViewModel(auth.byClient)
 
   return (
     <>
-      <BcbaDashboardTile
-        id="notes-overdue"
-        title="Session notes"
-        state={notesState}
-        period={payPeriodBlock(notesPeriod)}
-        metric={incompleteNotesTotal}
-        unit="incomplete notes"
-        popoverItems={notesPopover}
-        popoverEmptyLabel="All notes complete"
-      />
-      <BcbaDashboardTile
-        id="hours-by-staff"
-        title="Hours by staff"
-        state={hoursState}
-        period={monthBlock(hoursMonth)}
-        metric={hoursFlagged.length}
-        unit={hoursUnit}
-        popoverItems={hoursPopover}
-      />
-      <BcbaDashboardTile
-        id="supervision-compliance"
-        title="Supervision compliance"
-        state={supervisionState}
-        period={monthBlock(supervisionMonthLabel)}
-        metric={supervisionFlagged.length}
-        unit={supervisionUnit}
-        popoverItems={supervisionPopover}
-      />
-      <BcbaDashboardTile
-        id="auth-utilization"
-        title="Authorization utilization"
-        state={authState}
-        period={monthBlock(authMonth)}
-        metric={authAttention.length}
-        unit="clients"
-        popoverItems={authPopover}
-      />
+      <MetricTile view={notesView} period={payPeriodBlock(notes.payPeriodLabel)} />
+      <MetricTile view={hoursView} period={monthBlock(hours.monthLabel)} />
+      <MetricTile view={supervisionView} period={monthBlock(supervisionMonthLabel)} />
+      <MetricTile view={authView} period={monthBlock(auth.monthLabel)} />
     </>
   )
 }

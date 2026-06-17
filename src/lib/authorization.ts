@@ -15,6 +15,10 @@ export const AMBER_LOWER = 75
 /** Utilization above authorized hours — distinct from approaching threshold. */
 export const OVER_AUTHORIZED_THRESHOLD = 100
 
+/** Dashboard auth tile — hours remaining before cap (proactive runway). */
+export const AUTH_RUNWAY_MONITOR_HOURS = 10
+export const AUTH_RUNWAY_URGENT_HOURS = 5
+
 export function utilizationClass(pct: number): { bar: string; text: string } {
   if (pct >= RED_THRESHOLD) return { bar: "bg-red-500",     text: "text-red-700" }
   if (pct >= AMBER_LOWER)   return { bar: "bg-amber-500",   text: "text-amber-700" }
