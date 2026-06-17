@@ -1,8 +1,6 @@
 import type { OwnerAttentionSummary } from "@/lib/ownerDashboardStatus"
 import { firstName, timeGreeting } from "@/lib/ownerDashboardStatus"
 
-const OWNER_ATTENTION_IDS = new Set(["hours", "auth"])
-
 export function FocalStatusArea({
   userName,
   attention,
@@ -15,8 +13,7 @@ export function FocalStatusArea({
   const greeting = timeGreeting()
   const name = firstName(userName)
   const showStatusPlaceholder = !attention.resolved && (!rosterReady || attention.loading)
-  const items = attention.items.filter((item) => OWNER_ATTENTION_IDS.has(item.id))
-  const attentionCount = items.length
+  const attentionCount = attention.attentionCount
 
   return (
     <header className="shrink-0 animate-fade-rise">

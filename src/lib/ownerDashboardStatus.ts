@@ -4,10 +4,12 @@ import {
   authRunwayValue,
   buildAuthorizationTileViewModel,
   buildDirectHoursTileViewModel,
+  buildNotesTileViewModel,
   shortClientLabel,
   sortAuthRunwayRows,
   TILE_DEFINITIONS,
 } from "@/lib/dashboardTileMetrics"
+import { getNotesStatus } from "@/lib/notesStatus"
 import { daysUntilPeriodEnd, formatPayPeriodCloseDate } from "@/lib/payPeriod"
 import type { PulseSeverity } from "@/lib/pulseSeverity"
 import { PAYROLL_ESCALATION_DAYS, worstSeverity } from "@/lib/pulseSeverity"
@@ -17,7 +19,7 @@ import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 export type OwnerAttentionSeverity = "warn" | "crit"
 
 export interface OwnerAttentionItem {
-  id: "hours" | "auth"
+  id: "notes" | "hours" | "auth"
   scrollTargetId: string
   label: string
   detail: string
@@ -27,7 +29,7 @@ export interface OwnerAttentionItem {
 
 export interface OwnerWorklistItem {
   id: string
-  group: "auth" | "hours"
+  group: "notes" | "auth" | "hours"
   groupLabel: string
   name: string
   displayValue: string
@@ -44,6 +46,9 @@ export interface OwnerAttentionSummary {
   resolved: boolean
 }
 
+function sessionLabel(count: number): string {
+  return count === 1 ? "1 session" : `${count} sessions`
+}
 
 export async function getOwnerAttentionSummary(options?: {
   staffIds?: string[]
@@ -54,7 +59,8 @@ export async function getOwnerAttentionSummary(options?: {
     clientIds: options?.clientIds?.length ? options.clientIds : undefined,
   }
 
-  const [hours, auth] = await Promise.all([
+  const [notes, hours, auth] = await Promise.all([
+    getNotesStatus(undefined, scope.staffIds || scope.clientIds ? scope : undefined),
     getStaffHoursByMonth(undefined, {
       ...scope,
       includeZeroHourStaff: true,
@@ -65,6 +71,40 @@ export async function getOwnerAttentionSummary(options?: {
   const items: OwnerAttentionItem[] = []
   const worklist: OwnerWorklistItem[] = []
   let worstSeverityLevel: PulseSeverity = "ok"
+
+  const notesView = buildNotesTileViewModel(notes)
+  if (notesView.metric > 0) {
+    const notesSeverity: OwnerAttentionSeverity =
+      notesView.state === "urgent" ? "crit" : "warn"
+    items.push({
+      id: "notes",
+      scrollTargetId: TILE_DEFINITIONS.notes.id,
+      label: notesView.title,
+      detail: notesView.descriptor,
+      displayValue: String(notesView.metric),
+      severity: notesSeverity,
+    })
+    worstSeverityLevel = worstSeverity(
+      worstSeverityLevel,
+      notesSeverity === "crit" ? "crit" : "warn",
+    )
+
+    for (const row of notes.byStaff) {
+      const sessionCount = row.missingCount + row.overdueCount
+      if (sessionCount === 0) continue
+      const rowSeverity: OwnerAttentionSeverity =
+        row.overdueCount > 0 ? "crit" : "warn"
+      worklist.push({
+        id: `notes-${row.staffId}`,
+        group: "notes",
+        groupLabel: "Incomplete notes",
+        name: row.staffName,
+        displayValue: sessionLabel(sessionCount),
+        severity: rowSeverity,
+        href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
+      })
+    }
+  }
 
   const hoursView = buildDirectHoursTileViewModel(hours)
   if (hoursView.metric > 0) {
