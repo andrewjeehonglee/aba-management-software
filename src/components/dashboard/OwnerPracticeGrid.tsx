@@ -219,11 +219,11 @@ function LinkedBubbleGroup({
 
 function SurfaceSkeleton() {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col justify-between gap-4 pb-1">
       {Array.from({ length: 3 }).map((_, i) => (
         <div
           key={i}
-          className="animate-pulse rounded-[var(--radius)] bg-surface px-3.5 pt-2.5 pb-2 shadow-card"
+          className="animate-pulse rounded-[var(--radius)] bg-surface px-3.5 pt-2.5 pb-2 shadow-card min-[1000px]:flex-1"
         >
           <div className="h-5 w-40 rounded bg-line-soft" />
           <div className="mt-3 h-4 w-full max-w-md rounded bg-line-soft" />
@@ -320,7 +320,16 @@ export function OwnerPracticeGrid({
     [navigate, poppingId],
   )
 
-  if (loading) return <SurfaceSkeleton />
+  if (loading) {
+    return (
+      <section
+        className={cn("animate-fade-rise animate-fade-rise-delay-1 flex min-h-0 flex-1 flex-col", className)}
+        aria-hidden
+      >
+        <SurfaceSkeleton />
+      </section>
+    )
+  }
 
   if (error) {
     return (
@@ -395,7 +404,7 @@ export function OwnerPracticeGrid({
       className={cn("animate-fade-rise animate-fade-rise-delay-1 flex min-h-0 flex-1 flex-col", className)}
       aria-label="Practice overview and action items"
     >
-      <div className="owner-scroll-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="mb-3 shrink-0 short:mb-2">
           <p className="text-[15px] font-semibold uppercase tracking-[0.10em] text-muted">
             Your practice today
@@ -410,7 +419,7 @@ export function OwnerPracticeGrid({
           </p>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex min-h-0 flex-1 flex-col justify-between gap-4 pb-1">
           {DOMAIN_ORDER.map((domain) => {
             const row = domainRows[domain]
             return (
@@ -418,7 +427,7 @@ export function OwnerPracticeGrid({
                 key={domain}
                 className={cn(
                   "flex flex-col gap-3",
-                  "min-[1000px]:grid min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-start min-[1000px]:gap-x-8",
+                  "min-[1000px]:grid min-[1000px]:flex-1 min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-center min-[1000px]:gap-x-8",
                 )}
               >
                 <div className="rounded-[var(--radius)] bg-surface shadow-card">

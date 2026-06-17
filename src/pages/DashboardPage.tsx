@@ -403,7 +403,7 @@ export function DashboardPage({
               />
 
               <OwnerPracticeGrid
-                className="mt-4 short:mt-3"
+                className="mt-4 min-h-0 flex-1 short:mt-3"
                 refreshKey={notesRefreshKey + staffRefreshKey}
                 staffIds={rosterScope?.staffIds}
                 clientIds={rosterScope?.clientIds}
