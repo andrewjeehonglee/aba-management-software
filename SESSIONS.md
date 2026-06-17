@@ -1832,4 +1832,37 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 16, 2026 (Session 32 — unified metrics + owner layout polish).*
+## Session 33 — Owner dashboard redesign: problem-led → pixel-locked final (Jun 16, 2026 late evening)
+
+**What landed:** Complete **owner dashboard redesign in three iterations**, replacing Session 32’s bubble worklist layout with **three always-on monitor tiles** (Session notes, Authorized hours, Direct hours) plus a **full-width Payroll table**. New data paths: **client-lens direct engagement** (50% of authorized hrs, day 21+ gate) and **pay-period payable vs on-hold hours** with popover drill-down on incomplete notes. Removed stats line, coverage tile, attention headline, CTA buttons, and instructional copy. **BCBA / Supervisor / Technician dashboards untouched.** All pushed to `main`; **HEAD `42868d8`**.
+
+**Detailed log:** `templates/SESSION_LOG_20260616_late_evening.md`
+
+### Highlights
+
+1. **Layout** — Vertical stack: greeting → “Needs your attention.” → 3 equal monitor tiles → Payroll table (not side-by-side).
+2. **Monitor tiles** — Always render; chip → popover; auth preventative only (excludes over-cap); direct hours client-lens.
+3. **Payroll** — Name · Payable · On hold; role tabs; click amber on-hold → `client, date` list tied to notes tile.
+4. **New libs** — `ownerDashboardConcerns.ts`, `payPeriodHoursGap.ts`, `clientDirectEngagement.ts`.
+5. **Removed** — `FocalStatusArea` + `OwnerPracticeGrid` wiring; hardcoded 3/5/6 practice stats.
+
+### Commits (chronological, late evening)
+
+| Hash | Message |
+|------|---------|
+| `d0a92af` | Redesign owner dashboard around prioritized concerns and hours-on-hold gap |
+| `b373e84` | Redesign owner payroll panel with group filter and remove coaching copy |
+| `42868d8` | Pixel-lock owner dashboard: three monitor tiles and payroll table |
+
+**Scope:** 8 files cumulative (`e7e80bb` → `42868d8`); +1114 / −60 lines. See detailed log for iteration history and orphan files.
+
+### Not done / deferred
+
+- Mockup HTML files not in repo (`pulse-owner-dashboard-*-mockup.html`).
+- BCBA/Supervisor/Technician dashboard re-scope to this system (owner is reference).
+- Delete orphaned `OwnerPracticeGrid.tsx`, `FocalStatusArea.tsx`, unused `getOwnerAttentionSummary`.
+- Jenny sign-off: direct-hours denominator, auth 10/5 thresholds, payroll title (`Payroll` vs alternatives).
+
+---
+
+*Last updated: Jun 16, 2026 (Session 33 — owner dashboard pixel-locked redesign).*
