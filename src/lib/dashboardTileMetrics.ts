@@ -24,18 +24,18 @@ export const TILE_DEFINITIONS = {
     id: "direct-hours",
     title: "Direct hours",
     selfTitle: "My direct hours",
-    requirement: "50% of hours must be direct engagement",
+    requirement: "50% of authorized hours must be direct engagement",
   },
   supervision: {
     id: "supervision",
-    title: "Supervision",
+    title: "Supervision compliance",
     selfTitle: "My supervision compliance",
-    requirement: "RBTs must receive 5% supervision",
+    requirement: "RBTs must receive 5% supervision per month",
   },
   authorization: {
     id: "authorization",
     title: "Authorized hours",
-    requirement: "Flag clients when authorized hours remaining are low",
+    requirement: "Flag when authorized hours remaining are low",
   },
 } as const
 
@@ -173,10 +173,10 @@ export function buildDirectHoursTileViewModel(
     flagged.length === 0
       ? options?.selfMode
         ? "On track"
-        : "All staff meet the direct engagement requirement"
+        : "All staff meet the 50% requirement"
       : options?.selfMode
-        ? "Below the 50% direct engagement requirement"
-        : "staff below the 50% direct engagement requirement"
+        ? "Below 50% requirement"
+        : `${flagged.length} staff below 50% requirement`
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.staffId,
@@ -214,10 +214,10 @@ export function buildSupervisionTileViewModel(
     flagged.length === 0
       ? options?.selfMode
         ? "Supervision received this month"
-        : "All staff meet the supervision requirement"
+        : "All staff meet the 5% requirement"
       : options?.selfMode
-        ? "Below the 5% supervision requirement"
-        : "staff below the 5% supervision requirement"
+        ? "Below 5% requirement"
+        : `${flagged.length} staff below 5% requirement`
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.staffId,
@@ -256,8 +256,8 @@ export function buildAuthorizationTileViewModel(
 
   const descriptor =
     flagged.length === 0
-      ? "All clients have sufficient hours remaining"
-      : "clients with limited hours remaining"
+      ? "No clients flagged"
+      : `${flagged.length} client${flagged.length === 1 ? "" : "s"}`
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.authId,
@@ -275,6 +275,6 @@ export function buildAuthorizationTileViewModel(
     metric: flagged.length,
     descriptor,
     popoverItems,
-    popoverEmptyLabel: "All clients have sufficient hours remaining",
+    popoverEmptyLabel: "No clients flagged",
   }
 }

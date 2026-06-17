@@ -384,7 +384,7 @@ export function OwnerPracticeGrid({
       tileState: authView?.state ?? "healthy",
       lines: authView ? [<>{authView.requirement}</>] : ["Loading authorized hours…"],
       metric: authView?.metric ?? 0,
-      metricLabel: authView?.descriptor ?? "All clients have sufficient hours remaining",
+      metricLabel: authView?.descriptor ?? "No clients flagged",
       metricPeriod: authMonthLabel || "This month",
       linkedTag: authView && authView.metric > 0 ? String(authView.metric) : undefined,
     },
