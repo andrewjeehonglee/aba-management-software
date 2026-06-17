@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
+import { ownerInitials } from "@/lib/ownerDashboardStatus"
 import { getBcbaSummaries, getRosterRows, type BcbaSummary, type RosterRow } from "@/lib/rosterTable"
 import { clientProfilePath, getRosterStaffByRole, staffProfilePath, type RosterStaffEntry } from "@/lib/rosterScope"
 import { cn } from "@/lib/utils"
@@ -24,9 +25,6 @@ const PREVIEW_DEFAULTS: Record<Exclude<ViewRole, "Owner">, string> = {
   Supervisor: "Hilary",
   Technician: "Jazmine",
 }
-
-const TEAM_GRID =
-  "grid w-full max-w-[38rem] grid-cols-[minmax(4.5rem,5.25rem)_minmax(6.5rem,8.5rem)_minmax(6.5rem,8.5rem)] items-center gap-x-3 sm:max-w-[42rem] sm:grid-cols-[5.5rem_9rem_9rem] sm:gap-x-4"
 
 function normaliseRole(raw?: string): string {
   return (raw ?? "technician").toLowerCase()
@@ -49,77 +47,96 @@ function sortRowsAz(rows: RosterRow[]): RosterRow[] {
   )
 }
 
-function UnassignedChip() {
-  return (
-    <span className="inline-flex items-center gap-1 text-[15px] text-alert">
-      <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-      Unassigned
+function CareTeamChip({
+  roleLabel,
+  name,
+  code,
+  unassigned,
+}: {
+  roleLabel: string
+  name?: string | null
+  code?: string | null
+  unassigned?: boolean
+}) {
+  const chip = (
+    <span className="inline-flex min-w-0 items-center gap-2.5">
+      <span
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold shadow-card",
+          unassigned
+            ? "bg-alert/10 text-alert ring-1 ring-alert/25"
+            : "bg-accent-soft text-brand",
+        )}
+        aria-hidden
+      >
+        {unassigned ? <AlertCircle className="size-4" /> : ownerInitials(name)}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[11px] font-semibold uppercase tracking-[0.07em] text-muted">
+          {roleLabel}
+        </span>
+        {unassigned ? (
+          <span className="block text-[14px] font-medium text-alert">Unassigned</span>
+        ) : (
+          <span className="block truncate text-[15px] font-medium text-ink-soft">{name}</span>
+        )}
+      </span>
     </span>
   )
-}
 
-function StaffName({ name, code }: { name: string; code?: string | null }) {
-  if (!code) return <span className="text-[15px] text-ink">{name}</span>
+  if (unassigned || !code) return chip
+
   return (
     <Link
       to={staffProfilePath(code)}
-      className="text-[15px] text-ink hover:text-brand hover:underline underline-offset-2"
+      className="inline-flex rounded-[var(--radius)] transition-colors hover:bg-surface-2/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       onClick={(e) => e.stopPropagation()}
     >
-      {name}
+      {chip}
     </Link>
   )
 }
 
-function TeamColumnHeader() {
-  return (
-    <div
-      className={`${TEAM_GRID} px-3.5 pb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted sm:px-4`}
-      aria-hidden
-    >
-      <span>Client</span>
-      <span>Clinical supervisor</span>
-      <span>Technician</span>
-    </div>
-  )
-}
-
-function ClientTeamRow({ row }: { row: RosterRow }) {
+function ClientTeamRow({ row, showBcba }: { row: RosterRow; showBcba?: boolean }) {
   const showDisplayName =
     row.clientDisplayName.toLowerCase() !== row.clientCode.toLowerCase()
 
   return (
     <Link
       to={clientProfilePath(row.clientCode)}
-      className={`${TEAM_GRID} rounded-[var(--radius)] bg-surface px-3.5 py-2.5 shadow-card transition-shadow hover:bg-surface-2 sm:px-4`}
+      className="block rounded-[var(--radius)] bg-surface px-4 py-3.5 shadow-card transition-shadow hover:bg-surface-2 sm:px-5"
     >
       <div className="min-w-0">
-        <p className="text-[16px] font-semibold leading-snug text-ink">{row.clientCode}</p>
+        <p className="text-[18px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+          {row.clientCode}
+        </p>
         {showDisplayName && (
-          <p className="mt-0.5 truncate text-[14px] text-muted">{row.clientDisplayName}</p>
+          <p className="mt-0.5 truncate text-[15px] text-muted">{row.clientDisplayName}</p>
         )}
       </div>
-      <div className="min-w-0">
-        {row.supervisorName ? (
-          <StaffName name={row.supervisorName} code={row.supervisorCode} />
-        ) : (
-          <span className="text-[15px] text-muted">—</span>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-line/60 pt-3">
+        {showBcba && row.bcbaName && (
+          <CareTeamChip roleLabel="BCBA" name={row.bcbaName} code={row.bcbaCode} />
         )}
-      </div>
-      <div className="min-w-0">
+        {row.supervisorName && (
+          <CareTeamChip
+            roleLabel="Clinical supervisor"
+            name={row.supervisorName}
+            code={row.supervisorCode}
+          />
+        )}
         {row.btUnassigned ? (
-          <UnassignedChip />
+          <CareTeamChip roleLabel="Technician" unassigned />
         ) : row.btName ? (
-          <StaffName name={row.btName} code={row.btCode} />
-        ) : (
-          <span className="text-[15px] text-muted">—</span>
-        )}
+          <CareTeamChip roleLabel="Technician" name={row.btName} code={row.btCode} />
+        ) : null}
       </div>
     </Link>
   )
 }
 
-function ClientsFlatList({ rows }: { rows: RosterRow[] }) {
+function ClientsFlatList({ rows, showBcba }: { rows: RosterRow[]; showBcba?: boolean }) {
   if (rows.length === 0) {
     return (
       <p className="py-12 text-center text-[16px] text-muted">No clients match your search.</p>
@@ -127,16 +144,13 @@ function ClientsFlatList({ rows }: { rows: RosterRow[] }) {
   }
 
   return (
-    <div className="w-fit max-w-full">
-      <TeamColumnHeader />
-      <ul className="space-y-2.5">
-        {rows.map((row) => (
-          <li key={row.clientId}>
-            <ClientTeamRow row={row} />
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+      {rows.map((row) => (
+        <li key={row.clientId}>
+          <ClientTeamRow row={row} showBcba={showBcba} />
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -178,8 +192,7 @@ function BcbaTeamSection({
           </span>
         )}
       </div>
-      <TeamColumnHeader />
-      <ul className="space-y-2.5">
+      <ul className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
         {clients.map((row) => (
           <li key={row.clientId}>
             <ClientTeamRow row={row} />
@@ -375,6 +388,11 @@ export function ClientsPage({
 
   const flatRows = useMemo(() => sortRowsAz(filteredRows), [filteredRows])
 
+  const showBcbaOnRow =
+    (showOwnerGrouping && groupMode === "az") ||
+    effectiveScopeRole === "supervisor" ||
+    effectiveScopeRole === "technician"
+
   const unassignedCount = allRows.filter((r) => r.btUnassigned).length
   const hasRoster = allRows.length > 0
   const hasSearch = searchQuery.trim().length > 0
@@ -522,7 +540,7 @@ export function ClientsPage({
                   )}
                 </div>
               ) : (
-                <ClientsFlatList rows={flatRows} />
+                <ClientsFlatList rows={flatRows} showBcba={showBcbaOnRow} />
               )}
             </>
           )}
