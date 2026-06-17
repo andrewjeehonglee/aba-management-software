@@ -1,0 +1,11 @@
+---
+description: Commit and push completed work to main without asking
+alwaysApply: true
+---
+
+After completing implementation work (not question-only or review-only tasks), commit and push to `main` without asking for confirmation.
+
+- Stage relevant changed files; do not commit secrets (.env, credentials).
+- Write a concise commit message focused on why.
+- Push to `origin main` after a successful commit.
+- Skip commit/push when there are no changes, or when the user explicitly says not to.
