@@ -35,9 +35,9 @@ const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
 
 function ConsequenceLines({ lines }: { lines: ReactNode[] }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       {lines.map((line, i) => (
-        <p key={i} className="text-[17px] leading-snug text-ink-soft [&_strong]:font-semibold [&_strong]:text-ink">
+        <p key={i} className="text-[18px] leading-snug text-ink-soft [&_strong]:font-semibold [&_strong]:text-ink">
           {line}
         </p>
       ))}
@@ -60,14 +60,14 @@ function StackedMetric({
     <div className="shrink-0 text-left lg:text-right">
       <p
         className={cn(
-          "text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
+          "text-[44px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
           BCBA_STATE_METRIC_CLASS[tileState],
         )}
       >
         {value}
       </p>
-      <p className="mt-1 text-[17px] leading-snug text-ink-soft">{label}</p>
-      <p className="mt-0.5 text-[13px] text-muted">{period}</p>
+      <p className="mt-0.5 text-[18px] leading-snug text-ink-soft">{label}</p>
+      <p className="mt-0.5 text-[14px] text-muted">{period}</p>
     </div>
   )
 }
@@ -94,11 +94,11 @@ function OpsRow({
   return (
     <div
       id={id}
-      className="grid grid-cols-1 items-center gap-3 px-4 py-5 short:px-3.5 short:py-4 lg:grid-cols-[1fr_auto] lg:gap-8"
+      className="grid grid-cols-1 items-center gap-2 px-3.5 py-3 short:px-3 short:py-2.5 lg:grid-cols-[1fr_auto] lg:gap-6"
     >
-      <div className="min-w-0 space-y-1.5">
+      <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-[19px] font-semibold text-ink">{title}</h3>
+          <h3 className="text-[20px] font-semibold text-ink">{title}</h3>
           <span
             className={cn(
               "rounded-full px-2.5 py-0.5 text-[12px] font-semibold uppercase tracking-[0.08em]",
@@ -180,15 +180,15 @@ function LinkedBubbleGroup({
   linkedTileState?: BcbaTileState
 }) {
   if (items.length === 0) {
-    return <div className="hidden min-h-[88px] min-[1000px]:block" aria-hidden />
+    return <div className="hidden min-[1000px]:block" aria-hidden />
   }
 
   const linkedTagClass =
     linkedTileState ? TILE_STATE_TAG_CLASS[linkedTileState] : TILE_STATE_TAG_CLASS.healthy
 
   return (
-    <div className="flex min-h-[88px] flex-col justify-center py-2 short:py-2 min-[1000px]:py-0">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+    <div className="flex flex-col justify-center py-1 min-[1000px]:py-0">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <p className="text-[16px] font-semibold uppercase tracking-[0.08em] text-ink">
           {WORKLIST_GROUP_LABELS[domain]}
         </p>
@@ -219,11 +219,11 @@ function LinkedBubbleGroup({
 
 function SurfaceSkeleton() {
   return (
-    <div className="flex flex-col gap-2 min-[1000px]:gap-3">
+    <div className="flex flex-col gap-2.5">
       {Array.from({ length: 3 }).map((_, i) => (
         <div
           key={i}
-          className="animate-pulse rounded-[var(--radius)] bg-surface px-5 py-5 shadow-card"
+          className="animate-pulse rounded-[var(--radius)] bg-surface px-3.5 py-3 shadow-card"
         >
           <div className="h-5 w-40 rounded bg-line-soft" />
           <div className="mt-3 h-4 w-full max-w-md rounded bg-line-soft" />
@@ -396,27 +396,29 @@ export function OwnerPracticeGrid({
       aria-label="Practice overview and action items"
     >
       <div className="owner-scroll-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <p className="mb-2 shrink-0 text-[15px] leading-snug text-ink-soft">
-          <span className="font-medium text-ink">Your practice today</span>
-          {" — "}
-          <span className="font-semibold text-ink">{activeClientCount ?? 0} active clients</span>
-          <span className="text-muted"> / </span>
-          <span>3 BCBAs</span>
-          <span className="text-muted"> / </span>
-          <span>5 clinical supervisors</span>
-          <span className="text-muted"> / </span>
-          <span>6 technicians</span>
-        </p>
+        <div className="mb-3 shrink-0 short:mb-2">
+          <p className="text-[15px] font-semibold uppercase tracking-[0.10em] text-muted">
+            Your practice today
+          </p>
+          <p className="mt-1 text-[15px] font-semibold leading-snug tracking-[0.02em] text-ink-soft">
+            <span className="text-ink">{activeClientCount ?? 0} active clients</span>
+            /3 BCBA
+            <span className="text-muted"> * </span>
+            5 clinical supervisors
+            <span className="text-muted"> * </span>
+            6 technicians
+          </p>
+        </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-2 min-[1000px]:gap-3">
+        <div className="flex flex-col gap-2.5">
           {DOMAIN_ORDER.map((domain) => {
             const row = domainRows[domain]
             return (
               <div
                 key={domain}
                 className={cn(
-                  "flex flex-col gap-4",
-                  "min-[1000px]:grid min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-stretch min-[1000px]:gap-x-8",
+                  "flex flex-col gap-3",
+                  "min-[1000px]:grid min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-center min-[1000px]:gap-x-8",
                 )}
               >
                 <div className="rounded-[var(--radius)] bg-surface shadow-card">
