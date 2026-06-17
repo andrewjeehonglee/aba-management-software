@@ -14,7 +14,7 @@ type ViewRole = "Owner" | "BCBA" | "Supervisor" | "Technician"
 type GroupMode = "bcba" | "az"
 
 const TEAM_GRID =
-  "grid grid-cols-[minmax(5rem,auto)_minmax(8.5rem,auto)_minmax(8.5rem,auto)] items-center gap-x-6"
+  "grid w-full max-w-[38rem] grid-cols-[minmax(4.5rem,5.25rem)_minmax(6.5rem,8.5rem)_minmax(6.5rem,8.5rem)] items-center gap-x-3 sm:max-w-[42rem] sm:grid-cols-[5.5rem_9rem_9rem] sm:gap-x-4"
 
 function normaliseRole(raw?: string): string {
   return (raw ?? "technician").toLowerCase()
@@ -39,19 +39,19 @@ function sortRowsAz(rows: RosterRow[]): RosterRow[] {
 
 function UnassignedChip() {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[16px] text-alert">
-      <AlertCircle className="size-4 shrink-0" aria-hidden />
+    <span className="inline-flex items-center gap-1 text-[15px] text-alert">
+      <AlertCircle className="size-3.5 shrink-0" aria-hidden />
       Unassigned
     </span>
   )
 }
 
 function StaffName({ name, code }: { name: string; code?: string | null }) {
-  if (!code) return <span className="text-[16px] text-ink">{name}</span>
+  if (!code) return <span className="text-[15px] text-ink">{name}</span>
   return (
     <Link
       to={staffProfilePath(code)}
-      className="text-[16px] text-ink hover:text-brand hover:underline underline-offset-2"
+      className="text-[15px] text-ink hover:text-brand hover:underline underline-offset-2"
       onClick={(e) => e.stopPropagation()}
     >
       {name}
@@ -62,7 +62,7 @@ function StaffName({ name, code }: { name: string; code?: string | null }) {
 function TeamColumnHeader() {
   return (
     <div
-      className={`${TEAM_GRID} px-4 pb-2.5 text-[13px] font-semibold uppercase tracking-[0.08em] text-muted`}
+      className={`${TEAM_GRID} px-3.5 pb-2 text-[12px] font-semibold uppercase tracking-[0.08em] text-muted sm:px-4`}
       aria-hidden
     >
       <span>Client</span>
@@ -79,19 +79,19 @@ function ClientTeamRow({ row }: { row: RosterRow }) {
   return (
     <Link
       to={clientProfilePath(row.clientCode)}
-      className={`${TEAM_GRID} rounded-[var(--radius)] bg-surface px-4 py-3.5 shadow-card transition-shadow hover:bg-surface-2`}
+      className={`${TEAM_GRID} rounded-[var(--radius)] bg-surface px-3.5 py-2.5 shadow-card transition-shadow hover:bg-surface-2 sm:px-4`}
     >
       <div className="min-w-0">
-        <p className="text-[17px] font-semibold text-ink">{row.clientCode}</p>
+        <p className="text-[16px] font-semibold leading-snug text-ink">{row.clientCode}</p>
         {showDisplayName && (
-          <p className="mt-0.5 truncate text-[15px] text-muted">{row.clientDisplayName}</p>
+          <p className="mt-0.5 truncate text-[14px] text-muted">{row.clientDisplayName}</p>
         )}
       </div>
       <div className="min-w-0">
         {row.supervisorName ? (
           <StaffName name={row.supervisorName} code={row.supervisorCode} />
         ) : (
-          <span className="text-[16px] text-muted">—</span>
+          <span className="text-[15px] text-muted">—</span>
         )}
       </div>
       <div className="min-w-0">
@@ -100,7 +100,7 @@ function ClientTeamRow({ row }: { row: RosterRow }) {
         ) : row.btName ? (
           <StaffName name={row.btName} code={row.btCode} />
         ) : (
-          <span className="text-[16px] text-muted">—</span>
+          <span className="text-[15px] text-muted">—</span>
         )}
       </div>
     </Link>
@@ -115,7 +115,7 @@ function ClientsFlatList({ rows }: { rows: RosterRow[] }) {
   }
 
   return (
-    <div className="w-full max-w-full">
+    <div className="w-fit max-w-full">
       <TeamColumnHeader />
       <ul className="space-y-2.5">
         {rows.map((row) => (
@@ -142,8 +142,8 @@ function BcbaTeamSection({
   const unassignedInView = clients.filter((r) => r.btUnassigned).length
 
   return (
-    <section className="w-full max-w-full">
-      <div className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <section className="w-fit max-w-full">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
         {bcbaCode ? (
           <Link
             to={staffProfilePath(bcbaCode)}
@@ -157,18 +157,14 @@ function BcbaTeamSection({
         <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-muted">
           BCBA
         </span>
-        <p className="text-[16px] text-muted">
-          {clients.length} client{clients.length === 1 ? "" : "s"}
-          {unassignedInView > 0 && (
-            <>
-              {" · "}
-              <span className="text-alert">
-                {unassignedInView} unassigned technician
-                {unassignedInView === 1 ? "" : "s"}
-              </span>
-            </>
-          )}
-        </p>
+        <span className="text-[15px] text-muted">
+          ({clients.length} client{clients.length === 1 ? "" : "s"})
+        </span>
+        {unassignedInView > 0 && (
+          <span className="text-[15px] text-alert">
+            ({unassignedInView} unassigned technician{unassignedInView === 1 ? "" : "s"})
+          </span>
+        )}
       </div>
       <TeamColumnHeader />
       <ul className="space-y-2.5">
