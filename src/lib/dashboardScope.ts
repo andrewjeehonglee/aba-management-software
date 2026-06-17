@@ -4,7 +4,7 @@ import {
   type ClientAssignmentRole,
 } from "@/lib/clientAssignments"
 import { getCurrentCalendarMonth, getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
-import { supabase, type SupervisionRecord } from "@/lib/supabase"
+import { getSupervisionForStaffIds, supabase, type SupervisionRecord } from "@/lib/supabase"
 
 export type DashboardScope =
   | { mode: "practice" }
@@ -474,4 +474,47 @@ export function filterSupervisionRecordsForTile(records: SupervisionRecord[]): {
     displayMonthLabel: formatPeriodMonthLabel(latest[0].periodStart),
     isFallbackPeriod: true,
   }
+}
+
+/** Load supervision rows for dashboard tiles (current month, with placeholders for missing staff). */
+export async function loadSupervisionRecordsForTile(staffIds: string[]): Promise<{
+  records: SupervisionRecord[]
+  displayMonthLabel: string
+}> {
+  if (staffIds.length === 0) {
+    return { records: [], displayMonthLabel: getCurrentCalendarMonth().label }
+  }
+
+  let records = await getSupervisionForStaffIds(staffIds)
+  const present = new Set(records.map((r) => r.staffId))
+  const missingIds = staffIds.filter((id) => !present.has(id))
+
+  if (missingIds.length > 0) {
+    const { data: staffRows } = await supabase
+      .from("staff")
+      .select("id, full_name, external_code, team")
+      .in("id", missingIds)
+      .eq("status", "active")
+
+    for (const s of (staffRows ?? []) as {
+      id: string
+      full_name: string
+      external_code: string | null
+      team: string | null
+    }[]) {
+      records.push({
+        id: `placeholder-${s.id}`,
+        staffId: s.id,
+        staffName: s.full_name,
+        staffExternalCode: s.external_code,
+        staffTeam: s.team?.startsWith("Team") ? s.team : s.team ? `Team ${s.team}` : "",
+        supervisionPct: 0,
+        periodStart: "2026-06-01",
+        periodEnd: "2026-06-30",
+      })
+    }
+  }
+
+  const filtered = filterSupervisionRecordsForTile(records)
+  return { records: filtered.records, displayMonthLabel: filtered.displayMonthLabel }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
+import { loadSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import {
   buildDirectHoursTileViewModel,
   buildNotesTileViewModel,
@@ -9,7 +9,6 @@ import {
 } from "@/lib/dashboardTileMetrics"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
-import { getSupervisionForStaffIds, supabase } from "@/lib/supabase"
 import {
   BcbaDashboardTile,
   BcbaDashboardTileError,
@@ -61,7 +60,7 @@ export function TechnicianDashboardTiles({
   const [notes, setNotes] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [hours, setHours] = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [supervision, setSupervision] = useState<
-    Awaited<ReturnType<typeof filterSupervisionRecordsForTile>>["records"]
+    Awaited<ReturnType<typeof loadSupervisionRecordsForTile>>["records"]
   >([])
   const [supervisionMonthLabel, setSupervisionMonthLabel] = useState("")
 
@@ -72,51 +71,16 @@ export function TechnicianDashboardTiles({
     const notesScope = { staffIds: [staffId] }
     const hoursScope = { staffIds: [staffId], includeZeroHourStaff: true }
 
-    const loadSupervision = async () => {
-      let records = await getSupervisionForStaffIds([staffId])
-      if (records.length === 0) {
-        const { data: staffRow } = await supabase
-          .from("staff")
-          .select("id, full_name, external_code, team")
-          .eq("id", staffId)
-          .eq("status", "active")
-          .maybeSingle()
-
-        if (staffRow) {
-          const s = staffRow as {
-            id: string
-            full_name: string
-            external_code: string | null
-            team: string | null
-          }
-          records = [
-            {
-              id: `placeholder-${s.id}`,
-              staffId: s.id,
-              staffName: s.full_name,
-              staffExternalCode: s.external_code,
-              staffTeam: s.team?.startsWith("Team") ? s.team : s.team ? `Team ${s.team}` : "",
-              supervisionPct: 0,
-              periodStart: "2026-06-01",
-              periodEnd: "2026-06-30",
-            },
-          ]
-        }
-      }
-      const filtered = filterSupervisionRecordsForTile(records)
-      setSupervisionMonthLabel(filtered.displayMonthLabel)
-      return filtered.records
-    }
-
     Promise.all([
       getNotesStatus(undefined, notesScope),
       getStaffHoursByMonth(undefined, hoursScope),
-      loadSupervision(),
+      loadSupervisionRecordsForTile([staffId]),
     ])
       .then(([notesData, hoursData, supervisionData]) => {
         setNotes(notesData)
         setHours(hoursData)
-        setSupervision(supervisionData)
+        setSupervision(supervisionData.records)
+        setSupervisionMonthLabel(supervisionData.displayMonthLabel)
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"))
       .finally(() => setLoading(false))

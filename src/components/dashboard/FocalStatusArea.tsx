@@ -8,32 +8,29 @@ function scrollToAttention(targetId: string) {
 
 const BUBBLE_LABELS: Record<OwnerAttentionItem["id"], string> = {
   notes: "Session notes",
-  hours: "Hours by staff",
-  auth: "Authorizations",
+  hours: "Direct hours",
+  supervision: "Supervision compliance",
+  auth: "Authorized hours",
 }
 
 function highlightBubbleCopy(item: OwnerAttentionItem): { value: string; unit: string } {
   if (item.id === "notes") {
     const match = item.detail.match(/^(\d+)/)
-    const count = match?.[1] ?? "0"
-    return { value: count, unit: count === "1" ? "session unpayable" : "sessions unpayable" }
+    const count = match?.[1] ?? item.displayValue
+    return { value: count, unit: count === "1" ? "incomplete note" : "incomplete notes" }
   }
   if (item.id === "hours") {
-    const countMatch = item.detail.match(/^(\d+)/)
-    if (countMatch) return { value: countMatch[1]!, unit: "below 50% direct" }
-    return { value: "0", unit: "below 50% direct" }
+    return { value: item.displayValue, unit: "below 50% requirement" }
   }
-  const match = item.detail.match(/^(\d+)/)
-  const count = match?.[1] ?? "0"
-  return {
-    value: count,
-    unit: count === "1" ? "client over limit" : "clients over limit",
+  if (item.id === "supervision") {
+    return { value: item.displayValue, unit: "below 5% requirement" }
   }
+  return { value: item.displayValue, unit: item.displayValue === "1" ? "client" : "clients" }
 }
 
 function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
   const { value, unit } = highlightBubbleCopy(item)
-  const useAmber = item.id === "notes"
+  const useAmber = item.id === "notes" || item.id === "hours" || item.id === "supervision"
   const useLimit = item.id === "auth"
 
   return (

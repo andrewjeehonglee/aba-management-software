@@ -10,7 +10,7 @@ import { firstName } from "@/lib/ownerDashboardStatus"
 import type { NotesStatusSummary } from "@/lib/notesStatus"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 import type { StaffHoursSummary } from "@/lib/staffHours"
-import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
+import { isSupervisionBelowRequirement } from "@/lib/supervision"
 import type { SupervisionRecord } from "@/lib/supabase"
 
 export const TILE_DEFINITIONS = {
@@ -206,14 +206,14 @@ export function buildSupervisionTileViewModel(
   records: SupervisionRecord[],
   options?: { selfMode?: boolean; selfStaffId?: string },
 ): DashboardTileViewModel {
-  const flagged = records.filter((row) => row.supervisionPct < SUPERVISION_THRESHOLD)
+  const flagged = records.filter((row) => isSupervisionBelowRequirement(row.supervisionPct))
   const state: BcbaTileState = flagged.length > 0 ? "urgent" : "healthy"
   const metric = options?.selfMode ? (flagged.length > 0 ? 1 : 0) : flagged.length
 
   const descriptor =
     flagged.length === 0
       ? options?.selfMode
-        ? "Supervision received this month"
+        ? "Met the 5% requirement"
         : "All staff meet the 5% requirement"
       : options?.selfMode
         ? "Below 5% requirement"
@@ -239,7 +239,7 @@ export function buildSupervisionTileViewModel(
     metric,
     descriptor,
     popoverItems,
-    popoverEmptyLabel: options?.selfMode ? "No supervision data this month" : "All staff compliant",
+    popoverEmptyLabel: options?.selfMode ? "Met the 5% requirement" : "All staff meet the 5% requirement",
   }
 }
 

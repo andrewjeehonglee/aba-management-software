@@ -9,19 +9,29 @@
 // Semantics here are NOT inverted (unlike authorization): high % = good,
 // low % = bad. Same direction as the "more is better" mental model.
 
-export const SUPERVISION_THRESHOLD = 5  // minimum compliant %
-export const WATCH_UPPER = 7            // upper bound of "at risk" band
+export const SUPERVISION_THRESHOLD = 5  // minimum compliant % per month
+
+export const WATCH_UPPER = 7            // detail-page “at risk” band only (not dashboard tiles)
+
+/** Below minimum — flagged on dashboard tiles. Exactly 5% is compliant. */
+export function isSupervisionBelowRequirement(pct: number): boolean {
+  return pct < SUPERVISION_THRESHOLD
+}
+
+export function meetsSupervisionRequirement(pct: number): boolean {
+  return pct >= SUPERVISION_THRESHOLD
+}
 
 export type ComplianceStatus = "compliant" | "at-risk" | "non-compliant"
 
 export function complianceClasses(pct: number): { bar: string; text: string } {
-  if (pct < SUPERVISION_THRESHOLD) return { bar: "bg-red-500",     text: "text-red-700" }
+  if (isSupervisionBelowRequirement(pct)) return { bar: "bg-red-500",     text: "text-red-700" }
   if (pct < WATCH_UPPER)           return { bar: "bg-amber-500",   text: "text-amber-700" }
   return                                  { bar: "bg-emerald-500", text: "text-emerald-700" }
 }
 
 export function complianceStatus(pct: number): ComplianceStatus {
-  if (pct < SUPERVISION_THRESHOLD) return "non-compliant"
+  if (isSupervisionBelowRequirement(pct)) return "non-compliant"
   if (pct < WATCH_UPPER)           return "at-risk"
   return                                  "compliant"
 }

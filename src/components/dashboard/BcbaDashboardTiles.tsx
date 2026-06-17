@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { getAuthUtilizationByMonth } from "@/lib/authUtilization"
-import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
+import {
+  loadSupervisionRecordsForTile,
+} from "@/lib/dashboardScope"
 import {
   buildAuthorizationTileViewModel,
   buildDirectHoursTileViewModel,
@@ -11,7 +13,6 @@ import {
 } from "@/lib/dashboardTileMetrics"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
-import { getSupervisionForStaffIds, supabase } from "@/lib/supabase"
 import {
   BcbaDashboardTile,
   BcbaDashboardTileError,
@@ -73,7 +74,7 @@ export function BcbaDashboardTiles({
   const [notes, setNotes] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [hours, setHours] = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [supervision, setSupervision] = useState<
-    Awaited<ReturnType<typeof filterSupervisionRecordsForTile>>["records"]
+    Awaited<ReturnType<typeof loadSupervisionRecordsForTile>>["records"]
   >([])
   const [supervisionMonthLabel, setSupervisionMonthLabel] = useState("")
   const [auth, setAuth] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
@@ -100,50 +101,19 @@ export function BcbaDashboardTiles({
           }
         : undefined
 
-    const loadSupervision = async () => {
-      if (!superviseeStaffIds.length) return []
-      let records = await getSupervisionForStaffIds(superviseeStaffIds)
-      const present = new Set(records.map((r) => r.staffId))
-      const missingIds = superviseeStaffIds.filter((id) => !present.has(id))
-      if (missingIds.length > 0) {
-        const { data: staffRows } = await supabase
-          .from("staff")
-          .select("id, full_name, external_code, team")
-          .in("id", missingIds)
-          .eq("status", "active")
-        for (const s of (staffRows ?? []) as {
-          id: string
-          full_name: string
-          external_code: string | null
-          team: string | null
-        }[]) {
-          records.push({
-            id: `placeholder-${s.id}`,
-            staffId: s.id,
-            staffName: s.full_name,
-            staffExternalCode: s.external_code,
-            staffTeam: s.team?.startsWith("Team") ? s.team : s.team ? `Team ${s.team}` : "",
-            supervisionPct: 0,
-            periodStart: "2026-06-01",
-            periodEnd: "2026-06-30",
-          })
-        }
-      }
-      const filtered = filterSupervisionRecordsForTile(records)
-      setSupervisionMonthLabel(filtered.displayMonthLabel)
-      return filtered.records
-    }
-
     Promise.all([
       getNotesStatus(undefined, notesScope),
       getStaffHoursByMonth(undefined, hoursScope),
-      loadSupervision(),
+      superviseeStaffIds.length
+        ? loadSupervisionRecordsForTile(superviseeStaffIds)
+        : Promise.resolve({ records: [], displayMonthLabel: "" }),
       getAuthUtilizationByMonth(undefined, clientIds.length ? { clientIds } : undefined),
     ])
       .then(([notesData, hoursData, supervisionData, authData]) => {
         setNotes(notesData)
         setHours(hoursData)
-        setSupervision(supervisionData)
+        setSupervision(supervisionData.records)
+        setSupervisionMonthLabel(supervisionData.displayMonthLabel)
         setAuth(authData)
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"))
