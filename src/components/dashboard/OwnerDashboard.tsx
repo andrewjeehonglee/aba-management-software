@@ -6,21 +6,43 @@ import {
   type OwnerDashboardData,
 } from "@/lib/ownerDashboardConcerns"
 import { getRosterStaffManifest } from "@/lib/rosterScope"
-import { OwnerConcernList } from "@/components/dashboard/OwnerConcernList"
+import { OwnerMonitorTiles } from "@/components/dashboard/OwnerMonitorTiles"
 import { PayrollPanel } from "@/components/dashboard/PayrollPanel"
 import { PAY_PERIOD_TIER_ORDER } from "@/lib/payPeriodHoursGap"
 
-const EMPTY_GAP: OwnerDashboardData["hoursGap"] = {
+const EMPTY_PAYROLL: OwnerDashboardData["payroll"] = {
   payPeriodLabel: "",
-  payPeriodShortLabel: "",
+  payPeriodTableLabel: "",
   byRole: PAY_PERIOD_TIER_ORDER.map((tier) => ({
     tier,
     label: tier === "technician" ? "Technicians" : tier === "supervisor" ? "Supervisors" : "BCBAs",
-    payableHours: 0,
-    onHoldHours: 0,
     staff: [],
   })),
 }
+
+const EMPTY_TILES: OwnerDashboardData["monitorTiles"] = [
+  {
+    id: "notes",
+    title: "Session notes",
+    state: "healthy",
+    situation: "All session notes are in for this pay period.",
+    chips: [],
+  },
+  {
+    id: "auth",
+    title: "Authorized hours",
+    state: "healthy",
+    situation: "No clients are approaching their authorized hour cap.",
+    chips: [],
+  },
+  {
+    id: "directHours",
+    title: "Direct hours",
+    state: "healthy",
+    situation: "All clients meet the direct engagement minimum.",
+    chips: [],
+  },
+]
 
 export function OwnerDashboard({
   practiceId,
@@ -42,9 +64,8 @@ export function OwnerDashboard({
   className?: string
 }) {
   const [data, setData] = useState<OwnerDashboardData>({
-    concerns: [],
-    hoursGap: EMPTY_GAP,
-    completenessLine: null,
+    monitorTiles: EMPTY_TILES,
+    payroll: EMPTY_PAYROLL,
     loading: true,
   })
   const [error, setError] = useState<string | null>(null)
@@ -62,7 +83,7 @@ export function OwnerDashboard({
         getOwnerDashboardData({
           staffIds,
           clientIds,
-          allStaffIds: manifest.map((s) => s.id),
+          rosterManifest: manifest,
           includeCaseloadStaff,
         }),
       )
@@ -109,25 +130,26 @@ export function OwnerDashboard({
   }
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col animate-fade-rise animate-fade-rise-delay-1", className)}>
-      <header className="mb-4 shrink-0 short:mb-3">
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-4 animate-fade-rise animate-fade-rise-delay-1", className)}>
+      <header className="shrink-0 space-y-1">
         {showPlaceholder ? (
-          <div className="h-7 w-56 animate-pulse rounded-[12px] bg-line-soft" aria-hidden />
+          <>
+            <div className="h-7 w-56 animate-pulse rounded-[12px] bg-line-soft" aria-hidden />
+            <div className="h-5 w-40 animate-pulse rounded bg-line-soft" aria-hidden />
+          </>
         ) : (
-          <p className="text-[22px] font-normal leading-snug text-ink-soft">
-            {greeting}, {name}.
-          </p>
+          <>
+            <p className="text-[22px] font-normal leading-snug text-ink-soft">
+              {greeting}, {name}.
+            </p>
+            <p className="text-[16px] font-semibold text-ink">Needs your attention.</p>
+          </>
         )}
       </header>
 
-      <div className="grid min-h-0 flex-1 gap-5 min-[1000px]:grid-cols-[1.25fr_0.75fr] min-[1000px]:gap-6">
-        <OwnerConcernList
-          concerns={data.concerns}
-          completenessLine={data.completenessLine}
-          loading={showPlaceholder}
-        />
-        <PayrollPanel gap={showPlaceholder ? null : data.hoursGap} loading={showPlaceholder} />
-      </div>
+      <OwnerMonitorTiles tiles={data.monitorTiles} loading={showPlaceholder} />
+
+      <PayrollPanel payroll={showPlaceholder ? null : data.payroll} loading={showPlaceholder} />
     </div>
   )
 }

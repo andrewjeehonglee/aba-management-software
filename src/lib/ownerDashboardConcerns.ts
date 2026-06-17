@@ -5,51 +5,89 @@ import {
   sortAuthRunwayRows,
 } from "@/lib/dashboardTileMetrics"
 import { getAuthUtilizationByMonth } from "@/lib/authUtilization"
-import { getClientDirectEngagementFlags } from "@/lib/clientDirectEngagement"
-import { loadSupervisionRecordsForTile } from "@/lib/dashboardScope"
-import { getNotesStatus } from "@/lib/notesStatus"
+import {
+  getClientDirectEngagementFlags,
+  shouldFlagClientDirectEngagement,
+} from "@/lib/clientDirectEngagement"
+import { getNotesStatus, type NotesStatusItem } from "@/lib/notesStatus"
 import { firstName } from "@/lib/ownerDashboardStatus"
 import {
   getPayPeriodHoursGap,
   type PayPeriodHoursGapSummary,
+  type PayPeriodRoleTier,
+  type RosterStaffForPayroll,
 } from "@/lib/payPeriodHoursGap"
-import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
-import { isSupervisionBelowRequirement } from "@/lib/supervision"
+import { PRACTICE_TIMEZONE } from "@/lib/sessions"
+import { clientProfilePath } from "@/lib/rosterScope"
 
-export type OwnerConcernId = "notes" | "auth" | "directHours"
+export type OwnerMonitorTileId = "notes" | "auth" | "directHours"
 
-export interface OwnerConcernItem {
-  label: string
-  value: string
-  href: string
+export interface OwnerPopoverLine {
+  id: string
+  text: string
+  href?: string
 }
 
-export interface OwnerConcern {
-  id: OwnerConcernId
+export interface OwnerMonitorChip {
+  id: string
+  label: string
+  popoverTitle: string
+  popoverLines: OwnerPopoverLine[]
+}
+
+export interface OwnerMonitorTile {
+  id: OwnerMonitorTileId
   title: string
   state: BcbaTileState
   situation: string
-  items: OwnerConcernItem[]
+  chips: OwnerMonitorChip[]
 }
 
 export interface OwnerDashboardData {
-  concerns: OwnerConcern[]
-  hoursGap: PayPeriodHoursGapSummary
-  completenessLine: string | null
+  monitorTiles: OwnerMonitorTile[]
+  payroll: PayPeriodHoursGapSummary
   loading?: boolean
 }
 
-function buildCompletenessLine(parts: string[]): string | null {
-  if (parts.length === 0) return null
-  if (parts.length === 1) return `${parts[0]}.`
-  if (parts.length === 2) return `${parts[0]} and ${parts[1]}.`
-  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}.`
+function formatSessionDateLabel(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    timeZone: PRACTICE_TIMEZONE,
+    month: "short",
+    day: "numeric",
+  })
+}
+
+function noteItemToPopoverLine(item: NotesStatusItem): OwnerPopoverLine {
+  const clientLabel = shortClientLabel(item.clientName)
+  const dateLabel = formatSessionDateLabel(item.scheduledAt)
+  return {
+    id: item.sessionId,
+    text: `${clientLabel}, ${dateLabel}`,
+    href: item.clientCode ? clientProfilePath(item.clientCode) : undefined,
+  }
+}
+
+function mapRosterToPayroll(
+  manifest: Array<{ id: string; fullName: string; externalCode: string; role: string }>,
+): RosterStaffForPayroll[] {
+  return manifest
+    .map((staff) => {
+      const role = staff.role.toLowerCase()
+      if (role !== "technician" && role !== "supervisor" && role !== "bcba") return null
+      return {
+        id: staff.id,
+        fullName: staff.fullName,
+        externalCode: staff.externalCode,
+        role: role as PayPeriodRoleTier,
+      }
+    })
+    .filter((row): row is RosterStaffForPayroll => row != null)
 }
 
 export async function getOwnerDashboardData(options: {
   staffIds: string[]
   clientIds: string[]
-  allStaffIds: string[]
+  rosterManifest: Array<{ id: string; fullName: string; externalCode: string; role: string }>
   includeCaseloadStaff?: boolean
 }): Promise<Omit<OwnerDashboardData, "loading">> {
   const scope = {
@@ -58,103 +96,120 @@ export async function getOwnerDashboardData(options: {
     includeCaseloadStaff: options.includeCaseloadStaff,
   }
 
-  const [notes, auth, directFlags, hoursGap, supervision] = await Promise.all([
+  const payrollRoster = mapRosterToPayroll(options.rosterManifest)
+
+  const [notes, auth, directFlags, payroll] = await Promise.all([
     getNotesStatus(undefined, scope),
     getAuthUtilizationByMonth(undefined, scope.clientIds ? { clientIds: scope.clientIds } : undefined),
     getClientDirectEngagementFlags(undefined, scope.clientIds ? { clientIds: scope.clientIds } : undefined),
     getPayPeriodHoursGap(undefined, {
-      staffIds: options.allStaffIds.length ? options.allStaffIds : undefined,
+      staffIds: payrollRoster.map((s) => s.id),
       clientIds: scope.clientIds,
+      rosterStaff: payrollRoster,
     }),
-    options.staffIds.length
-      ? loadSupervisionRecordsForTile(options.staffIds)
-      : Promise.resolve({ records: [], displayMonthLabel: "" }),
   ])
 
-  const concerns: OwnerConcern[] = []
-  const healthyParts: string[] = []
-
-  const incompleteTotal = notes.totalMissing + notes.totalOverdue
-  if (incompleteTotal > 0) {
-    const staffWithIssues = notes.byStaff.filter(
-      (row) => row.missingCount + row.overdueCount > 0,
-    )
-    const notesState: BcbaTileState =
-      notes.totalOverdue > 0 ? "urgent" : "monitor"
-
-    concerns.push({
-      id: "notes",
-      title: "Session notes are overdue",
-      state: notesState,
-      situation: "Overdue notes block billing and an audit pulls them first.",
-      items: staffWithIssues.map((row) => ({
-        label: firstName(row.staffName),
-        value: String(row.overdueCount > 0 ? row.overdueCount : row.missingCount),
-        href: row.staffExternalCode
-          ? staffProfilePath(row.staffExternalCode)
-          : "/audit",
-      })),
-    })
-  } else {
-    healthyParts.push("the rest of the team's notes are in")
-  }
-
-  const authFlagged = sortAuthRunwayRows(
-    auth.byClient.filter((row) => authRunwayState(row) !== "healthy"),
+  const staffWithNoteIssues = notes.byStaff.filter(
+    (row) => row.missingCount + row.overdueCount > 0,
   )
-  if (authFlagged.length > 0) {
-    let authState: BcbaTileState = "monitor"
-    if (authFlagged.some((row) => authRunwayState(row) === "urgent")) {
-      authState = "urgent"
-    }
+  const notesState: BcbaTileState =
+    notes.totalOverdue > 0 ? "urgent" : staffWithNoteIssues.length > 0 ? "monitor" : "healthy"
 
-    concerns.push({
-      id: "auth",
-      title: "Authorized hours running low",
-      state: authState,
-      situation: "Several clients are close to their authorized hour cap.",
-      items: authFlagged.map((row) => ({
-        label: shortClientLabel(row.clientName),
-        value:
-          row.usedHours > row.authorizedHours
-            ? `${row.overHours} hrs over`
-            : `${row.hoursRemaining} hrs`,
-        href: row.clientCode ? clientProfilePath(row.clientCode) : "/clients",
-      })),
-    })
-  } else {
-    healthyParts.push("authorizations look good")
+  const notesTile: OwnerMonitorTile = {
+    id: "notes",
+    title: "Session notes",
+    state: notesState,
+    situation:
+      notesState === "healthy"
+        ? "All session notes are in for this pay period."
+        : "Overdue notes block billing and an audit pulls them first.",
+    chips: staffWithNoteIssues.map((row) => ({
+      id: row.staffId,
+      label: `${firstName(row.staffName)} ${row.overdueCount > 0 ? row.overdueCount : row.missingCount}`,
+      popoverTitle: firstName(row.staffName),
+      popoverLines: row.items.map(noteItemToPopoverLine),
+    })),
   }
 
-  if (directFlags.length > 0) {
-    concerns.push({
-      id: "directHours",
-      title: "Clients under direct-hours minimum",
-      state: "monitor",
-      situation: "Direct engagement is below half of each client's authorized hours this month.",
-      items: directFlags.map((row) => ({
-        label: row.clientLabel,
-        value: `${row.directHours} hrs`,
-        href: row.clientCode ? clientProfilePath(row.clientCode) : "/clients",
-      })),
-    })
-  }
-
-  const supervisionFlagged = supervision.records.some((row) =>
-    isSupervisionBelowRequirement(row.supervisionPct),
+  const authPreventative = sortAuthRunwayRows(
+    auth.byClient.filter(
+      (row) =>
+        row.usedHours <= row.authorizedHours && authRunwayState(row) !== "healthy",
+    ),
   )
-  if (!supervisionFlagged) {
-    healthyParts.unshift("Supervision is compliant")
+  let authState: BcbaTileState = "healthy"
+  if (authPreventative.some((row) => authRunwayState(row) === "urgent")) {
+    authState = "urgent"
+  } else if (authPreventative.length > 0) {
+    authState = "monitor"
   }
 
-  const completenessLine =
-    concerns.length === 0
-      ? "Everything looks on track for your practice today."
-      : buildCompletenessLine(healthyParts)
+  const authTile: OwnerMonitorTile = {
+    id: "auth",
+    title: "Authorized hours",
+    state: authState,
+    situation:
+      authState === "healthy"
+        ? "No clients are approaching their authorized hour cap."
+        : "Several clients are close to their authorized hour cap.",
+    chips: authPreventative.map((row) => ({
+      id: row.authId,
+      label: `${shortClientLabel(row.clientName)} ${row.hoursRemaining} hrs left`,
+      popoverTitle: shortClientLabel(row.clientName),
+      popoverLines: [
+        {
+          id: row.authId,
+          text: `${row.hoursRemaining} hrs left of ${row.authorizedHours} authorized`,
+          href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+        },
+        {
+          id: `${row.authId}-used`,
+          text: `${row.usedHours} hrs used this month`,
+          href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+        },
+      ],
+    })),
+  }
+
+  const directFlagging = shouldFlagClientDirectEngagement()
+  const directState: BcbaTileState =
+    directFlagging && directFlags.length > 0
+      ? directFlags.some((row) => row.directRatio < 0.4)
+        ? "urgent"
+        : "monitor"
+      : "healthy"
+
+  const directTile: OwnerMonitorTile = {
+    id: "directHours",
+    title: "Direct hours",
+    state: directState,
+    situation:
+      directState === "healthy"
+        ? "All clients meet the direct engagement minimum."
+        : "Direct engagement is below half of each client's authorized hours this month.",
+    chips: directFlagging
+      ? directFlags.map((row) => ({
+          id: row.clientId,
+          label: `${row.clientLabel} ${Math.round(row.directRatio * 100)}%`,
+          popoverTitle: row.clientLabel,
+          popoverLines: [
+            {
+              id: row.clientId,
+              text: `${row.directHours} direct hrs of ${row.authorizedHours} authorized`,
+              href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+            },
+            {
+              id: `${row.clientId}-pct`,
+              text: `${Math.round(row.directRatio * 100)}% direct engagement`,
+              href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+            },
+          ],
+        }))
+      : [],
+  }
 
   return {
-    concerns,
-    hoursGap,
-    completenessLine,
+    monitorTiles: [notesTile, authTile, directTile],
+    payroll,
   }
 }
