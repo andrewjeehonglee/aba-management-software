@@ -4,7 +4,8 @@ import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
 import { firstName } from "@/lib/ownerDashboardStatus"
-import { getSupervisionForStaffIds } from "@/lib/supabase"
+import { staffProfilePath } from "@/lib/rosterScope"
+import { getSupervisionForStaffIds, supabase } from "@/lib/supabase"
 import { SUPERVISION_THRESHOLD } from "@/lib/supervision"
 import type { AttentionBubbleTone } from "@/components/dashboard/AttentionBubble"
 import {
@@ -35,10 +36,6 @@ function monthBlock(label: string) {
   return <span className="block">{label || "—"}</span>
 }
 
-function formatHoursBreakdown(direct: number, indirect: number, total: number): string {
-  return `${direct} · ${indirect} · ${total}`
-}
-
 export function TechnicianDashboardTiles({
   staffId,
   refreshKey,
@@ -57,20 +54,53 @@ export function TechnicianDashboardTiles({
   >([])
   const [supervisionMonthLabel, setSupervisionMonthLabel] = useState("")
   const [staffName, setStaffName] = useState("")
+  const [staffExternalCode, setStaffExternalCode] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
     setError(null)
 
     const notesScope = { staffIds: [staffId] }
-    const hoursScope = { staffIds: [staffId] }
+    const hoursScope = { staffIds: [staffId], includeZeroHourStaff: true }
 
     const loadSupervision = async () => {
-      const records = await getSupervisionForStaffIds([staffId])
+      let records = await getSupervisionForStaffIds([staffId])
+      if (records.length === 0) {
+        const { data: staffRow } = await supabase
+          .from("staff")
+          .select("id, full_name, external_code, team")
+          .eq("id", staffId)
+          .eq("status", "active")
+          .maybeSingle()
+
+        if (staffRow) {
+          const s = staffRow as {
+            id: string
+            full_name: string
+            external_code: string | null
+            team: string | null
+          }
+          setStaffName(s.full_name)
+          setStaffExternalCode(s.external_code)
+          records = [
+            {
+              id: `placeholder-${s.id}`,
+              staffId: s.id,
+              staffName: s.full_name,
+              staffExternalCode: s.external_code,
+              staffTeam: s.team?.startsWith("Team") ? s.team : s.team ? `Team ${s.team}` : "",
+              supervisionPct: 0,
+              periodStart: "2026-06-01",
+              periodEnd: "2026-06-30",
+            },
+          ]
+        }
+      }
       const filtered = filterSupervisionRecordsForTile(records)
       setSupervisionMonthLabel(filtered.displayMonthLabel)
       if (filtered.records[0]) {
         setStaffName(filtered.records[0].staffName)
+        setStaffExternalCode(filtered.records[0].staffExternalCode ?? null)
       }
       return filtered.records
     }
@@ -85,7 +115,10 @@ export function TechnicianDashboardTiles({
         setHours(hoursData)
         setSupervision(supervisionData)
         const hoursRow = hoursData.byStaff.find((r) => r.staffId === staffId)
-        if (hoursRow?.staffName) setStaffName(hoursRow.staffName)
+        if (hoursRow?.staffName) {
+          setStaffName(hoursRow.staffName)
+          setStaffExternalCode(hoursRow.staffExternalCode)
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load dashboard"))
       .finally(() => setLoading(false))
@@ -142,12 +175,9 @@ export function TechnicianDashboardTiles({
           {
             id: staffId,
             name: firstName(hoursRow.staffName),
-            value: formatHoursBreakdown(
-              hoursRow.directHours,
-              hoursRow.indirectHours,
-              hoursRow.totalHours,
-            ),
+            value: `${Math.round(hoursRow.directPct * 100)}%`,
             tone: hoursFlagged ? "urgent" : "healthy",
+            href: hoursRow.staffExternalCode ? staffProfilePath(hoursRow.staffExternalCode) : undefined,
           },
         ]
       : []
@@ -159,6 +189,8 @@ export function TechnicianDashboardTiles({
   const supervisionMetric = supervisionBelow ? 1 : 0
   const supervisionUnit = supervisionBelow ? "below 5% supervision" : "compliant"
   const displayName = supervisionRow?.staffName ?? staffName
+  const profileCode =
+    supervisionRow?.staffExternalCode ?? staffExternalCode ?? null
   const supervisionPopover: BcbaBubbleItem[] =
     supervisionRow
       ? [
@@ -167,6 +199,7 @@ export function TechnicianDashboardTiles({
             name: firstName(displayName),
             value: `${supervisionPct.toFixed(1)}%`,
             tone: supervisionBelow ? "urgent" : "healthy",
+            href: profileCode ? staffProfilePath(profileCode) : undefined,
           },
         ]
       : []
@@ -191,6 +224,7 @@ export function TechnicianDashboardTiles({
         metric={hoursMetric}
         unit={hoursUnit}
         popoverItems={hoursPopover}
+        popoverEmptyLabel="No billable hours this month"
       />
       <BcbaDashboardTile
         id="supervision-compliance"
