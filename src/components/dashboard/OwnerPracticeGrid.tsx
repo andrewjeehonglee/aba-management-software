@@ -7,11 +7,9 @@ import {
   buildAuthorizationTileViewModel,
   buildDirectHoursTileViewModel,
   buildNotesTileViewModel,
-  buildSupervisionTileViewModel,
   formatDashboardMonthLabel,
   TILE_DEFINITIONS,
 } from "@/lib/dashboardTileMetrics"
-import { loadSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
 import { formatPayPeriodCloseDate } from "@/lib/payPeriod"
@@ -25,14 +23,13 @@ import {
   type BcbaTileState,
 } from "@/lib/bcbaTileState"
 
-type Domain = "notes" | "hours" | "supervision" | "auth"
+type Domain = "notes" | "hours" | "auth"
 
-const DOMAIN_ORDER: Domain[] = ["notes", "hours", "supervision", "auth"]
+const DOMAIN_ORDER: Domain[] = ["notes", "hours", "auth"]
 
 const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
   notes: "Incomplete notes",
   hours: "Below 50% direct engagement",
-  supervision: "Below 5% supervision",
   auth: "Limited hours remaining",
 }
 
@@ -228,7 +225,7 @@ function LinkedBubbleGroup({
 function SurfaceSkeleton() {
   return (
     <div className="animate-pulse rounded-[var(--radius)] bg-surface shadow-card">
-      {Array.from({ length: 4 }).map((_, i) => (
+      {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="border-b border-line-soft px-5 py-5 last:border-b-0">
           <div className="h-5 w-40 rounded bg-line-soft" />
           <div className="mt-3 h-4 w-full max-w-md rounded bg-line-soft" />
@@ -264,10 +261,6 @@ export function OwnerPracticeGrid({
   const [notes, setNotes] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [hours, setHours] = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [auth, setAuth] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
-  const [supervisionRecords, setSupervisionRecords] = useState<
-    Awaited<ReturnType<typeof loadSupervisionRecordsForTile>>["records"]
-  >([])
-  const [supervisionMonthLabel, setSupervisionMonthLabel] = useState("")
 
   const scopeOptions =
     staffIds?.length || clientIds?.length || includeCaseloadStaff
@@ -286,16 +279,11 @@ export function OwnerPracticeGrid({
       getNotesStatus(undefined, scopeOptions),
       getStaffHoursByMonth(undefined, scopeOptions),
       getAuthUtilizationByMonth(undefined, clientIds?.length ? { clientIds } : undefined),
-      staffIds?.length
-        ? loadSupervisionRecordsForTile(staffIds)
-        : Promise.resolve({ records: [], displayMonthLabel: "" }),
     ])
-      .then(([notesData, hoursData, authData, supervisionData]) => {
+      .then(([notesData, hoursData, authData]) => {
         setNotes(notesData)
         setHours(hoursData)
         setAuth(authData)
-        setSupervisionRecords(supervisionData.records)
-        setSupervisionMonthLabel(supervisionData.displayMonthLabel)
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load practice data"))
       .finally(() => setLoading(false))
@@ -312,12 +300,7 @@ export function OwnerPracticeGrid({
   )
 
   const worklistByDomain = useMemo(() => {
-    const map: Record<Domain, OwnerWorklistItem[]> = {
-      notes: [],
-      hours: [],
-      supervision: [],
-      auth: [],
-    }
+    const map: Record<Domain, OwnerWorklistItem[]> = { notes: [], hours: [], auth: [] }
     for (const item of visibleWorklist) {
       if (item.group in map) map[item.group as Domain].push(item)
     }
@@ -356,12 +339,10 @@ export function OwnerPracticeGrid({
 
   const notesView = notes ? buildNotesTileViewModel(notes) : null
   const hoursView = hours ? buildDirectHoursTileViewModel(hours) : null
-  const supervisionView = buildSupervisionTileViewModel(supervisionRecords)
   const authView = auth ? buildAuthorizationTileViewModel(auth.byClient) : null
 
   const periodLabel = notes?.payPeriodLabel ?? formatPayPeriodCloseDate()
   const monthLabel = formatDashboardMonthLabel(hours?.monthLabel ?? "")
-  const supervisionMonth = formatDashboardMonthLabel(supervisionMonthLabel)
   const authMonthLabel = formatDashboardMonthLabel(auth?.monthLabel ?? "")
 
   const domainRows: Record<
@@ -396,16 +377,6 @@ export function OwnerPracticeGrid({
       metricLabel: hoursView?.descriptor ?? "All staff on track",
       metricPeriod: monthLabel || "This month",
       linkedTag: hoursView && hoursView.metric > 0 ? String(hoursView.metric) : undefined,
-    },
-    supervision: {
-      id: TILE_DEFINITIONS.supervision.id,
-      title: TILE_DEFINITIONS.supervision.title,
-      tileState: supervisionView.state,
-      lines: [<>{supervisionView.requirement}</>],
-      metric: supervisionView.metric,
-      metricLabel: supervisionView.descriptor,
-      metricPeriod: supervisionMonth || "This month",
-      linkedTag: supervisionView.metric > 0 ? String(supervisionView.metric) : undefined,
     },
     auth: {
       id: TILE_DEFINITIONS.authorization.id,

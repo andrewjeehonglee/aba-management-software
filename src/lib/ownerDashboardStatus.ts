@@ -5,24 +5,21 @@ import {
   buildAuthorizationTileViewModel,
   buildDirectHoursTileViewModel,
   buildNotesTileViewModel,
-  buildSupervisionTileViewModel,
   shortClientLabel,
   sortAuthRunwayRows,
   TILE_DEFINITIONS,
 } from "@/lib/dashboardTileMetrics"
-import { loadSupervisionRecordsForTile } from "@/lib/dashboardScope"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { daysUntilPeriodEnd, formatPayPeriodCloseDate } from "@/lib/payPeriod"
 import type { PulseSeverity } from "@/lib/pulseSeverity"
 import { PAYROLL_ESCALATION_DAYS, worstSeverity } from "@/lib/pulseSeverity"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
-import { isSupervisionBelowRequirement } from "@/lib/supervision"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 
 export type OwnerAttentionSeverity = "warn" | "crit"
 
 export interface OwnerAttentionItem {
-  id: "notes" | "hours" | "supervision" | "auth"
+  id: "notes" | "hours" | "auth"
   scrollTargetId: string
   label: string
   detail: string
@@ -32,7 +29,7 @@ export interface OwnerAttentionItem {
 
 export interface OwnerWorklistItem {
   id: string
-  group: "notes" | "auth" | "hours" | "supervision"
+  group: "notes" | "auth" | "hours"
   groupLabel: string
   name: string
   displayValue: string
@@ -62,16 +59,13 @@ export async function getOwnerAttentionSummary(options?: {
     clientIds: options?.clientIds?.length ? options.clientIds : undefined,
   }
 
-  const [notes, hours, auth, supervisionLoad] = await Promise.all([
+  const [notes, hours, auth] = await Promise.all([
     getNotesStatus(undefined, scope.staffIds || scope.clientIds ? scope : undefined),
     getStaffHoursByMonth(undefined, {
       ...scope,
       includeZeroHourStaff: true,
     }),
     getAuthUtilizationByMonth(undefined, scope.clientIds ? { clientIds: scope.clientIds } : undefined),
-    scope.staffIds?.length
-      ? loadSupervisionRecordsForTile(scope.staffIds)
-      : Promise.resolve({ records: [], displayMonthLabel: "" }),
   ])
 
   const items: OwnerAttentionItem[] = []
@@ -131,33 +125,6 @@ export async function getOwnerAttentionSummary(options?: {
         groupLabel: "Below 50% direct engagement",
         name: row.staffName,
         displayValue: `${Math.round(row.directPct * 100)}%`,
-        severity: "warn",
-        href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
-      })
-    }
-  }
-
-  const supervisionView = buildSupervisionTileViewModel(supervisionLoad.records)
-  if (supervisionView.metric > 0) {
-    items.push({
-      id: "supervision",
-      scrollTargetId: TILE_DEFINITIONS.supervision.id,
-      label: supervisionView.title,
-      detail: supervisionView.descriptor,
-      displayValue: String(supervisionView.metric),
-      severity: "warn",
-    })
-    worstSeverityLevel = worstSeverity(worstSeverityLevel, "warn")
-
-    for (const row of supervisionLoad.records.filter((r) =>
-      isSupervisionBelowRequirement(r.supervisionPct),
-    )) {
-      worklist.push({
-        id: `supervision-${row.staffId}`,
-        group: "supervision",
-        groupLabel: "Below 5% supervision",
-        name: row.staffName,
-        displayValue: `${row.supervisionPct.toFixed(1)}%`,
         severity: "warn",
         href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
       })

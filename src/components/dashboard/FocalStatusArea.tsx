@@ -9,28 +9,22 @@ function scrollToAttention(targetId: string) {
 const BUBBLE_LABELS: Record<OwnerAttentionItem["id"], string> = {
   notes: "Session notes",
   hours: "Direct hours",
-  supervision: "Supervision compliance",
   auth: "Authorized hours",
 }
 
 function highlightBubbleCopy(item: OwnerAttentionItem): { value: string; unit: string } {
   if (item.id === "notes") {
-    const match = item.detail.match(/^(\d+)/)
-    const count = match?.[1] ?? item.displayValue
-    return { value: count, unit: count === "1" ? "incomplete note" : "incomplete notes" }
+    return { value: item.displayValue, unit: "incomplete notes" }
   }
   if (item.id === "hours") {
-    return { value: item.displayValue, unit: "below 50% requirement" }
+    return { value: item.displayValue, unit: "staff below 50% requirement" }
   }
-  if (item.id === "supervision") {
-    return { value: item.displayValue, unit: "below 5% requirement" }
-  }
-  return { value: item.displayValue, unit: item.displayValue === "1" ? "client" : "clients" }
+  return { value: item.displayValue, unit: "clients" }
 }
 
 function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
   const { value, unit } = highlightBubbleCopy(item)
-  const useAmber = item.id === "notes" || item.id === "hours" || item.id === "supervision"
+  const useAmber = item.id === "notes" || item.id === "hours"
   const useLimit = item.id === "auth"
 
   return (
@@ -49,16 +43,16 @@ function HighlightBubble({ item }: { item: OwnerAttentionItem }) {
         />
         {BUBBLE_LABELS[item.id]}
       </p>
-      <p className="mt-3 text-[20px] font-semibold leading-snug text-ink">
+      <p className="mt-3 flex items-baseline gap-2">
         <span
           className={cn(
-            "tabular-nums",
-            useAmber ? "text-alert" : useLimit ? "text-limit" : "text-ink",
+            "text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
+            useAmber ? "text-alert" : useLimit ? "text-limit" : "text-brand",
           )}
         >
           {value}
-        </span>{" "}
-        <span className="font-medium text-ink-soft">{unit}</span>
+        </span>
+        <span className="text-[16px] text-ink-soft">{unit}</span>
       </p>
     </button>
   )
@@ -69,42 +63,44 @@ export function FocalStatusArea({
   attention,
   rosterReady,
 }: {
-  userName?: string | null
+  userName: string
   attention: OwnerAttentionSummary
   rosterReady: boolean
 }) {
   const greeting = timeGreeting()
   const name = firstName(userName)
-  const showStatusPlaceholder = !attention.resolved && (!rosterReady || attention.loading)
-  const { attentionCount, items } = attention
+  const items = attention.items
+  const loading = attention.loading && !attention.resolved
 
   return (
-    <header className="shrink-0 animate-fade-rise short:space-y-3 space-y-4">
-      <p className="text-[21px] font-normal text-ink-soft">
-        {greeting}, {name}.
-      </p>
+    <div className="shrink-0">
+      <div className="flex flex-col gap-4 min-[900px]:flex-row min-[900px]:items-end min-[900px]:justify-between">
+        <div>
+          <h1 className="text-[clamp(1.75rem,3vw,2.25rem)] font-semibold tracking-[-0.02em] text-ink">
+            {greeting}, {name}.
+          </h1>
+          {loading ? (
+            <p className="mt-2 text-[17px] text-muted animate-pulse">Checking your practice…</p>
+          ) : !rosterReady ? (
+            <p className="mt-2 text-[17px] text-muted">Loading roster…</p>
+          ) : items.length === 0 ? (
+            <p className="mt-2 text-[17px] text-muted">Nothing needs your attention today.</p>
+          ) : (
+            <p className="mt-2 text-[17px] text-ink-soft">
+              <strong className="font-semibold text-ink">{items.length} things</strong> need your
+              attention today.
+            </p>
+          )}
+        </div>
 
-      {showStatusPlaceholder ? (
-        <div className="h-12 max-w-xl animate-pulse rounded-[16px] bg-line-soft" aria-hidden />
-      ) : attentionCount === 0 ? (
-        <p className="text-[39px] font-semibold leading-tight tracking-[-0.028em] text-ink">
-          Nothing needs your attention today.
-        </p>
-      ) : (
-        <div className="short:space-y-3 space-y-4">
-          <p className="whitespace-nowrap text-[clamp(1.5rem,2.6vw,2.4375rem)] font-semibold leading-tight tracking-[-0.028em] text-ink">
-            <span className="text-alert">
-              {attentionCount} {attentionCount === 1 ? "thing" : "things"}
-            </span>{" "}
-            need your attention today.
-          </p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {!loading && rosterReady && items.length > 0 && (
+          <div className="flex flex-wrap gap-3">
             {items.map((item) => (
               <HighlightBubble key={item.id} item={item} />
             ))}
           </div>
-        </div>
-      )}
-    </header>
+        )}
+      </div>
+    </div>
   )
 }

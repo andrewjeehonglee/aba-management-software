@@ -176,7 +176,7 @@ export function buildDirectHoursTileViewModel(
         : "All staff meet the 50% requirement"
       : options?.selfMode
         ? "Below 50% requirement"
-        : `${flagged.length} staff below 50% requirement`
+        : "staff below 50% requirement"
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.staffId,
@@ -217,7 +217,7 @@ export function buildSupervisionTileViewModel(
         : "All staff meet the 5% requirement"
       : options?.selfMode
         ? "Below 5% requirement"
-        : `${flagged.length} staff below 5% requirement`
+        : "staff below 5% requirement"
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.staffId,
@@ -257,7 +257,7 @@ export function buildAuthorizationTileViewModel(
   const descriptor =
     flagged.length === 0
       ? "No clients flagged"
-      : `${flagged.length} client${flagged.length === 1 ? "" : "s"}`
+      : "clients"
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.authId,
