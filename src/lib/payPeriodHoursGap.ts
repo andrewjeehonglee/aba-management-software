@@ -5,18 +5,29 @@ import { supabase } from "@/lib/supabase"
 
 export type PayPeriodRoleTier = "technician" | "supervisor" | "bcba"
 
-export interface PayPeriodRoleTierRow {
-  tier: PayPeriodRoleTier
-  label: string
+export interface PayPeriodStaffHoursRow {
+  staffId: string
+  staffName: string
+  staffExternalCode: string | null
   payableHours: number
   onHoldHours: number
 }
 
+export interface PayPeriodRoleTierDetail {
+  tier: PayPeriodRoleTier
+  label: string
+  payableHours: number
+  onHoldHours: number
+  staff: PayPeriodStaffHoursRow[]
+}
+
 export interface PayPeriodHoursGapSummary {
   payPeriodLabel: string
-  totalOnHoldHours: number
-  byRole: PayPeriodRoleTierRow[]
+  payPeriodShortLabel: string
+  byRole: PayPeriodRoleTierDetail[]
 }
+
+export const PAY_PERIOD_TIER_ORDER: PayPeriodRoleTier[] = ["technician", "supervisor", "bcba"]
 
 const TIER_LABELS: Record<PayPeriodRoleTier, string> = {
   technician: "Technicians",
@@ -24,12 +35,14 @@ const TIER_LABELS: Record<PayPeriodRoleTier, string> = {
   bcba: "BCBAs",
 }
 
-const TIER_ORDER: PayPeriodRoleTier[] = ["technician", "supervisor", "bcba"]
-
 interface PayPeriodSessionRow {
   id: string
   staff_id: string
-  staff: { role: string } | null
+  staff: {
+    full_name: string
+    external_code: string | null
+    role: string
+  } | null
 }
 
 interface SessionNoteRow {
@@ -40,12 +53,37 @@ interface SessionNoteRow {
   plan: string | null
 }
 
+interface MutableStaffRow {
+  staffId: string
+  staffName: string
+  staffExternalCode: string | null
+  tier: PayPeriodRoleTier
+  payableHours: number
+  onHoldHours: number
+}
+
 function normalizeRoleTier(raw: string | null | undefined): PayPeriodRoleTier | null {
   const role = (raw ?? "").toLowerCase()
   if (role === "technician") return "technician"
   if (role === "supervisor") return "supervisor"
   if (role === "bcba") return "bcba"
   return null
+}
+
+function shortPayPeriodLabel(label: string): string {
+  return label.replace(/,\s*\d{4}$/, "")
+}
+
+function finalizeStaffRows(byStaffId: Map<string, MutableStaffRow>): PayPeriodStaffHoursRow[] {
+  return [...byStaffId.values()]
+    .filter((row) => row.payableHours > 0 || row.onHoldHours > 0)
+    .map(({ staffId, staffName, staffExternalCode, payableHours, onHoldHours }) => ({
+      staffId,
+      staffName,
+      staffExternalCode,
+      payableHours,
+      onHoldHours,
+    }))
 }
 
 export async function getPayPeriodHoursGap(
@@ -56,7 +94,7 @@ export async function getPayPeriodHoursGap(
 
   let sessionsQuery = supabase
     .from("sessions")
-    .select("id, staff_id, staff(role)")
+    .select("id, staff_id, staff(full_name, external_code, role)")
     .eq("status", "completed")
     .gte("scheduled_at", payPeriod.start.toISOString())
     .lte("scheduled_at", payPeriod.end.toISOString())
@@ -87,38 +125,59 @@ export async function getPayPeriodHoursGap(
     )
   }
 
-  const totals = new Map<PayPeriodRoleTier, { payable: number; onHold: number }>(
-    TIER_ORDER.map((tier) => [tier, { payable: 0, onHold: 0 }]),
-  )
+  const byStaffId = new Map<string, MutableStaffRow>()
 
   for (const session of sessions) {
-    const tier = normalizeRoleTier(session.staff?.role)
+    if (!session.staff?.full_name) continue
+    const tier = normalizeRoleTier(session.staff.role)
     if (!tier) continue
 
-    const bucket = totals.get(tier)!
+    let row = byStaffId.get(session.staff_id)
+    if (!row) {
+      row = {
+        staffId: session.staff_id,
+        staffName: session.staff.full_name,
+        staffExternalCode: session.staff.external_code ?? null,
+        tier,
+        payableHours: 0,
+        onHoldHours: 0,
+      }
+      byStaffId.set(session.staff_id, row)
+    }
+
     const hasCompleteNote = isCompleteSessionNote(notesBySessionId.get(session.id))
     if (hasCompleteNote) {
-      bucket.payable += DEFAULT_SESSION_HOURS
+      row.payableHours += DEFAULT_SESSION_HOURS
     } else {
-      bucket.onHold += DEFAULT_SESSION_HOURS
+      row.onHoldHours += DEFAULT_SESSION_HOURS
     }
   }
 
-  const byRole = TIER_ORDER.map((tier) => {
-    const row = totals.get(tier)!
+  const staffRows = finalizeStaffRows(byStaffId)
+
+  const byRole = PAY_PERIOD_TIER_ORDER.map((tier) => {
+    const tierStaff = staffRows.filter((row) => {
+      const mutable = byStaffId.get(row.staffId)
+      return mutable?.tier === tier
+    })
+
     return {
       tier,
       label: TIER_LABELS[tier],
-      payableHours: row.payable,
-      onHoldHours: row.onHold,
+      payableHours: tierStaff.reduce((sum, row) => sum + row.payableHours, 0),
+      onHoldHours: tierStaff.reduce((sum, row) => sum + row.onHoldHours, 0),
+      staff: tierStaff.sort(
+        (a, b) =>
+          b.onHoldHours - a.onHoldHours ||
+          b.payableHours - a.payableHours ||
+          a.staffName.localeCompare(b.staffName),
+      ),
     }
   })
 
-  const totalOnHoldHours = byRole.reduce((sum, row) => sum + row.onHoldHours, 0)
-
   return {
     payPeriodLabel: payPeriod.label,
-    totalOnHoldHours,
+    payPeriodShortLabel: shortPayPeriodLabel(payPeriod.label),
     byRole,
   }
 }

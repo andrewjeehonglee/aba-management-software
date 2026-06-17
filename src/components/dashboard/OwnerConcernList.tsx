@@ -33,16 +33,26 @@ export function OwnerConcernCard({ concern }: { concern: OwnerConcern }) {
 
           <p className="mt-1 text-[14px] leading-snug text-ink-soft">{concern.situation}</p>
 
-          {concern.chipLine ? (
-            <p className="mt-2 text-[14px] font-medium leading-snug text-ink">{concern.chipLine}</p>
+          {concern.items.length > 0 ? (
+            <div className="mt-2 flex flex-wrap items-baseline gap-x-1 gap-y-1">
+              {concern.items.map((item, index) => (
+                <span key={`${item.href}-${item.label}`} className="inline-flex items-baseline">
+                  {index > 0 ? (
+                    <span className="mr-1 text-[14px] text-muted" aria-hidden>
+                      ·
+                    </span>
+                  ) : null}
+                  <Link
+                    to={item.href}
+                    className="rounded-sm text-[14px] font-medium text-ink underline-offset-2 transition-colors hover:text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    {item.label}
+                    {item.value ? ` ${item.value}` : ""}
+                  </Link>
+                </span>
+              ))}
+            </div>
           ) : null}
-
-          <Link
-            to={concern.actionHref}
-            className="mt-2.5 inline-block text-[14px] font-semibold text-brand underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            {concern.actionLabel}
-          </Link>
         </div>
       </div>
     </article>

@@ -7,16 +7,19 @@ import {
 } from "@/lib/ownerDashboardConcerns"
 import { getRosterStaffManifest } from "@/lib/rosterScope"
 import { OwnerConcernList } from "@/components/dashboard/OwnerConcernList"
-import { HoursOnHoldGap } from "@/components/dashboard/HoursOnHoldGap"
+import { PayrollPanel } from "@/components/dashboard/PayrollPanel"
+import { PAY_PERIOD_TIER_ORDER } from "@/lib/payPeriodHoursGap"
 
 const EMPTY_GAP: OwnerDashboardData["hoursGap"] = {
   payPeriodLabel: "",
-  totalOnHoldHours: 0,
-  byRole: [
-    { tier: "technician", label: "Technicians", payableHours: 0, onHoldHours: 0 },
-    { tier: "supervisor", label: "Supervisors", payableHours: 0, onHoldHours: 0 },
-    { tier: "bcba", label: "BCBAs", payableHours: 0, onHoldHours: 0 },
-  ],
+  payPeriodShortLabel: "",
+  byRole: PAY_PERIOD_TIER_ORDER.map((tier) => ({
+    tier,
+    label: tier === "technician" ? "Technicians" : tier === "supervisor" ? "Supervisors" : "BCBAs",
+    payableHours: 0,
+    onHoldHours: 0,
+    staff: [],
+  })),
 }
 
 export function OwnerDashboard({
@@ -57,7 +60,6 @@ export function OwnerDashboard({
     getRosterStaffManifest(practiceId)
       .then((manifest) =>
         getOwnerDashboardData({
-          practiceId,
           staffIds,
           clientIds,
           allStaffIds: manifest.map((s) => s.id),
@@ -124,7 +126,7 @@ export function OwnerDashboard({
           completenessLine={data.completenessLine}
           loading={showPlaceholder}
         />
-        <HoursOnHoldGap gap={showPlaceholder ? null : data.hoursGap} loading={showPlaceholder} />
+        <PayrollPanel gap={showPlaceholder ? null : data.hoursGap} loading={showPlaceholder} />
       </div>
     </div>
   )
