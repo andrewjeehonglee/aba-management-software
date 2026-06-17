@@ -122,7 +122,7 @@ export async function getOwnerAttentionSummary(options?: {
       worklist.push({
         id: `hours-${row.staffId}`,
         group: "hours",
-        groupLabel: "Below 50% direct",
+        groupLabel: "Below 50% direct engagement",
         name: row.staffName,
         displayValue: `${Math.round(row.directPct * 100)}%`,
         severity: "warn",
@@ -158,7 +158,7 @@ export async function getOwnerAttentionSummary(options?: {
     worklist.push({
       id: `auth-${row.authId}`,
       group: "auth",
-      groupLabel: "Running low on hours",
+      groupLabel: "Limited hours remaining",
       name: shortClientLabel(row.clientName),
       displayValue: authRunwayValue(row),
       severity: runwayState === "urgent" ? "crit" : "warn",

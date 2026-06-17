@@ -17,22 +17,25 @@ export const TILE_DEFINITIONS = {
   notes: {
     id: "session-notes",
     title: "Session notes",
+    selfTitle: "My session notes",
     requirement: "Notes due this pay period",
   },
   directHours: {
     id: "direct-hours",
     title: "Direct hours",
-    requirement: "50% of hours must be direct service",
+    selfTitle: "My direct hours",
+    requirement: "50% of hours must be direct engagement",
   },
   supervision: {
     id: "supervision",
     title: "Supervision",
+    selfTitle: "My supervision compliance",
     requirement: "RBTs must receive 5% supervision",
   },
   authorization: {
     id: "authorization",
-    title: "Authorization",
-    requirement: "Hours left before a client hits their cap",
+    title: "Authorized hours",
+    requirement: "Flag clients when authorized hours remaining are low",
   },
 } as const
 
@@ -46,6 +49,12 @@ export interface DashboardTileViewModel {
   popoverItems?: MetricPopoverItem[]
   popoverGroups?: MetricPopoverGroup[]
   popoverEmptyLabel: string
+}
+
+export function formatDashboardMonthLabel(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ""
+  return trimmed.replace(/^Month of\s+/i, "")
 }
 
 export function shortClientLabel(name: string): string {
@@ -71,6 +80,14 @@ export function staffDisplayLabel(
   return firstName(staffName)
 }
 
+function tileTitle(
+  def: { title: string; selfTitle?: string },
+  selfMode?: boolean,
+): string {
+  if (selfMode && def.selfTitle) return def.selfTitle
+  return def.title
+}
+
 export function authRunwayState(row: ClientAuthUtilRow): BcbaTileState {
   if (row.usedHours > row.authorizedHours) return "urgent"
   if (row.hoursRemaining <= AUTH_RUNWAY_URGENT_HOURS) return "urgent"
@@ -82,7 +99,7 @@ export function authRunwayValue(row: ClientAuthUtilRow): string {
   if (row.usedHours > row.authorizedHours) {
     return `${row.overHours} hrs over`
   }
-  return `${row.hoursRemaining} hrs left`
+  return `${row.hoursRemaining} hrs remaining`
 }
 
 export function sortAuthRunwayRows(rows: ClientAuthUtilRow[]): ClientAuthUtilRow[] {
@@ -111,12 +128,7 @@ export function buildNotesTileViewModel(
   const descriptor =
     incompleteTotal === 0
       ? "All notes complete"
-      : [
-          missingTotal > 0 ? `${missingTotal} missing` : null,
-          overdueTotal > 0 ? `${overdueTotal} overdue` : null,
-        ]
-          .filter(Boolean)
-          .join(" · ")
+      : "incomplete notes"
 
   const popoverGroups: MetricPopoverGroup[] = notes.byStaff
     .filter((row) => row.missingCount + row.overdueCount > 0)
@@ -139,7 +151,7 @@ export function buildNotesTileViewModel(
 
   return {
     id: TILE_DEFINITIONS.notes.id,
-    title: TILE_DEFINITIONS.notes.title,
+    title: tileTitle(TILE_DEFINITIONS.notes, options?.selfMode),
     requirement: TILE_DEFINITIONS.notes.requirement,
     state,
     metric: incompleteTotal,
@@ -161,10 +173,10 @@ export function buildDirectHoursTileViewModel(
     flagged.length === 0
       ? options?.selfMode
         ? "On track"
-        : "All staff meet the direct requirement"
+        : "All staff meet the direct engagement requirement"
       : options?.selfMode
-        ? "Below the 50% direct requirement"
-        : `${flagged.length} staff below the 50% direct requirement`
+        ? "Below the 50% direct engagement requirement"
+        : "staff below the 50% direct engagement requirement"
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.staffId,
@@ -180,7 +192,7 @@ export function buildDirectHoursTileViewModel(
 
   return {
     id: TILE_DEFINITIONS.directHours.id,
-    title: TILE_DEFINITIONS.directHours.title,
+    title: tileTitle(TILE_DEFINITIONS.directHours, options?.selfMode),
     requirement: TILE_DEFINITIONS.directHours.requirement,
     state,
     metric,
@@ -205,7 +217,7 @@ export function buildSupervisionTileViewModel(
         : "All staff meet the supervision requirement"
       : options?.selfMode
         ? "Below the 5% supervision requirement"
-        : `${flagged.length} staff below the 5% supervision requirement`
+        : "staff below the 5% supervision requirement"
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.staffId,
@@ -221,7 +233,7 @@ export function buildSupervisionTileViewModel(
 
   return {
     id: TILE_DEFINITIONS.supervision.id,
-    title: TILE_DEFINITIONS.supervision.title,
+    title: tileTitle(TILE_DEFINITIONS.supervision, options?.selfMode),
     requirement: TILE_DEFINITIONS.supervision.requirement,
     state,
     metric,
@@ -244,8 +256,8 @@ export function buildAuthorizationTileViewModel(
 
   const descriptor =
     flagged.length === 0
-      ? "All clients have runway on authorized hours"
-      : `${flagged.length} client${flagged.length === 1 ? "" : "s"} running low on authorized hours`
+      ? "All clients have sufficient hours remaining"
+      : "clients with limited hours remaining"
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.authId,
@@ -263,6 +275,6 @@ export function buildAuthorizationTileViewModel(
     metric: flagged.length,
     descriptor,
     popoverItems,
-    popoverEmptyLabel: "All clients have runway",
+    popoverEmptyLabel: "All clients have sufficient hours remaining",
   }
 }

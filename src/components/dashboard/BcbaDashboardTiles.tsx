@@ -6,6 +6,7 @@ import {
   buildDirectHoursTileViewModel,
   buildNotesTileViewModel,
   buildSupervisionTileViewModel,
+  formatDashboardMonthLabel,
   type DashboardTileViewModel,
 } from "@/lib/dashboardTileMetrics"
 import { getNotesStatus } from "@/lib/notesStatus"
@@ -18,24 +19,11 @@ import {
 } from "@/components/dashboard/BcbaDashboardTile"
 
 function payPeriodBlock(label: string) {
-  if (!label) {
-    return (
-      <>
-        <span className="block">Pay period</span>
-        <span className="block">—</span>
-      </>
-    )
-  }
-  return (
-    <>
-      <span className="block">Pay period</span>
-      <span className="block">{label}</span>
-    </>
-  )
+  return <span className="block">{label || "—"}</span>
 }
 
 function monthBlock(label: string) {
-  return <span className="block">{label || "—"}</span>
+  return <span className="block">{formatDashboardMonthLabel(label) || "—"}</span>
 }
 
 function MetricTile({

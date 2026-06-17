@@ -7,15 +7,21 @@ import {
   buildAuthorizationTileViewModel,
   buildDirectHoursTileViewModel,
   buildNotesTileViewModel,
+  formatDashboardMonthLabel,
   TILE_DEFINITIONS,
 } from "@/lib/dashboardTileMetrics"
 import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
 import { formatPayPeriodCloseDate } from "@/lib/payPeriod"
 import type { OwnerWorklistItem } from "@/lib/ownerDashboardStatus"
-import { BCBA_STATE_LABEL, type BcbaTileState } from "@/lib/bcbaTileState"
-import { severityTagClass } from "@/lib/pulseSeverity"
-import type { PulseSeverity } from "@/lib/pulseSeverity"
+import {
+  BCBA_STATE_LABEL,
+  BCBA_STATE_METRIC_CLASS,
+  TILE_STATE_DOT_CLASS,
+  TILE_STATE_TAG_CLASS,
+  TILE_STATE_VALUE_CLASS,
+  type BcbaTileState,
+} from "@/lib/bcbaTileState"
 
 type Domain = "notes" | "hours" | "auth"
 
@@ -23,20 +29,8 @@ const DOMAIN_ORDER: Domain[] = ["notes", "hours", "auth"]
 
 const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
   notes: "Incomplete notes",
-  hours: "Below 50% direct",
-  auth: "Running low on hours",
-}
-
-function tileStateToPulse(state: BcbaTileState): PulseSeverity {
-  if (state === "urgent") return "crit"
-  if (state === "monitor") return "warn"
-  return "ok"
-}
-
-function domainAccent(domain: Domain, tagSeverity: PulseSeverity): "neutral" | "amber" | "limit" {
-  if (domain === "notes" && tagSeverity !== "ok") return "amber"
-  if (domain === "auth" && tagSeverity !== "ok") return "limit"
-  return "neutral"
+  hours: "Below 50% direct engagement",
+  auth: "Limited hours remaining",
 }
 
 function ConsequenceLines({ lines }: { lines: ReactNode[] }) {
@@ -55,23 +49,21 @@ function StackedMetric({
   value,
   label,
   period,
-  accent,
+  tileState,
 }: {
   value: ReactNode
   label: string
   period: string
-  accent: "neutral" | "amber" | "limit"
+  tileState: BcbaTileState
 }) {
-  const valueColor =
-    accent === "amber"
-      ? "text-alert"
-      : accent === "limit"
-        ? "text-limit"
-        : "text-brand"
-
   return (
     <div className="shrink-0 text-left lg:text-right">
-      <p className={cn("text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums", valueColor)}>
+      <p
+        className={cn(
+          "text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
+          BCBA_STATE_METRIC_CLASS[tileState],
+        )}
+      >
         {value}
       </p>
       <p className="mt-1.5 text-[16px] text-ink-soft">{label}</p>
@@ -83,36 +75,23 @@ function StackedMetric({
 function OpsRow({
   id,
   title,
-  tag,
-  tagSeverity,
+  tileState,
   lines,
   metric,
   metricLabel,
   metricPeriod,
-  domain,
   isLast = false,
 }: {
   id?: string
   title: string
-  tag: string
-  tagSeverity: PulseSeverity
+  tileState: BcbaTileState
   lines: ReactNode[]
   metric: ReactNode
   metricLabel: string
   metricPeriod: string
-  domain: Domain
   isLast?: boolean
 }) {
-  const accent = domainAccent(domain, tagSeverity === "ok" ? "ok" : tagSeverity)
-
-  const tagClass =
-    tagSeverity === "ok"
-      ? severityTagClass("ok")
-      : domain === "notes"
-        ? severityTagClass("warn")
-        : domain === "auth"
-          ? "bg-limit-soft text-limit"
-          : "bg-surface-2 text-ink-soft ring-1 ring-line"
+  const tag = BCBA_STATE_LABEL[tileState]
 
   return (
     <div
@@ -128,7 +107,7 @@ function OpsRow({
           <span
             className={cn(
               "rounded-full px-2.5 py-0.5 text-[13px] font-semibold uppercase tracking-[0.08em]",
-              tagClass,
+              TILE_STATE_TAG_CLASS[tileState],
             )}
           >
             {tag}
@@ -141,7 +120,7 @@ function OpsRow({
         value={metric}
         label={metricLabel}
         period={metricPeriod}
-        accent={accent}
+        tileState={tileState}
       />
     </div>
   )
@@ -160,18 +139,14 @@ function bubbleShortValue(displayValue: string): string {
 
 function WorklistBalloon({
   item,
-  domain,
   popping,
   onTap,
 }: {
   item: OwnerWorklistItem
-  domain: Domain
   popping: boolean
   onTap: (item: OwnerWorklistItem) => void
 }) {
-  const useAmber = domain === "notes"
-  const useLimit = domain === "auth"
-  const valueClass = useAmber ? "text-alert" : useLimit ? "text-limit" : "text-ink"
+  const tone: BcbaTileState = item.severity === "crit" ? "urgent" : "monitor"
 
   return (
     <button
@@ -183,14 +158,11 @@ function WorklistBalloon({
       )}
     >
       <span
-        className={cn(
-          "size-2 shrink-0 rounded-full",
-          useAmber ? "bg-alert" : useLimit ? "bg-limit" : "bg-muted",
-        )}
+        className={cn("size-2 shrink-0 rounded-full", TILE_STATE_DOT_CLASS[tone])}
         aria-hidden
       />
       <span className="font-medium text-ink">{item.name}</span>
-      <span className={cn("font-semibold tabular-nums", valueClass)}>
+      <span className={cn("font-semibold tabular-nums", TILE_STATE_VALUE_CLASS[tone])}>
         {bubbleShortValue(item.displayValue)}
       </span>
     </button>
@@ -203,23 +175,21 @@ function LinkedBubbleGroup({
   poppingId,
   onTap,
   linkedTag,
+  linkedTileState,
 }: {
   domain: Domain
   items: OwnerWorklistItem[]
   poppingId: string | null
   onTap: (item: OwnerWorklistItem) => void
   linkedTag?: string
+  linkedTileState?: BcbaTileState
 }) {
   if (items.length === 0) {
     return <div className="hidden min-h-[120px] min-[1000px]:block" aria-hidden />
   }
 
   const linkedTagClass =
-    domain === "notes"
-      ? "bg-alert-soft text-alert"
-      : domain === "auth"
-        ? "bg-limit-soft text-limit"
-        : "bg-surface-2 text-ink-soft ring-1 ring-line"
+    linkedTileState ? TILE_STATE_TAG_CLASS[linkedTileState] : TILE_STATE_TAG_CLASS.healthy
 
   return (
     <div className="flex min-h-[120px] flex-col justify-center py-4 short:py-3 min-[1000px]:py-0">
@@ -243,7 +213,6 @@ function LinkedBubbleGroup({
           <WorklistBalloon
             key={item.id}
             item={item}
-            domain={domain}
             popping={poppingId === item.id}
             onTap={onTap}
           />
@@ -372,47 +341,16 @@ export function OwnerPracticeGrid({
   const hoursView = hours ? buildDirectHoursTileViewModel(hours) : null
   const authView = auth ? buildAuthorizationTileViewModel(auth.byClient) : null
 
-  const notesTag = notesView ? BCBA_STATE_LABEL[notesView.state] : "Healthy"
-  const notesTagSeverity = notesView ? tileStateToPulse(notesView.state) : "ok"
-
-  const hoursTag = hoursView ? BCBA_STATE_LABEL[hoursView.state] : "Healthy"
-  const hoursTagSeverity = hoursView ? tileStateToPulse(hoursView.state) : "ok"
-
-  const authTag = authView ? BCBA_STATE_LABEL[authView.state] : "Healthy"
-  const authTagSeverity = authView ? tileStateToPulse(authView.state) : "ok"
-
   const periodLabel = notes?.payPeriodLabel ?? formatPayPeriodCloseDate()
-  const monthLabel = hours?.monthLabel ?? ""
-  const authMonthLabel = auth?.monthLabel ?? ""
-
-  const notesLines: ReactNode[] = notesView
-    ? [
-        <>{notesView.requirement}</>,
-        notesView.metric > 0 ? <>{notesView.descriptor}</> : null,
-      ].filter(Boolean)
-    : ["Loading session notes…"]
-
-  const hoursLines: ReactNode[] = hoursView
-    ? [
-        <>{hoursView.requirement}</>,
-        hoursView.metric > 0 ? <>{hoursView.descriptor}</> : null,
-      ].filter(Boolean)
-    : ["Loading direct hours…"]
-
-  const authLines: ReactNode[] = authView
-    ? [
-        <>{authView.requirement}</>,
-        authView.metric > 0 ? <>{authView.descriptor}</> : null,
-      ].filter(Boolean)
-    : ["Loading authorization…"]
+  const monthLabel = formatDashboardMonthLabel(hours?.monthLabel ?? "")
+  const authMonthLabel = formatDashboardMonthLabel(auth?.monthLabel ?? "")
 
   const domainRows: Record<
     Domain,
     {
       id: string
       title: string
-      tag: string
-      tagSeverity: PulseSeverity
+      tileState: BcbaTileState
       lines: ReactNode[]
       metric: ReactNode
       metricLabel: string
@@ -423,34 +361,31 @@ export function OwnerPracticeGrid({
     notes: {
       id: TILE_DEFINITIONS.notes.id,
       title: TILE_DEFINITIONS.notes.title,
-      tag: notesTag,
-      tagSeverity: notesTagSeverity,
-      lines: notesLines,
+      tileState: notesView?.state ?? "healthy",
+      lines: notesView ? [<>{notesView.requirement}</>] : ["Loading session notes…"],
       metric: notesView?.metric ?? "—",
       metricLabel: notesView?.descriptor ?? "All notes complete",
-      metricPeriod: `Pay period · ${periodLabel}`,
+      metricPeriod: periodLabel,
       linkedTag: notesView && notesView.metric > 0 ? String(notesView.metric) : undefined,
     },
     hours: {
       id: TILE_DEFINITIONS.directHours.id,
       title: TILE_DEFINITIONS.directHours.title,
-      tag: hoursTag,
-      tagSeverity: hoursTagSeverity,
-      lines: hoursLines,
+      tileState: hoursView?.state ?? "healthy",
+      lines: hoursView ? [<>{hoursView.requirement}</>] : ["Loading direct hours…"],
       metric: hoursView?.metric ?? 0,
       metricLabel: hoursView?.descriptor ?? "All staff on track",
-      metricPeriod: monthLabel ? `Month of ${monthLabel}` : "This month",
+      metricPeriod: monthLabel || "This month",
       linkedTag: hoursView && hoursView.metric > 0 ? String(hoursView.metric) : undefined,
     },
     auth: {
       id: TILE_DEFINITIONS.authorization.id,
       title: TILE_DEFINITIONS.authorization.title,
-      tag: authTag,
-      tagSeverity: authTagSeverity,
-      lines: authLines,
+      tileState: authView?.state ?? "healthy",
+      lines: authView ? [<>{authView.requirement}</>] : ["Loading authorized hours…"],
       metric: authView?.metric ?? 0,
-      metricLabel: authView?.descriptor ?? "All clients have runway",
-      metricPeriod: authMonthLabel ? `Month of ${authMonthLabel}` : "This month",
+      metricLabel: authView?.descriptor ?? "All clients have sufficient hours remaining",
+      metricPeriod: authMonthLabel || "This month",
       linkedTag: authView && authView.metric > 0 ? String(authView.metric) : undefined,
     },
   }
@@ -484,10 +419,8 @@ export function OwnerPracticeGrid({
                 <div className="rounded-[var(--radius)] bg-surface shadow-card">
                   <OpsRow
                     id={row.id}
-                    domain={domain}
                     title={row.title}
-                    tag={row.tag}
-                    tagSeverity={row.tagSeverity}
+                    tileState={row.tileState}
                     lines={row.lines}
                     metric={row.metric}
                     metricLabel={row.metricLabel}
@@ -501,6 +434,7 @@ export function OwnerPracticeGrid({
                   poppingId={poppingId}
                   onTap={handleTap}
                   linkedTag={row.linkedTag}
+                  linkedTileState={row.tileState}
                 />
               </div>
             )

@@ -1,19 +1,15 @@
 import { Link } from "react-router-dom"
+import {
+  TILE_STATE_DOT_CLASS,
+  TILE_STATE_VALUE_CLASS,
+  type BcbaTileState,
+} from "@/lib/bcbaTileState"
 import { cn } from "@/lib/utils"
 
-export type AttentionBubbleTone = "healthy" | "monitor" | "urgent"
+export type AttentionBubbleTone = BcbaTileState
 
-const DOT: Record<AttentionBubbleTone, string> = {
-  healthy: "bg-[#4F6B59]",
-  monitor: "bg-[#C99A3B]",
-  urgent: "bg-[#B0492F]",
-}
-
-const VALUE: Record<AttentionBubbleTone, string> = {
-  healthy: "text-[#4F6B59]",
-  monitor: "text-[#C99A3B]",
-  urgent: "text-[#B0492F]",
-}
+const DOT = TILE_STATE_DOT_CLASS
+const VALUE = TILE_STATE_VALUE_CLASS
 
 export function AttentionBubble({
   name,
