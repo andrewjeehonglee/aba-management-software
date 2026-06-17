@@ -59,7 +59,11 @@ function staffMaps(staff: StaffNameRow[]): {
 
 export async function getRosterRows(
   practiceId: string,
-  options?: { bcbaStaffId?: string },
+  options?: {
+    bcbaStaffId?: string
+    supervisorStaffId?: string
+    technicianStaffId?: string
+  },
 ): Promise<RosterRow[]> {
   const { data: clients, error: clientError } = await supabase
     .from("clients")
@@ -139,6 +143,12 @@ export async function getRosterRows(
 
   if (options?.bcbaStaffId) {
     rows = rows.filter((r) => r.bcbaId === options.bcbaStaffId)
+  }
+  if (options?.supervisorStaffId) {
+    rows = rows.filter((r) => r.supervisorId === options.supervisorStaffId)
+  }
+  if (options?.technicianStaffId) {
+    rows = rows.filter((r) => r.btId === options.technicianStaffId)
   }
 
   return rows

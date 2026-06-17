@@ -202,9 +202,12 @@ function App() {
         <Route
           path="/clients"
           element={
-            userRole.toLowerCase() === "owner"
-              ? <ClientsPage practiceId={practice.practice_id} userRole={userRole} />
-              : <Navigate to="/" replace />
+            <ClientsPage
+              practiceId={practice.practice_id}
+              userRole={userRole}
+              currentStaffId={currentStaffId}
+              isDemo={isDemo}
+            />
           }
         />
         <Route

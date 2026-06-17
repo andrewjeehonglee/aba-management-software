@@ -7,11 +7,13 @@ export function OwnerAppShell({
   practiceName,
   children,
   className,
+  maxWidthClass = "max-w-[1400px]",
 }: {
   ownerName: string
   practiceName?: string | null
   children: ReactNode
   className?: string
+  maxWidthClass?: string
 }) {
   return (
     <div
@@ -22,7 +24,9 @@ export function OwnerAppShell({
     >
       <OwnerNavRail ownerName={ownerName} practiceName={practiceName} />
       <main className="flex min-h-0 min-w-0 flex-col overflow-hidden px-5 py-6 min-[1000px]:px-[52px] min-[1000px]:py-8">
-        <div className="mx-auto flex h-full w-full max-w-[1400px] min-h-0 flex-col">{children}</div>
+        <div className={cn("mx-auto flex h-full w-full min-h-0 flex-col", maxWidthClass)}>
+          {children}
+        </div>
       </main>
     </div>
   )
