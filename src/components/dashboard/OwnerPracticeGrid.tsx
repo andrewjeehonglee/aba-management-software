@@ -66,8 +66,8 @@ function StackedMetric({
       >
         {value}
       </p>
-      <p className="mt-0.5 text-[18px] leading-snug text-ink-soft">{label}</p>
-      <p className="mt-0.5 text-[14px] text-muted">{period}</p>
+      <p className="mt-0.5 text-[18px] leading-tight text-ink-soft">{label}</p>
+      <p className="text-[14px] leading-tight text-muted">{period}</p>
     </div>
   )
 }
@@ -94,9 +94,9 @@ function OpsRow({
   return (
     <div
       id={id}
-      className="grid grid-cols-1 items-center gap-2 px-3.5 py-3 short:px-3 short:py-2.5 lg:grid-cols-[1fr_auto] lg:gap-6"
+      className="grid grid-cols-1 items-start gap-2 px-3.5 pt-2.5 pb-2 short:px-3 short:pt-2 short:pb-1.5 lg:grid-cols-[1fr_auto] lg:gap-6"
     >
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 space-y-0.5">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-[20px] font-semibold text-ink">{title}</h3>
           <span
@@ -219,11 +219,11 @@ function LinkedBubbleGroup({
 
 function SurfaceSkeleton() {
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-4">
       {Array.from({ length: 3 }).map((_, i) => (
         <div
           key={i}
-          className="animate-pulse rounded-[var(--radius)] bg-surface px-3.5 py-3 shadow-card"
+          className="animate-pulse rounded-[var(--radius)] bg-surface px-3.5 pt-2.5 pb-2 shadow-card"
         >
           <div className="h-5 w-40 rounded bg-line-soft" />
           <div className="mt-3 h-4 w-full max-w-md rounded bg-line-soft" />
@@ -410,7 +410,7 @@ export function OwnerPracticeGrid({
           </p>
         </div>
 
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-4">
           {DOMAIN_ORDER.map((domain) => {
             const row = domainRows[domain]
             return (
@@ -418,7 +418,7 @@ export function OwnerPracticeGrid({
                 key={domain}
                 className={cn(
                   "flex flex-col gap-3",
-                  "min-[1000px]:grid min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-center min-[1000px]:gap-x-8",
+                  "min-[1000px]:grid min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-start min-[1000px]:gap-x-8",
                 )}
               >
                 <div className="rounded-[var(--radius)] bg-surface shadow-card">

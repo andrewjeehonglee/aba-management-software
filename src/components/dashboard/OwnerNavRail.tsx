@@ -87,7 +87,7 @@ export function OwnerNavRail({
   return (
     <>
       {/* Desktop rail */}
-      <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r border-line bg-bg px-3 py-6 min-[1000px]:flex">
+      <aside className="hidden min-h-0 w-[236px] shrink-0 flex-col border-r-2 border-ink/20 bg-bg px-3 py-6 min-[1000px]:flex">
         <div className="mb-8 flex items-center gap-2 px-2">
           <PulseMark className="text-brand" size={22} />
           <span className="text-xl font-semibold tracking-tight text-brand">Pulse</span>
@@ -118,7 +118,7 @@ export function OwnerNavRail({
       </aside>
 
       {/* Mobile / tablet top bar */}
-      <header className="flex min-h-0 shrink-0 items-center justify-between gap-3 border-b border-line bg-bg px-4 py-3 min-[1000px]:hidden">
+      <header className="flex min-h-0 shrink-0 items-center justify-between gap-3 border-b-2 border-ink/20 bg-bg px-4 py-3 min-[1000px]:hidden">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex items-center gap-2">
             <PulseMark className="text-brand" size={18} />
