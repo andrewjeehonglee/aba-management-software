@@ -6,13 +6,10 @@ import { getAuthUtilizationByMonth } from "@/lib/authUtilization"
 import {
   buildAuthorizationTileViewModel,
   buildDirectHoursTileViewModel,
-  buildNotesTileViewModel,
   formatDashboardMonthLabel,
   TILE_DEFINITIONS,
 } from "@/lib/dashboardTileMetrics"
-import { getNotesStatus } from "@/lib/notesStatus"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
-import { formatPayPeriodCloseDate } from "@/lib/payPeriod"
 import type { OwnerWorklistItem } from "@/lib/ownerDashboardStatus"
 import {
   BCBA_STATE_LABEL,
@@ -23,12 +20,11 @@ import {
   type BcbaTileState,
 } from "@/lib/bcbaTileState"
 
-type Domain = "notes" | "hours" | "auth"
+type Domain = "hours" | "auth"
 
-const DOMAIN_ORDER: Domain[] = ["notes", "hours", "auth"]
+const DOMAIN_ORDER: Domain[] = ["hours", "auth"]
 
 const WORKLIST_GROUP_LABELS: Record<Domain, string> = {
-  notes: "Incomplete notes",
   hours: "Below 50% direct engagement",
   auth: "Limited hours remaining",
 }
@@ -97,13 +93,13 @@ function OpsRow({
     <div
       id={id}
       className={cn(
-        "grid grid-cols-1 items-center gap-3 px-4 py-5 short:px-3.5 short:py-4 lg:grid-cols-[1fr_auto] lg:gap-8",
+        "grid grid-cols-1 items-center gap-2 px-3.5 py-3.5 short:px-3 short:py-3 lg:grid-cols-[1fr_auto] lg:gap-6",
         !isLast && "border-b border-line-soft",
       )}
     >
-      <div className="min-w-0 space-y-1.5">
+      <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="text-[19px] font-semibold text-ink">{title}</h3>
+          <h3 className="text-[18px] font-semibold text-ink">{title}</h3>
           <span
             className={cn(
               "rounded-full px-2.5 py-0.5 text-[12px] font-semibold uppercase tracking-[0.08em]",
@@ -185,15 +181,15 @@ function LinkedBubbleGroup({
   linkedTileState?: BcbaTileState
 }) {
   if (items.length === 0) {
-    return <div className="hidden min-h-[88px] min-[1000px]:block" aria-hidden />
+    return <div className="hidden min-h-[72px] min-[1000px]:block" aria-hidden />
   }
 
   const linkedTagClass =
     linkedTileState ? TILE_STATE_TAG_CLASS[linkedTileState] : TILE_STATE_TAG_CLASS.healthy
 
   return (
-    <div className="flex min-h-[88px] flex-col justify-center py-2 short:py-2 min-[1000px]:py-0">
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+    <div className="flex min-h-[72px] flex-col justify-center py-1 min-[1000px]:py-0">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <p className="text-[16px] font-semibold uppercase tracking-[0.08em] text-ink">
           {WORKLIST_GROUP_LABELS[domain]}
         </p>
@@ -225,7 +221,7 @@ function LinkedBubbleGroup({
 function SurfaceSkeleton() {
   return (
     <div className="animate-pulse rounded-[var(--radius)] bg-surface shadow-card">
-      {Array.from({ length: 3 }).map((_, i) => (
+      {Array.from({ length: 2 }).map((_, i) => (
         <div key={i} className="border-b border-line-soft px-5 py-5 last:border-b-0">
           <div className="h-5 w-40 rounded bg-line-soft" />
           <div className="mt-3 h-4 w-full max-w-md rounded bg-line-soft" />
@@ -260,7 +256,6 @@ export function OwnerPracticeGrid({
   const [clearedIds, setClearedIds] = useState<Set<string>>(new Set())
   const [poppingId, setPoppingId] = useState<string | null>(null)
 
-  const [notes, setNotes] = useState<Awaited<ReturnType<typeof getNotesStatus>> | null>(null)
   const [hours, setHours] = useState<Awaited<ReturnType<typeof getStaffHoursByMonth>> | null>(null)
   const [auth, setAuth] = useState<Awaited<ReturnType<typeof getAuthUtilizationByMonth>> | null>(null)
 
@@ -278,12 +273,10 @@ export function OwnerPracticeGrid({
     setLoading(true)
     setError(null)
     Promise.all([
-      getNotesStatus(undefined, scopeOptions),
       getStaffHoursByMonth(undefined, scopeOptions),
       getAuthUtilizationByMonth(undefined, clientIds?.length ? { clientIds } : undefined),
     ])
-      .then(([notesData, hoursData, authData]) => {
-        setNotes(notesData)
+      .then(([hoursData, authData]) => {
         setHours(hoursData)
         setAuth(authData)
       })
@@ -302,7 +295,7 @@ export function OwnerPracticeGrid({
   )
 
   const worklistByDomain = useMemo(() => {
-    const map: Record<Domain, OwnerWorklistItem[]> = { notes: [], hours: [], auth: [] }
+    const map: Record<Domain, OwnerWorklistItem[]> = { hours: [], auth: [] }
     for (const item of visibleWorklist) {
       if (item.group in map) map[item.group as Domain].push(item)
     }
@@ -339,11 +332,9 @@ export function OwnerPracticeGrid({
     )
   }
 
-  const notesView = notes ? buildNotesTileViewModel(notes) : null
   const hoursView = hours ? buildDirectHoursTileViewModel(hours) : null
   const authView = auth ? buildAuthorizationTileViewModel(auth.byClient) : null
 
-  const periodLabel = notes?.payPeriodLabel ?? formatPayPeriodCloseDate()
   const monthLabel = formatDashboardMonthLabel(hours?.monthLabel ?? "")
   const authMonthLabel = formatDashboardMonthLabel(auth?.monthLabel ?? "")
 
@@ -360,16 +351,6 @@ export function OwnerPracticeGrid({
       linkedTag?: string
     }
   > = {
-    notes: {
-      id: TILE_DEFINITIONS.notes.id,
-      title: TILE_DEFINITIONS.notes.title,
-      tileState: notesView?.state ?? "healthy",
-      lines: notesView ? [<>{notesView.requirement}</>] : ["Loading session notes…"],
-      metric: notesView?.metric ?? "—",
-      metricLabel: notesView?.descriptor ?? "All notes complete",
-      metricPeriod: periodLabel,
-      linkedTag: notesView && notesView.metric > 0 ? String(notesView.metric) : undefined,
-    },
     hours: {
       id: TILE_DEFINITIONS.directHours.id,
       title: TILE_DEFINITIONS.directHours.title,
@@ -398,47 +379,43 @@ export function OwnerPracticeGrid({
       aria-label="Practice overview and action items"
     >
       <div className="owner-scroll-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <div className="mb-3 shrink-0 short:mb-2 rounded-[var(--radius)] border border-line/70 bg-surface-2/60 px-4 py-3">
-          <h2 className="text-[15px] font-semibold uppercase tracking-[0.11em] text-ink">
-            Your practice today
-          </h2>
-          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] leading-snug">
-            <span className="font-semibold text-ink">
-              {activeClientCount ?? 0} active clients
-            </span>
-            <span className="text-muted" aria-hidden>/</span>
-            <span className="text-ink-soft">3 BCBAs</span>
-            <span className="text-muted" aria-hidden>/</span>
-            <span className="text-ink-soft">5 clinical supervisors</span>
-            <span className="text-muted" aria-hidden>/</span>
-            <span className="text-ink-soft">6 technicians</span>
-          </p>
-        </div>
+        <p className="mb-2 shrink-0 text-[15px] leading-snug text-ink-soft">
+          <span className="font-medium text-ink">Your practice today</span>
+          {" — "}
+          <span className="font-semibold text-ink">{activeClientCount ?? 0} active clients</span>
+          <span className="text-muted"> / </span>
+          <span>3 BCBAs</span>
+          <span className="text-muted"> / </span>
+          <span>5 clinical supervisors</span>
+          <span className="text-muted"> / </span>
+          <span>6 technicians</span>
+        </p>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-2 min-[1000px]:gap-3">
-          {DOMAIN_ORDER.map((domain) => {
-            const row = domainRows[domain]
-            return (
-              <div
-                key={domain}
-                className={cn(
-                  "flex flex-col gap-4",
-                  "min-[1000px]:grid min-[1000px]:min-h-0 min-[1000px]:flex-1 min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:items-stretch min-[1000px]:gap-x-8",
-                )}
-              >
-                <div className="rounded-[var(--radius)] bg-surface shadow-card">
-                  <OpsRow
-                    id={row.id}
-                    title={row.title}
-                    tileState={row.tileState}
-                    lines={row.lines}
-                    metric={row.metric}
-                    metricLabel={row.metricLabel}
-                    metricPeriod={row.metricPeriod}
-                    isLast
-                  />
-                </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-2 min-[1000px]:grid min-[1000px]:grid-cols-[1.15fr_1fr] min-[1000px]:gap-x-6 min-[1000px]:gap-y-0">
+          <div className="rounded-[var(--radius)] bg-surface shadow-card">
+            {DOMAIN_ORDER.map((domain, index) => {
+              const row = domainRows[domain]
+              return (
+                <OpsRow
+                  key={domain}
+                  id={row.id}
+                  title={row.title}
+                  tileState={row.tileState}
+                  lines={row.lines}
+                  metric={row.metric}
+                  metricLabel={row.metricLabel}
+                  metricPeriod={row.metricPeriod}
+                  isLast={index === DOMAIN_ORDER.length - 1}
+                />
+              )
+            })}
+          </div>
+          <div className="flex flex-col gap-1 min-[1000px]:gap-0">
+            {DOMAIN_ORDER.map((domain) => {
+              const row = domainRows[domain]
+              return (
                 <LinkedBubbleGroup
+                  key={domain}
                   domain={domain}
                   items={worklistByDomain[domain]}
                   poppingId={poppingId}
@@ -446,9 +423,9 @@ export function OwnerPracticeGrid({
                   linkedTag={row.linkedTag}
                   linkedTileState={row.tileState}
                 />
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
     </section>
