@@ -37,7 +37,7 @@ function ConsequenceLines({ lines }: { lines: ReactNode[] }) {
   return (
     <div className="space-y-1">
       {lines.map((line, i) => (
-        <p key={i} className="text-[16px] leading-snug text-ink-soft [&_strong]:font-semibold [&_strong]:text-ink">
+        <p key={i} className="text-[17px] leading-snug text-ink-soft [&_strong]:font-semibold [&_strong]:text-ink">
           {line}
         </p>
       ))}
@@ -66,8 +66,8 @@ function StackedMetric({
       >
         {value}
       </p>
-      <p className="mt-1.5 text-[16px] text-ink-soft">{label}</p>
-      <p className="mt-0.5 text-[14px] text-muted">{period}</p>
+      <p className="mt-1 text-[17px] leading-snug text-ink-soft">{label}</p>
+      <p className="mt-0.5 text-[13px] text-muted">{period}</p>
     </div>
   )
 }
@@ -97,16 +97,16 @@ function OpsRow({
     <div
       id={id}
       className={cn(
-        "grid grid-cols-1 items-center gap-4 px-5 py-8 short:gap-3 short:px-4 short:py-6 lg:grid-cols-[1fr_auto] lg:gap-10",
+        "grid grid-cols-1 items-center gap-3 px-4 py-5 short:px-3.5 short:py-4 lg:grid-cols-[1fr_auto] lg:gap-8",
         !isLast && "border-b border-line-soft",
       )}
     >
-      <div className="min-w-0 space-y-2.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h3 className="text-[17px] font-semibold text-ink">{title}</h3>
+      <div className="min-w-0 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-[19px] font-semibold text-ink">{title}</h3>
           <span
             className={cn(
-              "rounded-full px-2.5 py-0.5 text-[13px] font-semibold uppercase tracking-[0.08em]",
+              "rounded-full px-2.5 py-0.5 text-[12px] font-semibold uppercase tracking-[0.08em]",
               TILE_STATE_TAG_CLASS[tileState],
             )}
           >
@@ -185,15 +185,15 @@ function LinkedBubbleGroup({
   linkedTileState?: BcbaTileState
 }) {
   if (items.length === 0) {
-    return <div className="hidden min-h-[120px] min-[1000px]:block" aria-hidden />
+    return <div className="hidden min-h-[88px] min-[1000px]:block" aria-hidden />
   }
 
   const linkedTagClass =
     linkedTileState ? TILE_STATE_TAG_CLASS[linkedTileState] : TILE_STATE_TAG_CLASS.healthy
 
   return (
-    <div className="flex min-h-[120px] flex-col justify-center py-4 short:py-3 min-[1000px]:py-0">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+    <div className="flex min-h-[88px] flex-col justify-center py-2 short:py-2 min-[1000px]:py-0">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <p className="text-[16px] font-semibold uppercase tracking-[0.08em] text-ink">
           {WORKLIST_GROUP_LABELS[domain]}
         </p>
@@ -239,6 +239,7 @@ export function OwnerPracticeGrid({
   refreshKey,
   staffIds,
   clientIds,
+  activeClientCount,
   includeCaseloadStaff,
   worklistItems,
   className,
@@ -246,6 +247,7 @@ export function OwnerPracticeGrid({
   refreshKey?: number
   staffIds?: string[]
   clientIds?: string[]
+  activeClientCount?: number
   includeCaseloadStaff?: boolean
   worklistItems: OwnerWorklistItem[]
   worklistLoading?: boolean
@@ -396,16 +398,24 @@ export function OwnerPracticeGrid({
       aria-label="Practice overview and action items"
     >
       <div className="owner-scroll-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
-        <div className="mb-3 shrink-0 short:mb-2">
-          <h2 className="text-[14px] font-semibold uppercase tracking-[0.10em] text-muted">
+        <div className="mb-3 shrink-0 short:mb-2 rounded-[var(--radius)] border border-line/70 bg-surface-2/60 px-4 py-3">
+          <h2 className="text-[15px] font-semibold uppercase tracking-[0.11em] text-ink">
             Your practice today
           </h2>
-          <p className="mt-1 text-[14px] text-muted">
-            3 BCBAs · 5 clinical supervisors · 6 technicians
+          <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] leading-snug">
+            <span className="font-semibold text-ink">
+              {activeClientCount ?? 0} active clients
+            </span>
+            <span className="text-muted" aria-hidden>/</span>
+            <span className="text-ink-soft">3 BCBAs</span>
+            <span className="text-muted" aria-hidden>/</span>
+            <span className="text-ink-soft">5 clinical supervisors</span>
+            <span className="text-muted" aria-hidden>/</span>
+            <span className="text-ink-soft">6 technicians</span>
           </p>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 min-[1000px]:gap-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 min-[1000px]:gap-3">
           {DOMAIN_ORDER.map((domain) => {
             const row = domainRows[domain]
             return (

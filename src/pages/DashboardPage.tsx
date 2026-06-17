@@ -387,7 +387,7 @@ export function DashboardPage({
           />
           <main className="flex min-h-0 min-w-0 flex-col overflow-hidden px-5 py-6 short:py-5 min-[1000px]:px-[52px] min-[1000px]:py-8">
             <div className="mx-auto flex h-full w-full max-w-[1400px] min-h-0 flex-col">
-              <div className="mb-5 flex shrink-0 items-center justify-between gap-4 short:mb-4">
+              <div className="mb-2 flex shrink-0 items-center justify-between gap-4">
                 <p className="text-[15px] font-semibold uppercase tracking-[0.10em] text-muted">
                   {formatEyebrowDate()}
                 </p>
@@ -403,10 +403,11 @@ export function DashboardPage({
               />
 
               <OwnerPracticeGrid
-                className="mt-6 short:mt-4"
+                className="mt-4 short:mt-3"
                 refreshKey={notesRefreshKey + staffRefreshKey}
                 staffIds={rosterScope?.staffIds}
                 clientIds={rosterScope?.clientIds}
+                activeClientCount={rosterClientIds.length}
                 includeCaseloadStaff
                 worklistItems={attention.worklist}
                 worklistLoading={attention.loading && !attention.resolved}
