@@ -1795,7 +1795,7 @@ All pushed to `main` → Vercel auto-deploy.
 
 ## Session 32 — Unified tile metrics + Owner dashboard layout polish (Jun 16, 2026 evening)
 
-**What landed:** **`dashboardTileMetrics.ts`** as single source for tile titles, requirements, states, and descriptors across Owner / BCBA / Supervisor / Technician. **Owner dashboard** refined through multiple layout passes: three domains (notes, hours, auth — **no supervision**), attention headline without domain subtitle, plain-text practice stats, compact metric cards, **viewport-height row distribution**. **Clients page** care-team chips and owner preview. **5% supervision** rule unified. All pushed to `main`; **HEAD `a69527e`**.
+**What landed:** **`dashboardTileMetrics.ts`** as single source for tile titles, requirements, states, and descriptors across Owner / BCBA / Supervisor / Technician. **Owner dashboard** refined through multiple layout passes: three domains (notes, hours, auth — **no supervision**), attention headline without domain subtitle, plain-text practice stats, compact metric cards, **viewport-height row distribution**. **Clients page** care-team chips and owner preview. **5% supervision** rule unified. All pushed to `main`; **HEAD `ff6a794`**.
 
 **Detailed log:** `templates/SESSION_LOG_20260616_evening.md`
 
@@ -1821,6 +1821,9 @@ All pushed to `main` → Vercel auto-deploy.
 | `d73d8f4` | Practice header + tighter tiles |
 | `b23db94` | Nav divider + tile padding |
 | `a69527e` | Spread rows across viewport height |
+| `ff6a794` | Session 32 documentation |
+
+**Scope:** 20 commits since Session 31 code (`ca32a1e`); 28 files touched. See `templates/SESSION_LOG_20260616_evening.md` for file manifest.
 
 ### Not done / deferred
 

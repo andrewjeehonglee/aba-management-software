@@ -4,7 +4,7 @@
 **Demo login:** `demo@pulseaba.app` / `PulseDemo2026!`  
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
-**Branch:** `main` · **HEAD:** `a69527e`  
+**Branch:** `main` · **HEAD:** `ff6a794`  
 **Transcript:** agent session `ddc879be-fc2a-4be4-bdbc-21760b4e39ff`
 
 ---
@@ -39,8 +39,15 @@ Evening session focused on **unifying dashboard tile metrics across all roles**,
 | `d73d8f4` | Practice header matches date eyebrow; stats line format; tighter tiles + larger inner type |
 | `b23db94` | Stronger nav rail divider (later softened); trim tile bottom padding |
 | `a69527e` | Spread three metric bands across viewport height; 1px `ink/10` nav divider |
+| `ff6a794` | Session 32 documentation (`SESSIONS.md` + this log) |
 
-**Also landed earlier same day (before afternoon BCBA session or interleaved):**
+**Also landed same day (Session 31 doc commit after afternoon code):**
+
+| Commit | Summary |
+|--------|---------|
+| `175aec0` | Log Session 31 (`SESSIONS.md` + `SESSION_LOG_20260616_afternoon.md`) |
+
+**Earlier same day (before unified metrics):**
 
 | Commit | Summary |
 |--------|---------|
@@ -155,11 +162,26 @@ Each domain = **left white metric card** + **right worklist bubble group** on `�
 
 ---
 
+## Files changed (`ca32a1e` → `ff6a794`, 28 files)
+
+| Area | Paths |
+|------|-------|
+| **Core metrics** | `src/lib/dashboardTileMetrics.ts` (new), `src/lib/supervision.ts`, `src/lib/bcbaTileState.ts`, `src/lib/dashboardScope.ts`, `src/lib/ownerDashboardStatus.ts`, `src/lib/notesStatus.ts`, `src/lib/authorization.ts`, `src/lib/rosterTable.ts` |
+| **Owner dashboard** | `src/components/dashboard/OwnerPracticeGrid.tsx`, `FocalStatusArea.tsx`, `OwnerNavRail.tsx`, `OwnerAppShell.tsx` |
+| **BCBA / lead** | `BcbaDashboardTiles.tsx`, `BcbaDashboardTile.tsx`, `MetricPopover.tsx`, `AttentionBubble.tsx`, `TechnicianDashboardTiles.tsx` |
+| **Pages** | `src/pages/DashboardPage.tsx`, `src/pages/ClientsPage.tsx`, `src/App.tsx` |
+| **Seed / demo** | `scripts/seed_dashboard_demo.mjs`, `seed_dashboard_tile_variation.sql`, `seed_technician_dashboard.sql`, `package.json` (`npm run seed:dashboard`) |
+| **Project rules** | `.cursor/rules/auto-commit-push.mdc` |
+| **Session logs** | `SESSIONS.md`, `templates/SESSION_LOG_20260616_afternoon.md`, `templates/SESSION_LOG_20260616_evening.md` |
+
+---
+
 ## Verification at session end
 
 - `npm run build` — passes.
 - `git status` — clean.
-- `origin/main` — includes `a69527e`.
+- `origin/main` — `ff6a794` (HEAD matches remote).
+- **20 commits** on `main` since Session 31 code (`ca32a1e`).
 
 ---
 
