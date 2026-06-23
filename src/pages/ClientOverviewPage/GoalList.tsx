@@ -1,7 +1,7 @@
 import type { GoalRecord } from "@/lib/supabase"
 import type { Goal } from "@/types/goal"
 import { AddTileButton } from "./AddTileButton"
-import { P, TILE_TITLE } from "./profileTokens"
+import { P, TILE_LIST_MAX_H, TILE_TITLE } from "./profileTokens"
 
 const GOAL_STATUS_ORDER: Record<string, number> = {
   "in-progress": 0,
@@ -68,7 +68,7 @@ export function GoalList({ goals, loading, canAdd, onAdd, onSelect }: GoalListPr
       ) : activeGoals.length === 0 ? (
         <EmptyGoals canAdd={canAdd} onAdd={onAdd} />
       ) : (
-        <ul className="mt-4">
+        <ul className={`mt-4 ${TILE_LIST_MAX_H}`}>
           {activeGoals.map((goal, index) => (
             <li
               key={goal.id}

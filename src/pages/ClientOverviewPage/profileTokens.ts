@@ -16,12 +16,12 @@ export const P = {
   cancel: "#B0492F",
   scheduled: "#B6AE9E",
   scheduledTint: "#F0EDE6",
-  /** Calendar day-bar + legend hues (v5) */
-  calComplete: "#4C6B52",
-  calNoteDue: "#C9A227",
-  calCancelled: "#BE3A2B",
-  calScheduled: "#5B7C99",
-  calScheduledTint: "#E4ECF2",
+  /** Calendar day-bar + legend hues (v6) */
+  calComplete: "#3F8A53",
+  calNoteDue: "#E08A2B",
+  calCancelled: "#B5362A",
+  calScheduled: "#3A6BA5",
+  calScheduledTint: "#E3ECF4",
   goalInProgress: "#3E6B9C",
   goalHold: "#A9762A",
   goalMastered: "#4C6B52",
@@ -30,6 +30,9 @@ export const P = {
 
 export const SECTION_LABEL =
   "text-[12px] font-semibold uppercase tracking-[0.08em]"
+
+/** Max list height (~3 goal/behavior rows) before internal scroll */
+export const TILE_LIST_MAX_H = "max-h-[320px] overflow-y-auto"
 
 /** Shared card/tile title — 18px, weight 700, sentence case */
 export const TILE_TITLE = "text-[18px] font-bold leading-snug"

@@ -1,15 +1,59 @@
-import { useEffect, useState } from "react"
-import { ChevronDown, ChevronRight } from "lucide-react"
-import { ArrowLeft } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import { formatEventStamp } from "@/lib/sessions"
-import { resolveClientByRouteKey } from "@/lib/rosterScope"
+import { clientProfilePath, resolveClientByRouteKey } from "@/lib/rosterScope"
 import {
   getBehaviorIncidentsByClientId,
   type BehaviorIncidentRecord,
 } from "@/lib/supabase"
-import { P } from "@/pages/ClientOverviewPage/profileTokens"
 import { formatClientDisplayName } from "@/pages/ClientOverviewPage/clientProfileUtils"
+import { P, SECTION_LABEL } from "@/pages/ClientOverviewPage/profileTokens"
+
+function formatDateInput(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+function defaultDateRange(days: number): { startDate: string; endDate: string } {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - (days - 1))
+  return { startDate: formatDateInput(start), endDate: formatDateInput(end) }
+}
+
+type DatePreset = "7" | "14" | "30"
+
+const DATE_PRESETS: { id: DatePreset; label: string; days: number }[] = [
+  { id: "7", label: "7 days", days: 7 },
+  { id: "14", label: "14 days", days: 14 },
+  { id: "30", label: "1 month", days: 30 },
+]
+
+function presetForRange(startDate: string, endDate: string): DatePreset | null {
+  for (const preset of DATE_PRESETS) {
+    const { startDate: s, endDate: e } = defaultDateRange(preset.days)
+    if (s === startDate && e === endDate) return preset.id
+  }
+  return null
+}
+
+function incidentAt(incident: BehaviorIncidentRecord): string | null {
+  return incident.session_at ?? incident.created_at
+}
+
+function incidentInRange(
+  incident: BehaviorIncidentRecord,
+  startDate: string,
+  endDate: string,
+): boolean {
+  const at = incidentAt(incident)
+  if (!at) return false
+  const day = at.slice(0, 10)
+  return day >= startDate && day <= endDate
+}
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return "Not on file"
@@ -20,7 +64,7 @@ function formatDuration(seconds: number | null): string {
 }
 
 const INTENSITY_CHIP: Record<string, { bg: string; ink: string }> = {
-  High: { bg: "#F4E6DD", ink: P.cancel },
+  High: { bg: "#F4E6DD", ink: P.calCancelled },
   Medium: { bg: P.amberBg, ink: P.amberInk },
   Low: { bg: P.inset, ink: P.soft },
 }
@@ -39,7 +83,7 @@ function BehaviorIncidentRow({ incident }: { incident: BehaviorIncidentRecord })
 
   return (
     <li
-      className="py-3.5 first:pt-0"
+      className="py-4 first:pt-0"
       style={{ borderTop: `1px solid ${P.rule}` }}
     >
       <button
@@ -52,19 +96,21 @@ function BehaviorIncidentRow({ incident }: { incident: BehaviorIncidentRecord })
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-sm font-medium" style={{ color: P.ink }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[16px] font-medium" style={{ color: P.ink }}>
               {date}
             </span>
-            <span className="text-xs" style={{ color: P.faint }}>
-              {time}
-            </span>
-            <span className="text-sm font-semibold" style={{ color: P.ink }}>
+            {time && (
+              <span className="text-[13px]" style={{ color: P.faint }}>
+                {time}
+              </span>
+            )}
+            <span className="text-[16px] font-semibold" style={{ color: P.ink }}>
               {behaviorName}
             </span>
             {intensity && incident.intensity && (
               <span
-                className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium"
+                className="inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium"
                 style={{ backgroundColor: intensity.bg, color: intensity.ink }}
               >
                 {incident.intensity}
@@ -75,20 +121,19 @@ function BehaviorIncidentRow({ incident }: { incident: BehaviorIncidentRecord })
       </button>
 
       {open && (
-        <dl className="mt-3 ml-6 grid grid-cols-[6rem_1fr] gap-x-4 gap-y-3 text-sm">
+        <dl className="mt-3 ml-6 grid grid-cols-[5.5rem_1fr] gap-x-4 gap-y-3 text-[14px]">
           {[
             { label: "Antecedents", value: antecedentsStr },
             { label: "Consequences", value: consequencesStr },
             { label: "Duration", value: formatDuration(incident.duration_seconds) },
           ].map(({ label, value }) => (
             <div key={label} className="contents">
-              <dt
-                className="pt-0.5 text-[11px] font-semibold uppercase tracking-[0.06em]"
-                style={{ color: P.faint }}
-              >
+              <dt className={`${SECTION_LABEL} pt-0.5`} style={{ color: P.faint }}>
                 {label}
               </dt>
-              <dd style={{ color: P.soft }}>{value}</dd>
+              <dd className="leading-relaxed" style={{ color: P.soft }}>
+                {value}
+              </dd>
             </div>
           ))}
         </dl>
@@ -99,10 +144,13 @@ function BehaviorIncidentRow({ incident }: { incident: BehaviorIncidentRecord })
 
 export function ClientBehaviorIncidentsPage({ practiceId }: { practiceId: string }) {
   const { clientId: clientRouteKey } = useParams<{ clientId: string }>()
+  const defaults = useMemo(() => defaultDateRange(14), [])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [displayName, setDisplayName] = useState("")
   const [incidents, setIncidents] = useState<BehaviorIncidentRecord[]>([])
+  const [startDate, setStartDate] = useState(defaults.startDate)
+  const [endDate, setEndDate] = useState(defaults.endDate)
 
   useEffect(() => {
     if (!clientRouteKey) {
@@ -134,10 +182,28 @@ export function ClientBehaviorIncidentsPage({ practiceId }: { practiceId: string
     }
   }, [clientRouteKey, practiceId])
 
-  if (!loading && notFound) {
+  const filteredIncidents = useMemo(
+    () =>
+      incidents
+        .filter((i) => incidentInRange(i, startDate, endDate))
+        .sort((a, b) => (incidentAt(b) ?? "").localeCompare(incidentAt(a) ?? "")),
+    [incidents, startDate, endDate],
+  )
+
+  const activePreset = presetForRange(startDate, endDate)
+
+  function applyPreset(preset: DatePreset) {
+    const match = DATE_PRESETS.find((p) => p.id === preset)
+    if (!match) return
+    const range = defaultDateRange(match.days)
+    setStartDate(range.startDate)
+    setEndDate(range.endDate)
+  }
+
+  if (notFound) {
     return (
       <div
-        className="flex min-h-svh items-center justify-center text-sm"
+        className="flex min-h-svh items-center justify-center text-[15px]"
         style={{ backgroundColor: P.bg, color: P.soft }}
       >
         Client not found.
@@ -145,12 +211,14 @@ export function ClientBehaviorIncidentsPage({ practiceId }: { practiceId: string
     )
   }
 
+  const profilePath = clientRouteKey ? clientProfilePath(clientRouteKey) : "/"
+
   return (
-    <div className="min-h-svh px-4 py-6" style={{ backgroundColor: P.bg, color: P.ink }}>
-      <div className="mx-auto w-full max-w-3xl">
+    <div className="min-h-svh px-10 py-6" style={{ backgroundColor: P.bg, color: P.ink }}>
+      <div className="mx-auto w-full max-w-[900px]">
         <Link
-          to={clientRouteKey ? `/clients/${encodeURIComponent(clientRouteKey)}` : "/"}
-          className="inline-flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+          to={profilePath}
+          className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
           style={{ color: P.soft }}
         >
           <ArrowLeft className="size-4" />
@@ -158,16 +226,10 @@ export function ClientBehaviorIncidentsPage({ practiceId }: { practiceId: string
         </Link>
 
         <header className="mt-6">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {loading ? (
-              <span className="animate-pulse" style={{ color: P.faint }}>
-                Loading…
-              </span>
-            ) : (
-              displayName
-            )}
+          <h1 className="text-[28px] font-semibold tracking-tight">
+            {displayName || (loading ? "…" : "")}
           </h1>
-          <p className="mt-1 text-sm" style={{ color: P.soft }}>
+          <p className="mt-2 text-[18px] font-bold" style={{ color: P.ink }}>
             Behavior incidents
           </p>
         </header>
@@ -176,23 +238,80 @@ export function ClientBehaviorIncidentsPage({ practiceId }: { practiceId: string
           className="mt-6 p-5"
           style={{ backgroundColor: P.card, borderRadius: P.radius }}
         >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`${SECTION_LABEL} mr-1`} style={{ color: P.faint }}>
+              Range
+            </span>
+            {DATE_PRESETS.map((preset) => {
+              const selected = activePreset === preset.id
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset.id)}
+                  className="rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-opacity hover:opacity-90"
+                  style={{
+                    backgroundColor: selected ? P.sageBg : P.inset,
+                    color: selected ? P.sageInk : P.soft,
+                    boxShadow: selected ? `inset 0 0 0 1px ${P.sage}` : undefined,
+                  }}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-end gap-4">
+            <label className="space-y-1">
+              <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
+                Start date
+              </span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="rounded-lg border px-3 py-2 text-[15px]"
+                style={{ borderColor: P.rule, backgroundColor: P.inset, color: P.ink }}
+              />
+            </label>
+            <label className="space-y-1">
+              <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
+                End date
+              </span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="rounded-lg border px-3 py-2 text-[15px]"
+                style={{ borderColor: P.rule, backgroundColor: P.inset, color: P.ink }}
+              />
+            </label>
+          </div>
+
+          {startDate > endDate && (
+            <p className="mt-3 text-[14px]" style={{ color: P.cancel }}>
+              Start date must be on or before end date.
+            </p>
+          )}
+        </section>
+
+        <section
+          className="mt-6 p-5"
+          style={{ backgroundColor: P.card, borderRadius: P.radius }}
+        >
           {loading ? (
-            <p className="py-8 text-center text-sm animate-pulse" style={{ color: P.faint }}>
+            <p className="text-[15px] animate-pulse" style={{ color: P.faint }}>
               Loading…
             </p>
-          ) : incidents.length === 0 ? (
-            <p className="py-8 text-center text-sm" style={{ color: P.soft }}>
-              No behavior incidents recorded.
+          ) : filteredIncidents.length === 0 ? (
+            <p className="text-[15px]" style={{ color: P.soft }}>
+              No behavior incidents in this date range.
             </p>
           ) : (
             <ul>
-              {incidents.map((incident, index) => (
-                <li
-                  key={incident.id}
-                  className={index === 0 ? "[&>li]:border-t-0" : undefined}
-                >
-                  <BehaviorIncidentRow incident={incident} />
-                </li>
+              {filteredIncidents.map((incident) => (
+                <BehaviorIncidentRow key={incident.id} incident={incident} />
               ))}
             </ul>
           )}

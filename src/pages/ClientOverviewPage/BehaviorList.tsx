@@ -1,6 +1,6 @@
 import type { BehaviorIncidentRecord, BehaviorRecord } from "@/lib/supabase"
 import { AddTileButton } from "./AddTileButton"
-import { P, TILE_TITLE } from "./profileTokens"
+import { P, TILE_LIST_MAX_H, TILE_TITLE } from "./profileTokens"
 
 function incidentsThisMonth(incidents: BehaviorIncidentRecord[]): Map<string, number> {
   const now = new Date()
@@ -57,7 +57,7 @@ export function BehaviorList({
       ) : behaviors.length === 0 ? (
         <EmptyBehaviors canAdd={canAdd} onAdd={onAdd} />
       ) : (
-        <ul className="mt-4">
+        <ul className={`mt-4 ${TILE_LIST_MAX_H}`}>
           {behaviors.map((behavior, index) => (
             <li
               key={behavior.id}

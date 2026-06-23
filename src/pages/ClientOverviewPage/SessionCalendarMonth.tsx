@@ -21,6 +21,7 @@ const STATUS_PRIORITY: Record<DayBarStatus, number> = {
 }
 
 const DOW_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
+const BAR_HEIGHT = "h-2"
 
 function localISO(d: Date): string {
   return [
@@ -88,9 +89,14 @@ function dayBarStatus(
 interface SessionCalendarMonthProps {
   sessions: SessionRecord[]
   sessionNotes: SessionNoteRecord[]
+  fillHeight?: boolean
 }
 
-export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendarMonthProps) {
+export function SessionCalendarMonth({
+  sessions,
+  sessionNotes,
+  fillHeight = false,
+}: SessionCalendarMonthProps) {
   const today = new Date()
   const todayISO = localISO(today)
   const [anchorDate, setAnchorDate] = useState(
@@ -108,7 +114,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
     return sessions.filter((s) => s.time.slice(0, 10) === iso)
   }
 
-  function renderDayCell(day: Date) {
+  function renderDayCell(day: Date, stretch: boolean) {
     const iso = localISO(day)
     const daySessions = sessionsOnDay(iso)
     const bar = dayBarStatus(daySessions, todayISO, notesBySessionId)
@@ -118,7 +124,9 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
     return (
       <div
         key={iso}
-        className="relative flex min-h-[56px] flex-col items-center justify-center rounded-md py-1.5"
+        className={`relative flex flex-col items-center justify-center rounded-md py-1.5 ${
+          stretch ? "min-h-[52px] h-full" : "min-h-[52px]"
+        }`}
         style={{
           backgroundColor: scheduledBg ? P.calScheduledTint : undefined,
           boxShadow: isToday ? `inset 0 0 0 2px ${P.sage}` : undefined,
@@ -132,7 +140,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         </span>
         {bar && (
           <span
-            className="absolute bottom-1 left-2 right-2 h-1 rounded-full"
+            className={`absolute bottom-1.5 left-2 right-2 ${BAR_HEIGHT} rounded-full`}
             style={{ backgroundColor: BAR_COLOR[bar] }}
             aria-hidden="true"
           />
@@ -143,14 +151,14 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
 
   return (
     <div
-      className="p-5"
+      className={`p-5 ${fillHeight ? "flex h-full w-full flex-col" : ""}`}
       style={{ backgroundColor: P.card, borderRadius: P.radius, boxShadow: "0 1px 2px rgba(44,41,36,0.04)" }}
     >
-      <h2 className={TILE_TITLE} style={{ color: P.ink }}>
+      <h2 className={`${TILE_TITLE} shrink-0`} style={{ color: P.ink }}>
         Session calendar
       </h2>
 
-      <div className="mt-4 flex items-center justify-between gap-2">
+      <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => navigate(-1)}
@@ -172,7 +180,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         </button>
       </div>
 
-      <div className="mt-3 grid grid-cols-7">
+      <div className="mt-3 grid shrink-0 grid-cols-7">
         {DOW_LABELS.map((d) => (
           <div
             key={d}
@@ -184,18 +192,31 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         ))}
       </div>
 
-      <div className="mt-1 space-y-1">
+      <div
+        className={`mt-1 space-y-1 ${fillHeight ? "flex min-h-0 flex-1 flex-col" : ""}`}
+      >
         {grid.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 gap-1">
+          <div
+            key={wi}
+            className={`grid grid-cols-7 gap-1 ${fillHeight ? "min-h-0 flex-1" : ""}`}
+          >
             {week.map((day, di) =>
-              day ? renderDayCell(day) : <div key={di} className="min-h-[56px]" aria-hidden="true" />,
+              day
+                ? renderDayCell(day, fillHeight)
+                : (
+                  <div
+                    key={di}
+                    className={fillHeight ? "min-h-[52px] h-full" : "min-h-[52px]"}
+                    aria-hidden="true"
+                  />
+                ),
             )}
           </div>
         ))}
       </div>
 
       <div
-        className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3 text-[14px]"
+        className="mt-3 flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3 text-[14px]"
         style={{ borderColor: P.rule, color: P.soft }}
       >
         <LegendItem color={P.calComplete} label="Complete" />
@@ -210,7 +231,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
 function LegendItem({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-2">
-      <span className="inline-block h-1 w-5 rounded-full" style={{ backgroundColor: color }} />
+      <span className={`inline-block ${BAR_HEIGHT} w-5 rounded-full`} style={{ backgroundColor: color }} />
       {label}
     </span>
   )
