@@ -174,6 +174,36 @@ WHERE s.status = 'completed'
   AND s.id NOT IN (SELECT session_id FROM recent_due);
 
 
+-- ─── 2b. DUE QUEUE — strip notes from 2 most recent completed per client ─────
+-- Prior roster activity seeds may have already noted every session; this ensures
+-- the session-notes Due section always has 1–2 real examples. Idempotent.
+
+WITH roster AS (
+  SELECT c.id
+  FROM clients c
+  WHERE c.status = 'active'
+    AND c.external_code IN (
+      'PeLe','BrTu','Ells','AlLo','LiBo','IsRi','CoTa','LoEl',
+      'ViReMo','LaGu','SuAz','LuMa','EzHe','GrMa','YaNu','ZiTr'
+    )
+),
+due_sessions AS (
+  SELECT s.id AS session_id
+  FROM (
+    SELECT
+      s.id,
+      ROW_NUMBER() OVER (PARTITION BY s.client_id ORDER BY s.scheduled_at DESC) AS rn
+    FROM sessions s
+    JOIN roster r ON r.id = s.client_id
+    WHERE s.status = 'completed'
+  ) s
+  WHERE s.rn <= 2
+)
+DELETE FROM session_notes sn
+USING due_sessions d
+WHERE sn.session_id = d.session_id;
+
+
 -- ─── 3. BEHAVIORS ─────────────────────────────────────────────────────────────
 -- 3 per empty client. Column is `description`, not definition.
 
