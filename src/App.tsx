@@ -4,6 +4,7 @@ import { Toaster } from "sonner"
 import type { Session } from "@supabase/supabase-js"
 import { AuditPullPage } from "@/pages/AuditPullPage"
 import { ClientBehaviorIncidentsPage } from "@/pages/ClientBehaviorIncidentsPage"
+import { ClientSessionNotesPage } from "@/pages/ClientSessionNotesPage"
 import { ClientOverviewPage } from "@/pages/ClientOverviewPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { ClientsPage } from "@/pages/ClientsPage"
@@ -228,7 +229,14 @@ function App() {
               : <Navigate to="/" replace />
           }
         />
-        <Route path="/clients/:clientId" element={<ClientOverviewPage practiceId={practice.practice_id} />} />
+        <Route
+          path="/clients/:clientId/notes"
+          element={
+            ["owner", "bcba", "supervisor"].includes(userRole.toLowerCase())
+              ? <ClientSessionNotesPage practiceId={practice.practice_id} />
+              : <Navigate to="/" replace />
+          }
+        />
         <Route
           path="/clients/:clientId/incidents"
           element={
@@ -237,6 +245,7 @@ function App() {
               : <Navigate to="/" replace />
           }
         />
+        <Route path="/clients/:clientId" element={<ClientOverviewPage practiceId={practice.practice_id} />} />
         <Route path="/staff/:staffId" element={<StaffOverviewPage practiceId={practice.practice_id} />} />
         <Route path="/session/:sessionId" element={<SessionViewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
