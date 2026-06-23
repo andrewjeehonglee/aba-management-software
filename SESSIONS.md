@@ -1867,7 +1867,7 @@ All pushed to `main` → Vercel auto-deploy.
 
 ## Session 34 — Client Profile v3→v6 + session notes + varied clinical seed (Jun 23, 2026 morning)
 
-**What landed:** Complete **Client Profile product slice** — Pulse mockup layout (two-row grid), extracted subcomponents, **Session notes page**, **Behavior incidents page** (v6 rebuild), Records → audit/incidents links, and **varied demo clinical data** for 16 roster clients. Fixed duplicate-client import (32→16), due-note queue seeding, and `/clients/:id/notes` 404 routing. All pushed to `main`; **HEAD `63e5325`**. Andrew verified v6 on Vercel.
+**What landed:** Complete **Client Profile product slice** — Pulse mockup layout (two-row grid), 11 extracted subcomponents, **Session notes page** (490 lines), **Behavior incidents page** (v6 rebuild, 322 lines), Records → notes/incidents links, audit export on notes page, AuditPullPage deep-link preset, and **varied demo clinical data** for 16 roster clients (5 SQL scripts). Fixed duplicate-client import (32→16), due-note queue seeding, and `/clients/:id/notes` 404 routing. All pushed to `main`; **feature HEAD `63e5325`**, **log HEAD `27ba6cc`**. Andrew verified v6 on Vercel.
 
 **Detailed log:** `templates/SESSION_LOG_20260623_morning.md`
 
@@ -1894,8 +1894,9 @@ All pushed to `main` → Vercel auto-deploy.
 | `e6ef6e7` | Two-row v5 layout with distinct calendar colors |
 | `c2d354e` | v6 varied clinical re-seed SQL (Task 1) |
 | `63e5325` | v6 UI: equal tile heights, scroll lists, incidents page, calendar colors |
+| `27ba6cc` | Session 34 documentation log |
 
-**Scope:** 20 files (`834e7e7` → `63e5325`); +2845 / −787 lines. See detailed log for Supabase run order and verification table.
+**Scope:** 20 feature files (`834e7e7` → `63e5325`); +2845 / −787 lines. **New:** 3 pages, 11 profile subcomponents, 5 SQL scripts (1 transient), 1 import fix. See `templates/SESSION_LOG_20260623_morning.md` for complete per-commit file manifest, Supabase run order, and verification table.
 
 ### Not done / deferred
 
