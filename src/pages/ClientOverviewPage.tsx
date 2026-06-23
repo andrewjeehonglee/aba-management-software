@@ -669,45 +669,17 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
     >
       <div className="mx-auto w-full max-w-[1600px]">
         <header>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
-            style={{ color: P.soft }}
-          >
-            <ArrowLeft className="size-4" />
-            Back to dashboard
-          </Link>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
+              style={{ color: P.soft }}
+            >
+              <ArrowLeft className="size-4" />
+              Back to dashboard
+            </Link>
 
-          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[28px] font-semibold tracking-tight">
-                {clientLoading ? (
-                  <span className="animate-pulse" style={{ color: P.faint }}>
-                    Loading…
-                  </span>
-                ) : (
-                  displayName
-                )}
-              </h1>
-              {!clientLoading && liveClient && (
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium"
-                  style={{
-                    backgroundColor: isActiveStatus ? P.sageBg : P.amberBg,
-                    color: isActiveStatus ? P.sageInk : P.amberInk,
-                  }}
-                >
-                  <span
-                    className="size-1.5 rounded-full"
-                    style={{ backgroundColor: isActiveStatus ? P.sage : P.amber }}
-                    aria-hidden="true"
-                  />
-                  {statusLabel}
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col items-start gap-1">
+            <div className="flex flex-col items-end gap-1">
               <button
                 type="button"
                 disabled={startSessionLoading || !resolvedClientId}
@@ -726,52 +698,69 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
                 {startSessionLoading ? "Starting…" : "Start session"}
               </button>
               {startSessionError && (
-                <p className="text-[13px]" style={{ color: P.cancel }}>
+                <p className="text-right text-[13px]" style={{ color: P.cancel }}>
                   {startSessionError}
                 </p>
               )}
             </div>
           </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <h1 className="text-[28px] font-semibold tracking-tight">
+              {clientLoading ? (
+                <span className="animate-pulse" style={{ color: P.faint }}>
+                  Loading…
+                </span>
+              ) : (
+                displayName
+              )}
+            </h1>
+            {!clientLoading && liveClient && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium"
+                style={{
+                  backgroundColor: isActiveStatus ? P.sageBg : P.amberBg,
+                  color: isActiveStatus ? P.sageInk : P.amberInk,
+                }}
+              >
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: isActiveStatus ? P.sage : P.amber }}
+                  aria-hidden="true"
+                />
+                {statusLabel}
+              </span>
+            )}
+          </div>
         </header>
 
         <div
-          className="mt-6 grid items-start gap-6 max-xl:grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)_400px]"
+          className="mt-6 grid items-stretch gap-6 max-xl:grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)_400px]"
         >
-          <div className="flex min-w-0 flex-col gap-6">
-            <aside
-              className="p-5"
-              style={{ backgroundColor: P.card, borderRadius: P.radius }}
-            >
-              {!clientLoading && liveClient && (
-                <>
-                  <ClientFactsList client={liveClient} auth={liveAuth} />
-                  <AuthSummary auth={liveAuth} />
-                  <CareTeam
-                    clientId={liveClient.id}
-                    legacyStaffName={
-                      liveClient.assigned_staff?.full_name ?? primaryStaffFromSessions
-                    }
-                  />
-                </>
-              )}
-              {clientLoading && (
-                <p className="py-8 text-[15px] animate-pulse" style={{ color: P.faint }}>
-                  Loading client…
-                </p>
-              )}
-            </aside>
-
-            {canViewNotes && resolvedClientId && clientRouteKey && (
-              <RecordsBucket
-                clientRouteKey={clientRouteKey}
-                sessionNotes={sessionNotes}
-                sessions={liveSessions ?? []}
-                incidents={behaviorIncidents}
-              />
+          <aside
+            className="p-5"
+            style={{ backgroundColor: P.card, borderRadius: P.radius }}
+          >
+            {!clientLoading && liveClient && (
+              <>
+                <ClientFactsList client={liveClient} auth={liveAuth} />
+                <AuthSummary auth={liveAuth} />
+                <CareTeam
+                  clientId={liveClient.id}
+                  legacyStaffName={
+                    liveClient.assigned_staff?.full_name ?? primaryStaffFromSessions
+                  }
+                />
+              </>
             )}
-          </div>
+            {clientLoading && (
+              <p className="py-8 text-[15px] animate-pulse" style={{ color: P.faint }}>
+                Loading client…
+              </p>
+            )}
+          </aside>
 
-          <div className="min-w-0">
+          <div className="min-w-0 flex h-full">
             <SessionCalendarMonth
               sessions={liveSessions ?? []}
               sessionNotes={sessionNotes}
@@ -793,6 +782,14 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
               canAdd={canAddGoal}
               onAdd={() => setBehaviorModalOpen(true)}
             />
+            {canViewNotes && resolvedClientId && clientRouteKey && (
+              <RecordsBucket
+                clientRouteKey={clientRouteKey}
+                sessionNotes={sessionNotes}
+                sessions={liveSessions ?? []}
+                incidents={behaviorIncidents}
+              />
+            )}
           </div>
         </div>
       </div>

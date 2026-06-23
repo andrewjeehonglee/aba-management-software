@@ -16,6 +16,15 @@ export function formatProfileDate(iso: string): string {
   })
 }
 
+/** Compact range for authorization period — keeps end year only once. */
+export function formatAuthPeriodRange(startIso: string, endIso: string): string {
+  const start = new Date(startIso + "T00:00:00")
+  const end = new Date(endIso + "T00:00:00")
+  const startPart = start.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+  const endPart = end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  return `${startPart} – ${endPart}`
+}
+
 export function factValue(value: string | null | undefined): string {
   const trimmed = value?.trim()
   return trimmed ? trimmed : "Not on file"

@@ -1,6 +1,6 @@
 import type { AuthRecord, ClientDetail } from "@/lib/supabase"
 import { P } from "./profileTokens"
-import { factValue, formatProfileDate } from "./clientProfileUtils"
+import { factValue, formatAuthPeriodRange, formatProfileDate } from "./clientProfileUtils"
 
 interface ClientFactsListProps {
   client: ClientDetail
@@ -15,7 +15,7 @@ export function ClientFactsList({ client, auth }: ClientFactsListProps) {
       ? client.cpt_codes.join(", ")
       : auth?.cptCode ?? null
 
-  const rows: { label: string; value: string; mono?: boolean }[] = [
+  const rows: { label: string; value: string; nowrap?: boolean }[] = [
     {
       label: "Date of birth",
       value: client.date_of_birth ? formatProfileDate(client.date_of_birth) : factValue(null),
@@ -32,13 +32,13 @@ export function ClientFactsList({ client, auth }: ClientFactsListProps) {
       label: "Authorization period",
       value:
         authStart && authEnd
-          ? `${formatProfileDate(authStart)} – ${formatProfileDate(authEnd)}`
+          ? formatAuthPeriodRange(authStart, authEnd)
           : factValue(null),
+      nowrap: true,
     },
     {
       label: "CPT / billing code",
       value: cptDisplay ? cptDisplay : factValue(null),
-      mono: Boolean(cptDisplay),
     },
   ]
 
@@ -54,7 +54,7 @@ export function ClientFactsList({ client, auth }: ClientFactsListProps) {
         >
           <dt style={{ color: P.soft }}>{row.label}</dt>
           <dd
-            className={`text-right text-[15px] ${row.mono ? "font-mono" : ""}`}
+            className={`text-right text-[15px] ${row.nowrap ? "whitespace-nowrap" : ""}`}
             style={{
               color: row.value === "Not on file" ? P.faint : P.ink,
             }}

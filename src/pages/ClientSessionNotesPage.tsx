@@ -11,7 +11,7 @@ import { isCompleteSessionNote } from "@/lib/notesStatus"
 import { clientProfilePath, resolveClientByRouteKey } from "@/lib/rosterScope"
 import { formatEventStamp } from "@/lib/sessions"
 import { P, SECTION_LABEL } from "@/pages/ClientOverviewPage/profileTokens"
-import { formatClientDisplayName } from "@/pages/ClientOverviewPage/clientProfileUtils"
+import { formatClientDisplayName, clientStatusLabel } from "@/pages/ClientOverviewPage/clientProfileUtils"
 
 function formatDateInput(date: Date): string {
   const y = date.getFullYear()
@@ -20,11 +20,27 @@ function formatDateInput(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function defaultDateRange(): { startDate: string; endDate: string } {
+function defaultDateRange(days: number): { startDate: string; endDate: string } {
   const end = new Date()
   const start = new Date()
-  start.setDate(start.getDate() - 13)
+  start.setDate(start.getDate() - (days - 1))
   return { startDate: formatDateInput(start), endDate: formatDateInput(end) }
+}
+
+type DatePreset = "7" | "14" | "30"
+
+const DATE_PRESETS: { id: DatePreset; label: string; days: number }[] = [
+  { id: "7", label: "7 days", days: 7 },
+  { id: "14", label: "14 days", days: 14 },
+  { id: "30", label: "1 month", days: 30 },
+]
+
+function presetForRange(startDate: string, endDate: string): DatePreset | null {
+  for (const preset of DATE_PRESETS) {
+    const { startDate: s, endDate: e } = defaultDateRange(preset.days)
+    if (s === startDate && e === endDate) return preset.id
+  }
+  return null
 }
 
 function auditFilename(clientCode: string, startDate: string, endDate: string, ext: "txt" | "csv"): string {
@@ -142,15 +158,17 @@ function DueNoteRow({ item }: { item: AuditNoteBundleItem }) {
 
 export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
   const { clientId: clientRouteKey } = useParams<{ clientId: string }>()
-  const defaults = useMemo(() => defaultDateRange(), [])
+  const defaults = useMemo(() => defaultDateRange(14), [])
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [displayName, setDisplayName] = useState("")
+  const [clientStatus, setClientStatus] = useState<string | null>("active")
   const [clientUuid, setClientUuid] = useState<string | null>(null)
   const [clientCode, setClientCode] = useState("")
   const [startDate, setStartDate] = useState(defaults.startDate)
   const [endDate, setEndDate] = useState(defaults.endDate)
   const [items, setItems] = useState<AuditNoteBundleItem[]>([])
+  const [dueItems, setDueItems] = useState<AuditNoteBundleItem[]>([])
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
 
@@ -169,6 +187,7 @@ export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
           return
         }
         setDisplayName(formatClientDisplayName(client))
+        setClientStatus(client.status)
         setClientUuid(client.id)
         setClientCode(client.external_code ?? clientRouteKey)
       })
@@ -207,15 +226,33 @@ export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
     }
   }, [clientUuid, startDate, endDate])
 
-  const dueItems = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          item.status === "completed" &&
-          !isCompleteSessionNote(item.note ?? undefined),
-      ),
-    [items],
-  )
+  useEffect(() => {
+    if (!clientUuid) return
+
+    const dueRange = defaultDateRange(60)
+    let cancelled = false
+
+    getAuditNotesBundle(clientUuid, dueRange.startDate, dueRange.endDate)
+      .then((bundle) => {
+        if (cancelled) return
+        setDueItems(
+          bundle
+            .filter(
+              (item) =>
+                item.status === "completed" &&
+                !isCompleteSessionNote(item.note ?? undefined),
+            )
+            .sort((a, b) => b.sessionAt.localeCompare(a.sessionAt)),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setDueItems([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [clientUuid])
 
   const completedItems = useMemo(
     () =>
@@ -263,6 +300,17 @@ export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
   }
 
   const profilePath = clientRouteKey ? clientProfilePath(clientRouteKey) : "/"
+  const statusLabel = clientStatusLabel(clientStatus)
+  const isActiveStatus = (clientStatus ?? "active").toLowerCase() === "active"
+  const activePreset = presetForRange(startDate, endDate)
+
+  function applyPreset(preset: DatePreset) {
+    const match = DATE_PRESETS.find((p) => p.id === preset)
+    if (!match) return
+    const range = defaultDateRange(match.days)
+    setStartDate(range.startDate)
+    setEndDate(range.endDate)
+  }
 
   return (
     <div className="min-h-svh px-10 py-6" style={{ backgroundColor: P.bg, color: P.ink }}>
@@ -277,16 +325,59 @@ export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
         </Link>
 
         <header className="mt-6">
-          <h1 className="text-[24px] font-semibold tracking-tight">
-            Session notes — {displayName || "…"}
-          </h1>
+          <h1 className="text-[28px] font-semibold tracking-tight">Session notes</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="text-[28px] font-semibold tracking-tight">
+              {displayName || "…"}
+            </p>
+            {displayName && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium"
+                style={{
+                  backgroundColor: isActiveStatus ? P.sageBg : P.amberBg,
+                  color: isActiveStatus ? P.sageInk : P.amberInk,
+                }}
+              >
+                <span
+                  className="size-1.5 rounded-full"
+                  style={{ backgroundColor: isActiveStatus ? P.sage : P.amber }}
+                  aria-hidden="true"
+                />
+                {statusLabel}
+              </span>
+            )}
+          </div>
         </header>
 
         <section
           className="mt-6 p-5"
           style={{ backgroundColor: P.card, borderRadius: P.radius }}
         >
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`${SECTION_LABEL} mr-1`} style={{ color: P.faint }}>
+              Range
+            </span>
+            {DATE_PRESETS.map((preset) => {
+              const selected = activePreset === preset.id
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyPreset(preset.id)}
+                  className="rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-opacity hover:opacity-90"
+                  style={{
+                    backgroundColor: selected ? P.sageBg : P.inset,
+                    color: selected ? P.sageInk : P.soft,
+                    boxShadow: selected ? `inset 0 0 0 1px ${P.sage}` : undefined,
+                  }}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-end gap-4">
             <label className="space-y-1">
               <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
                 Start date
@@ -353,7 +444,7 @@ export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
           <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
             Due
           </h2>
-          {loading ? (
+          {loading && dueItems.length === 0 ? (
             <p className="mt-4 text-[15px] animate-pulse" style={{ color: P.faint }}>
               Loading…
             </p>

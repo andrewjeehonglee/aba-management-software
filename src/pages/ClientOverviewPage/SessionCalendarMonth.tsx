@@ -118,7 +118,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
     return (
       <div
         key={iso}
-        className="relative flex min-h-[52px] flex-col items-center justify-center rounded-md py-1.5"
+        className="relative flex min-h-[80px] flex-col items-center justify-center rounded-md py-2"
         style={{
           backgroundColor: scheduledBg ? P.scheduledTint : undefined,
           boxShadow: isToday ? `inset 0 0 0 2px ${P.sage}` : undefined,
@@ -143,7 +143,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
 
   return (
     <div
-      className="p-5"
+      className="flex h-full w-full flex-col p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius, boxShadow: "0 1px 2px rgba(44,41,36,0.04)" }}
     >
       <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
@@ -184,11 +184,11 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         ))}
       </div>
 
-      <div className="mt-1 space-y-1">
+      <div className="mt-1 flex-1 space-y-1.5">
         {grid.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7 gap-1">
             {week.map((day, di) =>
-              day ? renderDayCell(day) : <div key={di} className="min-h-[52px]" aria-hidden="true" />,
+              day ? renderDayCell(day) : <div key={di} className="min-h-[80px]" aria-hidden="true" />,
             )}
           </div>
         ))}
