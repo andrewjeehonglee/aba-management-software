@@ -40,13 +40,14 @@ function parseArgs(argv) {
   }
   if (!all && !practiceId) {
     console.error("Usage:")
-    console.error("  npm run import:roster -- --all")
+    console.error("  npm run import:roster -- --all          # demo practice only (16 clients)")
     console.error("  npm run import:roster -- --practice-id=<uuid>")
     process.exit(1)
   }
 
   return {
-    practiceIds: all ? [PRACTICE_SPG, PRACTICE_DEMO] : [practiceId],
+    // Single canonical practice — avoids duplicate EzHe/PeLe rows across Demo + SPG.
+    practiceIds: all ? [PRACTICE_DEMO] : [practiceId],
   }
 }
 
