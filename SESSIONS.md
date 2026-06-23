@@ -1865,4 +1865,42 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 16, 2026 (Session 33 — owner dashboard pixel-locked redesign).*
+## Session 34 — Client Profile v3→v6 + session notes + varied clinical seed (Jun 23, 2026 morning)
+
+**What landed:** Complete **Client Profile product slice** — Pulse mockup layout (two-row grid), extracted subcomponents, **Session notes page**, **Behavior incidents page** (v6 rebuild), Records → audit/incidents links, and **varied demo clinical data** for 16 roster clients. Fixed duplicate-client import (32→16), due-note queue seeding, and `/clients/:id/notes` 404 routing. All pushed to `main`; **HEAD `63e5325`**. Andrew verified v6 on Vercel.
+
+**Detailed log:** `templates/SESSION_LOG_20260623_morning.md`
+
+### Highlights
+
+1. **Client overview** — Row 1: Client details | Calendar (equal height) | Records; Row 2: Goals | Behaviors with internal scroll.
+2. **Session notes** — `/clients/:clientId/notes`; Due queue + date-filtered Completed; audit .txt/.csv export.
+3. **Behavior incidents** — `/clients/:clientId/incidents`; matches session notes shell; ABC expandable rows.
+4. **Calendar v6 colors** — Complete `#3F8A53`, Note due `#E08A2B`, Cancelled `#B5362A`, Scheduled `#3A6BA5`; 8px bars.
+5. **Database** — `seed_roster_v6_varied_clinical.sql` (canonical re-seed); dedup + due-queue patches; import script Demo-only.
+
+### Commits (chronological, Jun 23 morning)
+
+| Hash | Message |
+|------|---------|
+| `2206e24` | Revamp client profile page to match Pulse mockup layout |
+| `6e95347` | Refine client profile layout and type scale (Prompt A) |
+| `2c6b1a9` | Restructure client profile into three-column layout (Prompt A v3) |
+| `525387c` | Add session notes page and roster clinical seed (Prompts B and C) |
+| `9be7bde` | Add v4 roster seed SQL (Prompt 1) |
+| `32d4842` | Fix roster seed due-note queue |
+| `1117b93` | Roster client dedup patch; stop dual-practice import |
+| `6c71ede` | Client profile v4 layout and session notes refinements |
+| `e6ef6e7` | Two-row v5 layout with distinct calendar colors |
+| `c2d354e` | v6 varied clinical re-seed SQL (Task 1) |
+| `63e5325` | v6 UI: equal tile heights, scroll lists, incidents page, calendar colors |
+
+**Scope:** 20 files (`834e7e7` → `63e5325`); +2845 / −787 lines. See detailed log for Supabase run order and verification table.
+
+### Not done / deferred
+
+- Clients page per-client badges; dedicated Sessions list; auth modal trigger on profile; technician Records visibility.
+
+---
+
+*Last updated: Jun 23, 2026 (Session 34 — client profile v6 + session notes + varied clinical seed).*
