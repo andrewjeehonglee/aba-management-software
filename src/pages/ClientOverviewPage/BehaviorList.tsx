@@ -69,28 +69,30 @@ export function BehaviorList({
           {behaviors.map((behavior, index) => (
             <li
               key={behavior.id}
-              className="py-3.5 first:pt-0"
+              className="py-4 first:pt-0"
               style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-[16px] font-semibold" style={{ color: P.ink }}>
-                  {behavior.name}
+              <div className="space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-[16px] font-semibold" style={{ color: P.ink }}>
+                    {behavior.name}
+                  </p>
+                  <span
+                    className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium"
+                    style={{ backgroundColor: P.inset, color: P.soft }}
+                  >
+                    Frequency
+                  </span>
+                </div>
+                {behavior.description && (
+                  <p className="text-[14px] leading-snug" style={{ color: P.soft }}>
+                    {behavior.description}
+                  </p>
+                )}
+                <p className="text-[13px] tabular-nums" style={{ color: P.faint }}>
+                  {recentCountLabel(counts.get(behavior.id) ?? 0)}
                 </p>
-                <span
-                  className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium"
-                  style={{ backgroundColor: P.inset, color: P.soft }}
-                >
-                  Frequency
-                </span>
               </div>
-              {behavior.description && (
-                <p className="mt-1 text-[14px] leading-snug" style={{ color: P.soft }}>
-                  {behavior.description}
-                </p>
-              )}
-              <p className="mt-1 text-[13px] tabular-nums" style={{ color: P.faint }}>
-                {recentCountLabel(counts.get(behavior.id) ?? 0)}
-              </p>
             </li>
           ))}
         </ul>

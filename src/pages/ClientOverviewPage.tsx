@@ -664,11 +664,11 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
 
   return (
     <div
-      className="min-h-svh px-4 py-6"
+      className="min-h-svh px-10 py-6"
       style={{ backgroundColor: P.bg, color: P.ink }}
     >
-      <div className="mx-auto w-full max-w-[1120px]">
-        <header className="flex items-center">
+      <div className="mx-auto w-full max-w-[1600px]">
+        <header>
           <Link
             to="/"
             className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
@@ -677,44 +677,42 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
             <ArrowLeft className="size-4" />
             Back to dashboard
           </Link>
-        </header>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <h1 className="text-[28px] font-semibold tracking-tight">
-            {clientLoading ? (
-              <span className="animate-pulse" style={{ color: P.faint }}>
-                Loading…
-              </span>
-            ) : (
-              displayName
-            )}
-          </h1>
-          {!clientLoading && liveClient && (
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium"
-              style={{
-                backgroundColor: isActiveStatus ? P.sageBg : P.amberBg,
-                color: isActiveStatus ? P.sageInk : P.amberInk,
-              }}
-            >
-              <span
-                className="size-1.5 rounded-full"
-                style={{ backgroundColor: isActiveStatus ? P.sage : P.amber }}
-                aria-hidden="true"
-              />
-              {statusLabel}
-            </span>
-          )}
-        </div>
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-[28px] font-semibold tracking-tight">
+                {clientLoading ? (
+                  <span className="animate-pulse" style={{ color: P.faint }}>
+                    Loading…
+                  </span>
+                ) : (
+                  displayName
+                )}
+              </h1>
+              {!clientLoading && liveClient && (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium"
+                  style={{
+                    backgroundColor: isActiveStatus ? P.sageBg : P.amberBg,
+                    color: isActiveStatus ? P.sageInk : P.amberInk,
+                  }}
+                >
+                  <span
+                    className="size-1.5 rounded-full"
+                    style={{ backgroundColor: isActiveStatus ? P.sage : P.amber }}
+                    aria-hidden="true"
+                  />
+                  {statusLabel}
+                </span>
+              )}
+            </div>
 
-        <div className="mt-6 grid items-start gap-[22px] lg:grid-cols-[360px_1fr]">
-          <div className="flex flex-col gap-[22px]">
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col items-start gap-1">
               <button
                 type="button"
                 disabled={startSessionLoading || !resolvedClientId}
                 onClick={handleStartSession}
-                className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-full text-[16px] font-semibold text-white transition-opacity disabled:opacity-50"
+                className="inline-flex h-12 items-center gap-2 rounded-full px-6 text-[16px] font-semibold text-white transition-opacity disabled:opacity-50"
                 style={{
                   backgroundColor: P.sage,
                   boxShadow: "0 2px 8px rgba(76, 107, 82, 0.28)",
@@ -728,12 +726,18 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
                 {startSessionLoading ? "Starting…" : "Start session"}
               </button>
               {startSessionError && (
-                <p className="text-center text-[13px]" style={{ color: P.cancel }}>
+                <p className="text-[13px]" style={{ color: P.cancel }}>
                   {startSessionError}
                 </p>
               )}
             </div>
+          </div>
+        </header>
 
+        <div
+          className="mt-6 grid items-start gap-6 max-xl:grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)_400px]"
+        >
+          <div className="flex min-w-0 flex-col gap-6">
             <aside
               className="p-5"
               style={{ backgroundColor: P.card, borderRadius: P.radius }}
@@ -767,28 +771,28 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
             )}
           </div>
 
-          <div className="min-w-0 space-y-[22px]">
+          <div className="min-w-0">
             <SessionCalendarMonth
               sessions={liveSessions ?? []}
               sessionNotes={sessionNotes}
             />
+          </div>
 
-            <div className="grid gap-[22px] md:grid-cols-2">
-              <GoalList
-                goals={liveGoals ?? []}
-                loading={goalsLoading}
-                canAdd={canAddGoal}
-                onAdd={() => setGoalModalOpen(true)}
-                onSelect={setSelectedGoal}
-              />
-              <BehaviorList
-                behaviors={behaviors}
-                incidents={behaviorIncidents}
-                loading={behaviorsLoading}
-                canAdd={canAddGoal}
-                onAdd={() => setBehaviorModalOpen(true)}
-              />
-            </div>
+          <div className="flex min-w-0 flex-col gap-6">
+            <GoalList
+              goals={liveGoals ?? []}
+              loading={goalsLoading}
+              canAdd={canAddGoal}
+              onAdd={() => setGoalModalOpen(true)}
+              onSelect={setSelectedGoal}
+            />
+            <BehaviorList
+              behaviors={behaviors}
+              incidents={behaviorIncidents}
+              loading={behaviorsLoading}
+              canAdd={canAddGoal}
+              onAdd={() => setBehaviorModalOpen(true)}
+            />
           </div>
         </div>
       </div>

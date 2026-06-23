@@ -80,7 +80,7 @@ export function GoalList({ goals, loading, canAdd, onAdd, onSelect }: GoalListPr
           {activeGoals.map((goal, index) => (
             <li
               key={goal.id}
-              className="py-3.5 first:pt-0"
+              className="py-4 first:pt-0"
               style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
             >
               <GoalRow goal={goal} onSelect={() => onSelect(goal as Goal)} />
@@ -97,7 +97,7 @@ function GoalRow({ goal, onSelect }: { goal: GoalRecord; onSelect: () => void })
   const label = GOAL_LABEL[goal.status] ?? goal.status
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <div className="flex items-start justify-between gap-3">
         <button
           type="button"
