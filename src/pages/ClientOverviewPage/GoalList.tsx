@@ -54,14 +54,14 @@ export function GoalList({ goals, loading, canAdd, onAdd, onSelect }: GoalListPr
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base font-semibold" style={{ color: P.ink }}>
+        <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
           Active goals
         </h2>
         {canAdd && (
           <button
             type="button"
             onClick={onAdd}
-            className="text-xs font-medium transition-opacity hover:opacity-80"
+            className="text-[13px] font-medium transition-opacity hover:opacity-80"
             style={{ color: P.sage }}
           >
             + New goal
@@ -102,22 +102,22 @@ function GoalRow({ goal, onSelect }: { goal: GoalRecord; onSelect: () => void })
         <button
           type="button"
           onClick={onSelect}
-          className="text-left text-sm font-semibold hover:underline underline-offset-2"
+          className="text-left text-[16px] font-semibold hover:underline underline-offset-2"
           style={{ color: P.ink }}
         >
           {goal.name}
         </button>
-        <span className="inline-flex shrink-0 items-center gap-1.5 text-xs" style={{ color: P.soft }}>
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px]" style={{ color: P.soft }}>
           <span className="size-2 rounded-full" style={{ backgroundColor: dot }} aria-hidden="true" />
           {label}
         </span>
       </div>
       {goal.masteryTarget && (
-        <p className="text-sm leading-snug" style={{ color: P.soft }}>
+        <p className="text-[14px] leading-snug" style={{ color: P.soft }}>
           {goal.masteryTarget}
         </p>
       )}
-      <p className="text-xs tabular-nums" style={{ color: P.faint }}>
+      <p className="text-[13px] tabular-nums" style={{ color: P.faint }}>
         {formatMeasurement(goal)}
       </p>
     </div>

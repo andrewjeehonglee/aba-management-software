@@ -23,4 +23,4 @@ export const P = {
 } as const
 
 export const SECTION_LABEL =
-  "text-[11px] font-semibold uppercase tracking-[0.08em]"
+  "text-[12px] font-semibold uppercase tracking-[0.08em]"

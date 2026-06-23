@@ -47,14 +47,14 @@ export function ClientFactsList({ client, auth }: ClientFactsListProps) {
       {rows.map((row, index) => (
         <div
           key={row.label}
-          className="flex items-baseline justify-between gap-4 py-3 text-sm first:pt-0"
+          className="flex items-baseline justify-between gap-4 py-3 text-[15px] first:pt-0"
           style={{
             borderTop: index > 0 ? `1px solid ${P.rule}` : undefined,
           }}
         >
           <dt style={{ color: P.soft }}>{row.label}</dt>
           <dd
-            className={`text-right ${row.mono ? "font-mono text-[13px]" : ""}`}
+            className={`text-right text-[15px] ${row.mono ? "font-mono" : ""}`}
             style={{
               color: row.value === "Not on file" ? P.faint : P.ink,
             }}

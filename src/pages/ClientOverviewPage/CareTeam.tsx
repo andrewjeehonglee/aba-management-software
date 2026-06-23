@@ -42,19 +42,19 @@ export function CareTeam({ clientId, legacyStaffName }: CareTeamProps) {
   ]
 
   return (
-    <div style={{ borderTop: `1px solid ${P.rule}` }} className="pt-4">
+    <div className="mt-6 pt-6" style={{ borderTop: `1px solid ${P.rule}` }}>
       <p className={SECTION_LABEL} style={{ color: P.faint }}>
         Care team
       </p>
 
       {loading ? (
-        <p className="mt-3 text-sm animate-pulse" style={{ color: P.faint }}>
+        <p className="mt-3 text-[15px] animate-pulse" style={{ color: P.faint }}>
           Loading…
         </p>
       ) : (
         <dl className="mt-3 space-y-3">
           {rows.map(({ label, member }) => (
-            <div key={label} className="flex items-center justify-between gap-3 text-sm">
+            <div key={label} className="flex items-center justify-between gap-3 text-[15px]">
               <dt style={{ color: P.soft }}>{label}</dt>
               <dd className="text-right">
                 <CareTeamValue
@@ -106,7 +106,7 @@ function CareTeamValue({
 function UnassignedPill() {
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-medium"
       style={{ backgroundColor: P.amberBg, color: P.amberInk }}
     >
       <AlertCircle className="size-3 shrink-0" aria-hidden="true" />

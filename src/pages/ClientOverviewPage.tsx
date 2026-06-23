@@ -668,46 +668,22 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
       style={{ backgroundColor: P.bg, color: P.ink }}
     >
       <div className="mx-auto w-full max-w-[1120px]">
-        <header className="flex items-center justify-between gap-4">
+        <header className="flex items-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+            className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
             style={{ color: P.soft }}
           >
             <ArrowLeft className="size-4" />
             Back to dashboard
           </Link>
-          <div className="flex flex-col items-end gap-1">
-            <button
-              type="button"
-              disabled={startSessionLoading || !resolvedClientId}
-              onClick={handleStartSession}
-              className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
-              style={{
-                backgroundColor: P.sage,
-                boxShadow: "0 2px 8px rgba(76, 107, 82, 0.28)",
-              }}
-            >
-              {startSessionLoading ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Play className="size-4 fill-current" />
-              )}
-              {startSessionLoading ? "Startingâ€¦" : "Start session"}
-            </button>
-            {startSessionError && (
-              <p className="max-w-[220px] text-right text-xs" style={{ color: P.cancel }}>
-                {startSessionError}
-              </p>
-            )}
-          </div>
         </header>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <h1 className="text-[28px] font-semibold tracking-tight">
             {clientLoading ? (
               <span className="animate-pulse" style={{ color: P.faint }}>
-                Loadingâ€¦
+                Loading…
               </span>
             ) : (
               displayName
@@ -715,7 +691,7 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
           </h1>
           {!clientLoading && liveClient && (
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium"
               style={{
                 backgroundColor: isActiveStatus ? P.sageBg : P.amberBg,
                 color: isActiveStatus ? P.sageInk : P.amberInk,
@@ -732,28 +708,64 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
         </div>
 
         <div className="mt-6 grid items-start gap-[22px] lg:grid-cols-[360px_1fr]">
-          <aside
-            className="p-5"
-            style={{ backgroundColor: P.card, borderRadius: P.radius }}
-          >
-            {!clientLoading && liveClient && (
-              <>
-                <ClientFactsList client={liveClient} auth={liveAuth} />
-                <AuthSummary auth={liveAuth} />
-                <CareTeam
-                  clientId={liveClient.id}
-                  legacyStaffName={
-                    liveClient.assigned_staff?.full_name ?? primaryStaffFromSessions
-                  }
-                />
-              </>
+          <div className="flex flex-col gap-[22px]">
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                disabled={startSessionLoading || !resolvedClientId}
+                onClick={handleStartSession}
+                className="inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-full text-[16px] font-semibold text-white transition-opacity disabled:opacity-50"
+                style={{
+                  backgroundColor: P.sage,
+                  boxShadow: "0 2px 8px rgba(76, 107, 82, 0.28)",
+                }}
+              >
+                {startSessionLoading ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <Play className="size-5 fill-current" />
+                )}
+                {startSessionLoading ? "Starting…" : "Start session"}
+              </button>
+              {startSessionError && (
+                <p className="text-center text-[13px]" style={{ color: P.cancel }}>
+                  {startSessionError}
+                </p>
+              )}
+            </div>
+
+            <aside
+              className="p-5"
+              style={{ backgroundColor: P.card, borderRadius: P.radius }}
+            >
+              {!clientLoading && liveClient && (
+                <>
+                  <ClientFactsList client={liveClient} auth={liveAuth} />
+                  <AuthSummary auth={liveAuth} />
+                  <CareTeam
+                    clientId={liveClient.id}
+                    legacyStaffName={
+                      liveClient.assigned_staff?.full_name ?? primaryStaffFromSessions
+                    }
+                  />
+                </>
+              )}
+              {clientLoading && (
+                <p className="py-8 text-[15px] animate-pulse" style={{ color: P.faint }}>
+                  Loading client…
+                </p>
+              )}
+            </aside>
+
+            {canViewNotes && resolvedClientId && clientRouteKey && (
+              <RecordsBucket
+                clientRouteKey={clientRouteKey}
+                sessionNotes={sessionNotes}
+                sessions={liveSessions ?? []}
+                incidents={behaviorIncidents}
+              />
             )}
-            {clientLoading && (
-              <p className="py-8 text-sm animate-pulse" style={{ color: P.faint }}>
-                Loading clientâ€¦
-              </p>
-            )}
-          </aside>
+          </div>
 
           <div className="min-w-0 space-y-[22px]">
             <SessionCalendarMonth
@@ -777,16 +789,6 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
                 onAdd={() => setBehaviorModalOpen(true)}
               />
             </div>
-
-            {canViewNotes && resolvedClientId && clientRouteKey && (
-              <RecordsBucket
-                clientRouteKey={clientRouteKey}
-                clientUuid={resolvedClientId}
-                sessionNotes={sessionNotes}
-                sessions={liveSessions ?? []}
-                incidents={behaviorIncidents}
-              />
-            )}
           </div>
         </div>
       </div>

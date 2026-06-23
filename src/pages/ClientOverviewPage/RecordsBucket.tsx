@@ -23,7 +23,6 @@ function incidentsThisMonthCount(incidents: BehaviorIncidentRecord[]): number {
 
 interface RecordsBucketProps {
   clientRouteKey: string
-  clientUuid: string
   sessionNotes: SessionNoteRecord[]
   sessions: SessionRecord[]
   incidents: BehaviorIncidentRecord[]
@@ -31,7 +30,6 @@ interface RecordsBucketProps {
 
 export function RecordsBucket({
   clientRouteKey,
-  clientUuid,
   sessionNotes,
   sessions,
   incidents,
@@ -48,26 +46,22 @@ export function RecordsBucket({
       <p className={`${SECTION_LABEL} mb-4`} style={{ color: P.faint }}>
         Records
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="flex flex-col gap-2">
         <RecordCard
           title="Session notes"
           meta={`${noteCount} note${noteCount === 1 ? "" : "s"} · ${dueCount} due`}
           hint="Browse, filter by date, export for audit."
-          to={`/audit?clientId=${encodeURIComponent(clientUuid)}&from=${encodeURIComponent(clientProfilePath(clientRouteKey))}`}
+          to={`/clients/${encodeURIComponent(clientRouteKey)}/notes`}
         />
         <RecordCard
           title="Behavior incidents"
           meta={`${monthIncidents} logged this month`}
-          hint="Full ABC history with antecedents & consequences."
+          hint="Full ABC history"
           to={`/clients/${encodeURIComponent(clientRouteKey)}/incidents`}
         />
       </div>
     </section>
   )
-}
-
-function clientProfilePath(routeKey: string): string {
-  return `/clients/${encodeURIComponent(routeKey)}`
 }
 
 function RecordCard({
@@ -88,13 +82,13 @@ function RecordCard({
       style={{ backgroundColor: P.inset }}
     >
       <div className="min-w-0 space-y-1">
-        <p className="text-sm font-semibold" style={{ color: P.ink }}>
+        <p className="text-[16px] font-semibold" style={{ color: P.ink }}>
           {title}
         </p>
-        <p className="text-xs tabular-nums" style={{ color: P.soft }}>
+        <p className="text-[13.5px] tabular-nums" style={{ color: P.soft }}>
           {meta}
         </p>
-        <p className="text-xs leading-snug" style={{ color: P.faint }}>
+        <p className="text-[13px] leading-snug" style={{ color: P.faint }}>
           {hint}
         </p>
       </div>

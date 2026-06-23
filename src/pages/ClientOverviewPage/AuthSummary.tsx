@@ -8,18 +8,23 @@ interface AuthSummaryProps {
 
 export function AuthSummary({ auth }: AuthSummaryProps) {
   return (
-    <div style={{ borderTop: `1px solid ${P.rule}` }} className="pt-4">
-      <p className={SECTION_LABEL} style={{ color: P.faint }}>
-        Authorized hours
-      </p>
-
-      {!auth ? (
-        <p className="mt-3 text-sm" style={{ color: P.soft }}>
-          No active authorization
+    <div className="mt-6">
+      <div
+        className="rounded-[12px] px-[18px] py-4"
+        style={{ backgroundColor: P.inset }}
+      >
+        <p className={SECTION_LABEL} style={{ color: P.faint }}>
+          Authorized hours
         </p>
-      ) : (
-        <AuthNumbers auth={auth} />
-      )}
+
+        {!auth ? (
+          <p className="mt-3 text-[15px]" style={{ color: P.soft }}>
+            No active authorization
+          </p>
+        ) : (
+          <AuthNumbers auth={auth} />
+        )}
+      </div>
     </div>
   )
 }
@@ -40,7 +45,7 @@ function AuthNumbers({ auth }: { auth: AuthRecord }) {
         <Stat label="Completed" value={completed} />
         <Stat label="Remaining" value={remaining} valueColor={warnInk} />
       </div>
-      <p className="mt-3 text-sm" style={{ color: warn ? P.amberInk : P.soft }}>
+      <p className="mt-3 text-[14px]" style={{ color: warn ? P.amberInk : P.soft }}>
         Expires {formatProfileDate(endDate)}
         {expirySuffix}
       </p>
@@ -59,10 +64,10 @@ function Stat({
 }) {
   return (
     <div>
-      <p className="text-2xl font-semibold tabular-nums" style={{ color: valueColor ?? P.ink }}>
+      <p className="text-[26px] font-semibold tabular-nums leading-none" style={{ color: valueColor ?? P.ink }}>
         {value}
       </p>
-      <p className="mt-0.5 text-xs" style={{ color: P.faint }}>
+      <p className="mt-1 text-[12px]" style={{ color: P.faint }}>
         {label}
       </p>
     </div>

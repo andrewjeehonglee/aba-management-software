@@ -43,14 +43,14 @@ export function BehaviorList({
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-base font-semibold" style={{ color: P.ink }}>
+        <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
           Behaviors
         </h2>
         {canAdd && (
           <button
             type="button"
             onClick={onAdd}
-            className="text-xs font-medium transition-opacity hover:opacity-80"
+            className="text-[13px] font-medium transition-opacity hover:opacity-80"
             style={{ color: P.sage }}
           >
             + New behavior
@@ -73,22 +73,22 @@ export function BehaviorList({
               style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-sm font-semibold" style={{ color: P.ink }}>
+                <p className="text-[16px] font-semibold" style={{ color: P.ink }}>
                   {behavior.name}
                 </p>
                 <span
-                  className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                  className="shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium"
                   style={{ backgroundColor: P.inset, color: P.soft }}
                 >
                   Frequency
                 </span>
               </div>
               {behavior.description && (
-                <p className="mt-1 text-sm leading-snug" style={{ color: P.soft }}>
+                <p className="mt-1 text-[14px] leading-snug" style={{ color: P.soft }}>
                   {behavior.description}
                 </p>
               )}
-              <p className="mt-1 text-xs tabular-nums" style={{ color: P.faint }}>
+              <p className="mt-1 text-[13px] tabular-nums" style={{ color: P.faint }}>
                 {recentCountLabel(counts.get(behavior.id) ?? 0)}
               </p>
             </li>
