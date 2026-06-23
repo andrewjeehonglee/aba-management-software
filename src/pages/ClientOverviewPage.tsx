@@ -1,17 +1,9 @@
-import { useState, useEffect } from "react"
-import { AlertCircle, ArrowLeft, ChevronDown, ChevronRight, Loader2, Play, Plus } from "lucide-react"
+﻿import { useState, useEffect } from "react"
+import { ArrowLeft, Loader2, Play } from "lucide-react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useDemo } from "@/context/DemoContext"
 import { GoalDetailModal } from "@/components/GoalDetailModal"
-import { SessionCalendar } from "@/components/SessionCalendar"
-import { SessionStatusBadge } from "@/components/SessionStatusBadge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -26,21 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  FLAGGED_THRESHOLD,
-  usedHours,
-  utilizationClass,
-} from "@/lib/authorization"
-import { formatEventStamp, formatTime } from "@/lib/sessions"
-import { resolveClientByRouteKey, staffProfilePath } from "@/lib/rosterScope"
+import { resolveClientByRouteKey } from "@/lib/rosterScope"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
-import { getCareTeamDetailsForClient } from "@/lib/clientAssignments"
 import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
-import type { ClientAuthorization } from "@/types/authorization"
 import type { Goal } from "@/types/goal"
-import type { Session, SessionStatus } from "@/types/session"
+import { AuthSummary } from "@/pages/ClientOverviewPage/AuthSummary"
+import { BehaviorList } from "@/pages/ClientOverviewPage/BehaviorList"
+import { CareTeam } from "@/pages/ClientOverviewPage/CareTeam"
+import { ClientFactsList } from "@/pages/ClientOverviewPage/ClientFactsList"
+import { clientStatusLabel, formatClientDisplayName } from "@/pages/ClientOverviewPage/clientProfileUtils"
+import { GoalList } from "@/pages/ClientOverviewPage/GoalList"
+import { P } from "@/pages/ClientOverviewPage/profileTokens"
+import { RecordsBucket } from "@/pages/ClientOverviewPage/RecordsBucket"
+import { SessionCalendarMonth } from "@/pages/ClientOverviewPage/SessionCalendarMonth"
 
-// ─── New / Edit Authorization Modal ──────────────────────────────────────────
+// â”€â”€â”€ New / Edit Authorization Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const EMPTY_AUTH_FORM = { totalHours: "", startDate: "", endDate: "", cptCodes: "" }
 
@@ -205,7 +197,7 @@ function NewAuthorizationModal({ open, practiceId, clientId, existingAuth, onClo
               onClick={handleSubmit}
               disabled={!canSubmit || loading}
             >
-              {loading ? "Saving…" : existingAuth ? "Save Changes" : "Add Authorization"}
+              {loading ? "Savingâ€¦" : existingAuth ? "Save Changes" : "Add Authorization"}
             </Button>
           </div>
         </div>
@@ -214,7 +206,7 @@ function NewAuthorizationModal({ open, practiceId, clientId, existingAuth, onClo
   )
 }
 
-// ─── Goal domains (standard ABA program areas) ────────────────────────────────
+// â”€â”€â”€ Goal domains (standard ABA program areas) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const GOAL_DOMAINS = [
   "Communication",
   "Social Skills",
@@ -238,7 +230,7 @@ const EMPTY_GOAL_FORM = {
   status:          "in-progress",
 }
 
-// ─── New Goal Modal ───────────────────────────────────────────────────────────
+// â”€â”€â”€ New Goal Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface NewGoalModalProps {
   open:       boolean
@@ -379,7 +371,7 @@ function NewGoalModal({ open, practiceId, clientId, onClose, onSuccess }: NewGoa
               onClick={handleSubmit}
               disabled={!canSubmit || loading}
             >
-              {loading ? "Saving…" : "Add Goal"}
+              {loading ? "Savingâ€¦" : "Add Goal"}
             </Button>
           </div>
         </div>
@@ -388,7 +380,7 @@ function NewGoalModal({ open, practiceId, clientId, onClose, onSuccess }: NewGoa
   )
 }
 
-// ─── New Behavior Modal ───────────────────────────────────────────────────────
+// â”€â”€â”€ New Behavior Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface NewBehaviorModalProps {
   open:       boolean
@@ -464,7 +456,7 @@ function NewBehaviorModal({ open, practiceId, clientId, onClose, onSuccess }: Ne
             <textarea
               value={form.description}
               onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Operational definition — how this behavior is recognized and measured"
+              placeholder="Operational definition â€” how this behavior is recognized and measured"
               rows={3}
               disabled={loading}
               className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none disabled:opacity-50"
@@ -491,7 +483,7 @@ function NewBehaviorModal({ open, practiceId, clientId, onClose, onSuccess }: Ne
               onClick={handleSubmit}
               disabled={!canSubmit || loading}
             >
-              {loading ? "Saving…" : "Add Behavior"}
+              {loading ? "Savingâ€¦" : "Add Behavior"}
             </Button>
           </div>
         </div>
@@ -500,68 +492,7 @@ function NewBehaviorModal({ open, practiceId, clientId, onClose, onSuccess }: Ne
   )
 }
 
-// Goal status config — four real ABA lifecycle states confirmed by the client.
-// Sort order: in-progress first (active work), then hold (needs review),
-// then mastered (completed successfully), then discontinued (inactive, muted).
-const GOAL_STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string }
-> = {
-  "in-progress":  { label: "In progress",  className: "bg-blue-100 text-blue-800"       },
-  "in_progress":  { label: "In progress",  className: "bg-blue-100 text-blue-800"       },
-  hold:           { label: "Hold",         className: "bg-amber-100 text-amber-800"     },
-  mastered:       { label: "Mastered",     className: "bg-emerald-100 text-emerald-800" },
-  discontinued:   { label: "Discontinued", className: "bg-gray-100 text-gray-500"       },
-}
-
-const GOAL_STATUS_ORDER: Record<string, number> = {
-  "in-progress": 0,
-  "in_progress": 0,
-  hold:          1,
-  mastered:      2,
-  discontinued:  3,
-}
-
-function GoalStatusBadge({ status }: { status: string }) {
-  const config = GOAL_STATUS_CONFIG[status] ?? { label: status, className: "bg-gray-100 text-gray-500" }
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${config.className}`}
-    >
-      {config.label}
-    </span>
-  )
-}
-
-// Pluralize "day" / "days" and handle the streak=0 edge case so a fresh goal
-// doesn't read as "0 days in a row at 70%" (technically true but parses as
-// "this isn't going well," which it isn't).
-function formatStreak(days: number, percent: number): string {
-  if (days === 0) return "Not started yet"
-  return `${days} day${days === 1 ? "" : "s"} in a row at ${percent}%`
-}
-
-// "Updated today" / "Updated yesterday" / "Updated 3 days ago" — small
-// editorial polish so the page reads less robotic than literal day counts.
-function formatLastUpdated(daysAgo: number): string {
-  if (daysAgo === 0) return "Updated today"
-  if (daysAgo === 1) return "Updated yesterday"
-  return `Updated ${daysAgo} days ago`
-}
-
-// Pretty-print an ISO date "2018-03-14" as "Mar 14, 2018". The "T00:00:00"
-// suffix forces local-midnight interpretation; without it, JS treats a bare
-// "YYYY-MM-DD" as UTC-midnight and can shift the displayed day by one in
-// negative-UTC-offset locales (a real bug we'd hit in production with users
-// on the West Coast).
-function formatDate(iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
-
+// Goal status config â€” four real ABA lifecycle states confirmed by the client.
 
 export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
   const { clientId: clientRouteKey } = useParams<{ clientId: string }>()
@@ -639,10 +570,8 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
   }, [])
 
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
-  const [notesLoading, setNotesLoading] = useState(false)
 
   const [behaviorIncidents, setBehaviorIncidents] = useState<BehaviorIncidentRecord[]>([])
-  const [incidentsLoading, setIncidentsLoading] = useState(false)
 
   const effectiveUserRole = effectiveRole(
     practiceMembership?.role ?? (isDemo ? "owner" : undefined),
@@ -651,26 +580,23 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
 
   useEffect(() => {
     if (!resolvedClientId || !canViewNotes) return
-    setNotesLoading(true)
     getSessionNotesByClientId(resolvedClientId)
       .then(setSessionNotes)
       .catch(console.error)
-      .finally(() => setNotesLoading(false))
   }, [resolvedClientId, canViewNotes])
 
   useEffect(() => {
     if (!resolvedClientId || !canViewNotes) return
-    setIncidentsLoading(true)
     getBehaviorIncidentsByClientId(resolvedClientId)
       .then(setBehaviorIncidents)
       .catch(console.error)
-      .finally(() => setIncidentsLoading(false))
   }, [resolvedClientId, canViewNotes])
 
   const [behaviors, setBehaviors]                   = useState<BehaviorRecord[]>([])
   const [behaviorsLoading, setBehaviorsLoading]     = useState(false)
   const [behaviorsRefreshKey, setBehaviorsRefreshKey] = useState(0)
   const [behaviorModalOpen, setBehaviorModalOpen]   = useState(false)
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
 
   useEffect(() => {
     if (!resolvedClientId) return
@@ -713,721 +639,195 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
     }
   }
 
-  const liveSessionsLastWeek = liveSessions?.filter((s) => {
-    const d = new Date(s.time)
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7)
-    return d >= cutoff
-  }) ?? []
-
-  const uniqueStaff = Array.from(new Set(liveSessionsLastWeek.map((s) => s.staffName)))
   const primaryStaffFromSessions = (() => {
     const pool = liveSessions ?? []
     if (!pool.length) return undefined
-    const direct = pool.filter((s) => s.sessionType === 'direct')
+    const direct = pool.filter((s) => s.sessionType === "direct")
     const sorted = [...(direct.length ? direct : pool)].sort((a, b) => b.time.localeCompare(a.time))
     return sorted[0]?.staffName
   })()
-  const sortedClientSessions = [...liveSessionsLastWeek].sort((a, b) => a.time.localeCompare(b.time))
-  const calendarSessions = liveSessions ?? []
 
-  const displayName = liveClient
-    ? (() => {
-        const name = [liveClient.first_name, liveClient.last_name].filter(Boolean).join(" ")
-        if (liveClient.external_code && name) return `${liveClient.external_code} — ${name}`
-        return liveClient.external_code ?? name ?? "Unknown client"
-      })()
-    : "Unknown client"
+  const displayName = liveClient ? formatClientDisplayName(liveClient) : "Unknown client"
+  const statusLabel = liveClient ? clientStatusLabel(liveClient.status) : "Unknown"
+  const isActiveStatus = (liveClient?.status ?? "active").toLowerCase() === "active"
 
   if (!clientLoading && clientNotFound) {
     return (
-      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+      <div
+        className="flex min-h-svh items-center justify-center text-sm"
+        style={{ backgroundColor: P.bg, color: P.soft }}
+      >
         Client not found.
       </div>
     )
   }
 
-  const clientGoals: GoalRecord[] = liveGoals ?? []
-  const sortedGoals = [...clientGoals].sort(
-    (a, b) =>
-      GOAL_STATUS_ORDER[a.status as keyof typeof GOAL_STATUS_ORDER] - GOAL_STATUS_ORDER[b.status as keyof typeof GOAL_STATUS_ORDER] ||
-      a.name.localeCompare(b.name)
-  )
-
-  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null)
-
   return (
-    <div className="min-h-svh bg-bg text-foreground flex flex-col items-center gap-6 p-4">
-      <header className="flex w-full max-w-3xl items-center justify-between py-6">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          Back to dashboard
-        </Link>
-        <div className="flex flex-col items-end gap-1">
-          <Button
-            size="lg"
-            disabled={startSessionLoading}
-            onClick={handleStartSession}
-            className="gap-2 shadow-md"
+    <div
+      className="min-h-svh px-4 py-6"
+      style={{ backgroundColor: P.bg, color: P.ink }}
+    >
+      <div className="mx-auto w-full max-w-[1120px]">
+        <header className="flex items-center justify-between gap-4">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+            style={{ color: P.soft }}
           >
-            {startSessionLoading
-              ? <Loader2 className="size-4 animate-spin" />
-              : <Play className="size-4 fill-current" />}
-            {startSessionLoading ? "Starting…" : "Start Session"}
-          </Button>
-          {startSessionError && (
-            <p className="text-xs text-red-600 text-right max-w-[200px]">
-              {startSessionError}
-            </p>
-          )}
-        </div>
-      </header>
+            <ArrowLeft className="size-4" />
+            Back to dashboard
+          </Link>
+          <div className="flex flex-col items-end gap-1">
+            <button
+              type="button"
+              disabled={startSessionLoading || !resolvedClientId}
+              onClick={handleStartSession}
+              className="inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-50"
+              style={{
+                backgroundColor: P.sage,
+                boxShadow: "0 2px 8px rgba(76, 107, 82, 0.28)",
+              }}
+            >
+              {startSessionLoading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Play className="size-4 fill-current" />
+              )}
+              {startSessionLoading ? "Startingâ€¦" : "Start session"}
+            </button>
+            {startSessionError && (
+              <p className="max-w-[220px] text-right text-xs" style={{ color: P.cancel }}>
+                {startSessionError}
+              </p>
+            )}
+          </div>
+        </header>
 
-      {/* Section 1 — Client header */}
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
-          <CardTitle className="text-3xl font-semibold tracking-tight">
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <h1 className="text-[28px] font-semibold tracking-tight">
             {clientLoading ? (
-              <span className="text-muted-foreground animate-pulse">Loading…</span>
+              <span className="animate-pulse" style={{ color: P.faint }}>
+                Loadingâ€¦
+              </span>
             ) : (
               displayName
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Client detail — shown once the live record loads */}
+          </h1>
           {!clientLoading && liveClient && (
-            <>
-              <CareTeamCard
-                clientId={liveClient.id}
-                legacyStaffName={
-                  liveClient.assigned_staff?.full_name
-                  ?? primaryStaffFromSessions
-                  ?? uniqueStaff[0]
-                }
-              />
-              <LiveClientDetailGrid
-                client={liveClient}
-                auth={liveAuth}
-              />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 2 — Authorization utilization */}
-      <Card className="w-full max-w-3xl">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Authorization utilization</CardTitle>
-          {canAddGoal && resolvedClientId && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2.5 text-xs gap-1"
-              onClick={() => setAuthModalOpen(true)}
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              style={{
+                backgroundColor: isActiveStatus ? P.sageBg : P.amberBg,
+                color: isActiveStatus ? P.sageInk : P.amberInk,
+              }}
             >
-              {liveAuth ? "Edit" : <><Plus className="size-3.5" />Add Authorization</>}
-            </Button>
+              <span
+                className="size-1.5 rounded-full"
+                style={{ backgroundColor: isActiveStatus ? P.sage : P.amber }}
+                aria-hidden="true"
+              />
+              {statusLabel}
+            </span>
           )}
-        </CardHeader>
-        <CardContent>
-          {liveAuth ? (
-            <AuthorizationDetail auth={liveAuth} />
-          ) : (
-            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No authorization data for this client.
+        </div>
+
+        <div className="mt-6 grid items-start gap-[22px] lg:grid-cols-[360px_1fr]">
+          <aside
+            className="p-5"
+            style={{ backgroundColor: P.card, borderRadius: P.radius }}
+          >
+            {!clientLoading && liveClient && (
+              <>
+                <ClientFactsList client={liveClient} auth={liveAuth} />
+                <AuthSummary auth={liveAuth} />
+                <CareTeam
+                  clientId={liveClient.id}
+                  legacyStaffName={
+                    liveClient.assigned_staff?.full_name ?? primaryStaffFromSessions
+                  }
+                />
+              </>
+            )}
+            {clientLoading && (
+              <p className="py-8 text-sm animate-pulse" style={{ color: P.faint }}>
+                Loading clientâ€¦
+              </p>
+            )}
+          </aside>
+
+          <div className="min-w-0 space-y-[22px]">
+            <SessionCalendarMonth
+              sessions={liveSessions ?? []}
+              sessionNotes={sessionNotes}
+            />
+
+            <div className="grid gap-[22px] md:grid-cols-2">
+              <GoalList
+                goals={liveGoals ?? []}
+                loading={goalsLoading}
+                canAdd={canAddGoal}
+                onAdd={() => setGoalModalOpen(true)}
+                onSelect={setSelectedGoal}
+              />
+              <BehaviorList
+                behaviors={behaviors}
+                incidents={behaviorIncidents}
+                loading={behaviorsLoading}
+                canAdd={canAddGoal}
+                onAdd={() => setBehaviorModalOpen(true)}
+              />
             </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {canAddGoal && resolvedClientId && practiceMembership && (
-        <NewAuthorizationModal
-          open={authModalOpen}
-          practiceId={practiceMembership.practice_id}
-          clientId={resolvedClientId}
-          existingAuth={liveAuth}
-          onClose={() => setAuthModalOpen(false)}
-          onSuccess={() => { setAuthModalOpen(false); setAuthRefreshKey(k => k + 1) }}
-        />
-      )}
-
-      {/* Section 3 — Session Calendar */}
-      <SessionCalendar sessions={calendarSessions as unknown as Session[]} />
-
-      {/* Section 4 — Sessions table.
-          Title says "Last 7 Days" but mock data is just today; the title
-          reflects the eventual real-data scope, not the current fixture. */}
-      <Card className="w-full max-w-3xl">
-        <CardHeader>
-          <CardTitle>Sessions — Last 7 Days</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sortedClientSessions.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No sessions found for this client.
-            </div>
-          ) : (
-            <div className="grid grid-cols-[3.5rem_minmax(0,1fr)_8rem_6rem] items-center gap-x-3 gap-y-1 text-xs">
-              {/* Header row */}
-              <div className="text-muted-foreground pb-2 border-b">Time</div>
-              <div className="text-muted-foreground pb-2 border-b">Staff</div>
-              <div className="text-muted-foreground pb-2 border-b">Type</div>
-              <div className="text-muted-foreground pb-2 border-b text-right">
-                Status
-              </div>
-
-              {/* Session rows — `display: contents` wrapper makes each row's
-                  children participate in the parent grid directly, so all
-                  rows align to the same column tracks. Same trick used in
-                  TodaySessionsTile. */}
-              {sortedClientSessions.map((s) => (
-                <div key={s.id} className="contents">
-                  <div className="font-mono text-muted-foreground tabular-nums py-1.5">
-                    {formatTime(s.time)}
-                  </div>
-                  <div className="truncate min-w-0 py-1.5 text-sm">
-                    <Link
-                      to={s.staffExternalCode ? staffProfilePath(s.staffExternalCode) : "#"}
-                      className="hover:underline underline-offset-2"
-                    >
-                      {s.staffName}
-                    </Link>
-                  </div>
-                  <div className="truncate min-w-0 py-1.5 text-muted-foreground">
-                    {s.sessionType}
-                  </div>
-                  <div className="flex items-center justify-end py-1.5">
-                    <SessionStatusBadge status={s.status as SessionStatus} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Section 4 — Active Goals */}
-      <Card className="w-full max-w-3xl">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle>Active Goals</CardTitle>
-          {canAddGoal && resolvedClientId && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2.5 text-xs gap-1"
-              onClick={() => setGoalModalOpen(true)}
-            >
-              <Plus className="size-3.5" />
-              New Goal
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent>
-          {goalsLoading ? (
-            <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
-          ) : sortedGoals.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-border py-10 text-center">
-              <svg className="w-8 h-8 text-[#14A0A5]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-              </svg>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-[#1E2A2A]">No goals yet</p>
-                <p className="text-xs text-muted-foreground max-w-xs mx-auto">Goals track what this client is working toward and how they're progressing.</p>
-              </div>
-              {canAddGoal && resolvedClientId && (
-                <button
-                  className="mt-1 inline-flex items-center rounded-md bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand/90 transition-colors"
-                  onClick={() => setGoalModalOpen(true)}
-                >
-                  Add a goal →
-                </button>
-              )}
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {sortedGoals.map((goal) => (
-                <GoalRow key={goal.id} goal={goal as Goal} onSelect={() => setSelectedGoal(goal as Goal)} />
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+            {canViewNotes && resolvedClientId && clientRouteKey && (
+              <RecordsBucket
+                clientRouteKey={clientRouteKey}
+                clientUuid={resolvedClientId}
+                sessionNotes={sessionNotes}
+                sessions={liveSessions ?? []}
+                incidents={behaviorIncidents}
+              />
+            )}
+          </div>
+        </div>
+      </div>
 
       <GoalDetailModal goal={selectedGoal} onClose={() => setSelectedGoal(null)} />
 
       {canAddGoal && resolvedClientId && practiceMembership && (
-        <NewGoalModal
-          open={goalModalOpen}
-          practiceId={practiceMembership.practice_id}
-          clientId={resolvedClientId}
-          onClose={() => setGoalModalOpen(false)}
-          onSuccess={() => { setGoalModalOpen(false); setGoalsRefreshKey(k => k + 1) }}
-        />
+        <>
+          <NewAuthorizationModal
+            open={authModalOpen}
+            practiceId={practiceMembership.practice_id}
+            clientId={resolvedClientId}
+            existingAuth={liveAuth}
+            onClose={() => setAuthModalOpen(false)}
+            onSuccess={() => {
+              setAuthModalOpen(false)
+              setAuthRefreshKey((k) => k + 1)
+            }}
+          />
+          <NewGoalModal
+            open={goalModalOpen}
+            practiceId={practiceMembership.practice_id}
+            clientId={resolvedClientId}
+            onClose={() => setGoalModalOpen(false)}
+            onSuccess={() => {
+              setGoalModalOpen(false)
+              setGoalsRefreshKey((k) => k + 1)
+            }}
+          />
+          <NewBehaviorModal
+            open={behaviorModalOpen}
+            practiceId={practiceMembership.practice_id}
+            clientId={resolvedClientId}
+            onClose={() => setBehaviorModalOpen(false)}
+            onSuccess={() => {
+              setBehaviorModalOpen(false)
+              setBehaviorsRefreshKey((k) => k + 1)
+            }}
+          />
+        </>
       )}
-
-      {/* Section 5 — Behaviors */}
-      {resolvedClientId && (
-        <Card className="w-full max-w-3xl">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle>Behaviors</CardTitle>
-            {canAddGoal && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 px-2.5 text-xs gap-1"
-                onClick={() => setBehaviorModalOpen(true)}
-              >
-                <Plus className="size-3.5" />
-                New Behavior
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {behaviorsLoading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
-            ) : behaviors.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No behaviors defined for this client.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {behaviors.map((b) => (
-                  <li key={b.id} className="py-3 first:pt-0 last:pb-0">
-                    <p className="text-sm font-medium">{b.name}</p>
-                    {b.description && (
-                      <p className="mt-0.5 text-xs text-muted-foreground">{b.description}</p>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {canAddGoal && resolvedClientId && practiceMembership && (
-        <NewBehaviorModal
-          open={behaviorModalOpen}
-          practiceId={practiceMembership.practice_id}
-          clientId={resolvedClientId}
-          onClose={() => setBehaviorModalOpen(false)}
-          onSuccess={() => { setBehaviorModalOpen(false); setBehaviorsRefreshKey(k => k + 1) }}
-        />
-      )}
-
-      {/* Section 6 — Behavior Incidents (BCBA / Supervisor / Owner only) */}
-      {canViewNotes && resolvedClientId && (
-        <Card className="w-full max-w-3xl">
-          <CardHeader>
-            <CardTitle>Behavior Incidents</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {incidentsLoading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
-            ) : behaviorIncidents.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No behavior incidents recorded.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {behaviorIncidents.map((incident) => (
-                  <BehaviorIncidentRow key={incident.id} incident={incident} />
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Section 7 — Session Notes (BCBA / Supervisor / Owner only) */}
-      {canViewNotes && resolvedClientId && (
-        <Card className="w-full max-w-3xl">
-          <CardHeader>
-            <CardTitle>Session Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {notesLoading ? (
-              <p className="py-6 text-center text-sm text-muted-foreground animate-pulse">Loading…</p>
-            ) : sessionNotes.length === 0 ? (
-              <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No session notes yet.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {sessionNotes.map((note) => (
-                  <SessionNoteRow key={note.id} note={note} />
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-}
-
-// Each goal row: name + mastery criterion on the left, streak + status chip
-// + "last updated" stacked right-aligned. Items-start so a long mastery
-// criterion that wraps doesn't push the right column down.
-// The goal name is a button — clicking it opens the GoalDetailModal.
-function GoalRow({ goal, onSelect }: { goal: Goal; onSelect: () => void }) {
-  const isDiscontinued = goal.status === "discontinued"
-  return (
-    <li
-      className={`flex items-start justify-between gap-4 py-4 first:pt-0 last:pb-0 ${
-        isDiscontinued ? "opacity-50" : ""
-      }`}
-    >
-      <div className="flex-1 min-w-0">
-        <button
-          onClick={onSelect}
-          className={`text-left font-semibold text-sm hover:underline underline-offset-2 cursor-pointer ${
-            isDiscontinued ? "line-through text-muted-foreground" : ""
-          }`}
-        >
-          {goal.name}
-        </button>
-        <div className="mt-0.5 text-xs text-muted-foreground">
-          {goal.masteryTarget}
-        </div>
-      </div>
-      <div className="flex flex-col items-end gap-1 shrink-0 text-right">
-        <div className="text-xs tabular-nums">
-          {formatStreak(goal.streakDays, goal.streakPercent)}
-        </div>
-        <GoalStatusBadge status={goal.status} />
-        <div className="text-xs text-muted-foreground">
-          {formatLastUpdated(goal.lastUpdatedDaysAgo)}
-        </div>
-      </div>
-    </li>
-  )
-}
-
-// Care team from client_assignments (roster staff only).
-function CareTeamCard({
-  clientId,
-  legacyStaffName,
-}: {
-  clientId: string
-  legacyStaffName?: string
-}) {
-  const [loading, setLoading] = useState(true)
-  const [team, setTeam] = useState<Awaited<ReturnType<typeof getCareTeamDetailsForClient>> | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-
-    getCareTeamDetailsForClient(clientId)
-      .then((details) => {
-        if (!cancelled) setTeam(details)
-      })
-      .catch(() => {
-        if (!cancelled) setTeam(null)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [clientId])
-
-  if (loading) {
-    return (
-      <div className="rounded-md border border-border p-4 text-sm text-muted-foreground animate-pulse">
-        Loading care team…
-      </div>
-    )
-  }
-
-  const bcba = team?.bcba
-  const supervisor = team?.supervisor
-  const bt = team?.bt
-  const hasAssignments = team?.hasAssignments ?? false
-  const btUnassigned = hasAssignments && !bt
-  const legacyBtOnly = !hasAssignments && legacyStaffName
-
-  return (
-    <div className="rounded-md border border-border p-4 space-y-3">
-      <p className="text-sm font-semibold">Care Team</p>
-      {!hasAssignments && !legacyBtOnly && (
-        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-          No active care-team assignments for this client. Re-import the roster or check Supabase{" "}
-          <code className="text-[11px]">client_assignments</code>.
-        </p>
-      )}
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 text-sm">
-        {hasAssignments && (
-          <>
-            <dt className="text-muted-foreground">BCBA</dt>
-            <dd>
-              {bcba ? (
-                <Link to={staffProfilePath(bcba.externalCode)} className="hover:underline underline-offset-2">
-                  {bcba.fullName}
-                </Link>
-              ) : "—"}
-            </dd>
-
-            <dt className="text-muted-foreground">Clinical Supervisor</dt>
-            <dd>
-              {supervisor ? (
-                <Link to={staffProfilePath(supervisor.externalCode)} className="hover:underline underline-offset-2">
-                  {supervisor.fullName}
-                </Link>
-              ) : "—"}
-            </dd>
-          </>
-        )}
-
-        <dt className="text-muted-foreground">Behavior Technician</dt>
-        <dd>
-          {btUnassigned ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-amber-200">
-              <AlertCircle className="size-3.5 shrink-0" aria-hidden="true" />
-              Unassigned
-            </span>
-          ) : bt ? (
-            <Link to={staffProfilePath(bt.externalCode)} className="hover:underline underline-offset-2">
-              {bt.fullName}
-            </Link>
-          ) : legacyBtOnly ? (
-            <span className="text-muted-foreground">{legacyStaffName}</span>
-          ) : "—"}
-        </dd>
-      </dl>
-    </div>
-  )
-}
-
-// Detail grid shown when the page loads via a UUID-based URL. All fields come
-// from the clients row; auth-period and CPT code fall back to the separate
-// authorizations row when the client record doesn't carry those values directly.
-function LiveClientDetailGrid({
-  client,
-  auth,
-}: {
-  client: ClientDetail
-  auth?: AuthRecord | null
-}) {
-  const STATUS_STYLES: Record<string, string> = {
-    active:     "bg-green-100 text-green-800",
-    inactive:   "bg-amber-100 text-amber-800",
-    discharged: "bg-gray-100 text-gray-600",
-  }
-  const statusLabel = client.status ?? "unknown"
-  const statusCls = STATUS_STYLES[statusLabel.toLowerCase()] ?? "bg-gray-100 text-gray-500"
-
-  const authStart = client.auth_start_date ?? auth?.startDate ?? null
-  const authEnd   = client.auth_end_date   ?? auth?.endDate   ?? null
-  const cptDisplay =
-    (client.cpt_codes && client.cpt_codes.length > 0)
-      ? client.cpt_codes.join(", ")
-      : auth?.cptCode ?? null
-
-  return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-2 border-t border-border pt-4 text-sm">
-      <dt className="text-muted-foreground">Status</dt>
-      <dd>
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusCls}`}>
-          {statusLabel}
-        </span>
-      </dd>
-
-      <dt className="text-muted-foreground">Date of birth</dt>
-      <dd>{client.date_of_birth ? formatDate(client.date_of_birth) : "—"}</dd>
-
-      <dt className="text-muted-foreground">Home address</dt>
-      <dd>{client.home_address?.trim() ? client.home_address : "—"}</dd>
-
-      <dt className="text-muted-foreground">Insurance</dt>
-      <dd>{client.insurance ?? "—"}</dd>
-
-      <dt className="text-muted-foreground">Authorization period</dt>
-      <dd>
-        {authStart && authEnd
-          ? `${formatDate(authStart)} – ${formatDate(authEnd)}`
-          : "—"}
-      </dd>
-
-      <dt className="text-muted-foreground">CPT / billing code</dt>
-      <dd>
-        {cptDisplay
-          ? <span className="font-mono">{cptDisplay}</span>
-          : "—"}
-      </dd>
-
-    </dl>
-  )
-}
-
-
-// Expandable row for a single SOAP note. Collapsed by default — the date and
-// a truncated preview of the subjective field give enough context to decide
-// whether to open. Clicking anywhere on the header row toggles the body.
-function SessionNoteRow({ note }: { note: SessionNoteRecord }) {
-  const [open, setOpen] = useState(false)
-  const { date, time } = formatEventStamp(note.created_at, note.session_at)
-
-  return (
-    <li className="py-3 first:pt-0 last:pb-0">
-      <button
-        className="flex w-full items-start gap-2 text-left"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-      >
-        <span className="mt-0.5 shrink-0 text-muted-foreground">
-          {open
-            ? <ChevronDown className="size-4" />
-            : <ChevronRight className="size-4" />}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-sm font-medium">{date}</span>
-            <span className="text-xs text-muted-foreground">{time}</span>
-          </div>
-          {!open && note.subjective && (
-            <p className="mt-0.5 text-xs text-muted-foreground truncate">
-              {note.subjective}
-            </p>
-          )}
-        </div>
-      </button>
-
-      {open && (
-        <div className="mt-3 ml-6 grid grid-cols-[5rem_1fr] gap-x-4 gap-y-3 text-sm">
-          {(
-            [
-              { label: "Subjective",  value: note.subjective  },
-              { label: "Objective",   value: note.objective   },
-              { label: "Assessment",  value: note.assessment  },
-              { label: "Plan",        value: note.plan        },
-            ] as const
-          ).map(({ label, value }) => (
-            <div key={label} className="contents">
-              <dt className="text-xs font-semibold text-muted-foreground pt-0.5 uppercase tracking-wide">
-                {label}
-              </dt>
-              <dd className="text-sm leading-relaxed whitespace-pre-wrap">
-                {value || <span className="text-muted-foreground italic">—</span>}
-              </dd>
-            </div>
-          ))}
-        </div>
-      )}
-    </li>
-  )
-}
-
-// Expandable row for a single behavior incident. Collapsed state shows date,
-// behavior name, and intensity chip. Expanded state shows antecedents,
-// consequences, and duration in the same labeled-grid layout as SessionNoteRow.
-function formatDuration(seconds: number | null): string {
-  if (seconds === null || seconds === undefined) return "—"
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  if (m === 0) return `${s}s`
-  return s === 0 ? `${m}m` : `${m}m ${s}s`
-}
-
-const INTENSITY_CHIP: Record<string, string> = {
-  High:   "bg-red-100 text-red-700",
-  Medium: "bg-amber-100 text-amber-700",
-  Low:    "bg-slate-100 text-slate-700",
-}
-
-function BehaviorIncidentRow({ incident }: { incident: BehaviorIncidentRecord }) {
-  const [open, setOpen] = useState(false)
-  const { date, time } = formatEventStamp(incident.created_at, incident.session_at)
-  const behaviorName = incident.behaviors?.name ?? "Unknown behavior"
-  const intensityCls = incident.intensity ? (INTENSITY_CHIP[incident.intensity] ?? "bg-slate-100 text-slate-700") : null
-
-  const antecedentsStr = incident.antecedents?.length ? incident.antecedents.join(", ") : "—"
-  const consequencesStr = incident.consequences?.length ? incident.consequences.join(", ") : "—"
-
-  return (
-    <li className="py-3 first:pt-0 last:pb-0">
-      <button
-        className="flex w-full items-start gap-2 text-left"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-      >
-        <span className="mt-0.5 shrink-0 text-muted-foreground">
-          {open
-            ? <ChevronDown className="size-4" />
-            : <ChevronRight className="size-4" />}
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-sm font-medium">{date}</span>
-            <span className="text-xs text-muted-foreground">{time}</span>
-            <span className="text-sm font-semibold">{behaviorName}</span>
-            {intensityCls && (
-              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${intensityCls}`}>
-                {incident.intensity}
-              </span>
-            )}
-          </div>
-        </div>
-      </button>
-
-      {open && (
-        <dl className="mt-3 ml-6 grid grid-cols-[6rem_1fr] gap-x-4 gap-y-3 text-sm">
-          {([
-            { label: "Antecedents",  value: antecedentsStr  },
-            { label: "Consequences", value: consequencesStr },
-            { label: "Duration",     value: formatDuration(incident.duration_seconds) },
-          ]).map(({ label, value }) => (
-            <div key={label} className="contents">
-              <dt className="text-xs font-semibold text-muted-foreground pt-0.5 uppercase tracking-wide">
-                {label}
-              </dt>
-              <dd className="text-sm leading-relaxed">
-                {value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </li>
-  )
-}
-
-// Extracted because the page already has enough going on, and rendering the
-// bar + numbers + plain-English label is its own visual unit. Stays in this
-// file because nothing else needs it yet (rule of three).
-function AuthorizationDetail({ auth }: { auth: ClientAuthorization | AuthRecord }) {
-  const { bar, text } = utilizationClass(auth.utilizationPct)
-  const used = usedHours(auth.utilizationPct, auth.totalAuthorizedHours)
-  const remaining = auth.totalAuthorizedHours - used
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <span className={`text-xl font-semibold tabular-nums ${text}`}>
-          {auth.utilizationPct.toFixed(0)}%
-        </span>
-        <span className="text-xs text-muted-foreground tabular-nums">
-          {used} / {auth.totalAuthorizedHours} hrs · {remaining} remaining
-        </span>
-      </div>
-
-      <div className="relative h-2 w-full overflow-hidden rounded-full bg-slate-200">
-        <div
-          className={`h-full ${bar}`}
-          style={{ width: `${Math.min(auth.utilizationPct, 100)}%` }}
-        />
-        <div
-          className="absolute inset-y-0 w-px bg-slate-500/70"
-          style={{ left: `${FLAGGED_THRESHOLD}%` }}
-          aria-hidden="true"
-        />
-      </div>
     </div>
   )
 }

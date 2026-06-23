@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -114,6 +114,9 @@ function SessionPreviewRow({ item }: { item: AuditNoteBundleItem }) {
 }
 
 export function AuditPullPage({ practiceId }: { practiceId: string }) {
+  const [searchParams] = useSearchParams()
+  const presetClientId = searchParams.get("clientId") ?? ""
+  const backHref = searchParams.get("from") ?? "/"
   const defaults = useMemo(() => defaultDateRange(), [])
   const [clients, setClients] = useState<RosterClientEntry[]>([])
   const [clientsLoading, setClientsLoading] = useState(true)
@@ -144,7 +147,13 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
         if (cancelled) return
         setClients(rows)
         if (rows.length > 0) {
-          setClientId((current) => current || rows[0].id)
+          setClientId((current) => {
+            if (current) return current
+            if (presetClientId && rows.some((r) => r.id === presetClientId)) {
+              return presetClientId
+            }
+            return rows[0].id
+          })
         }
       })
       .catch((err: unknown) => {
@@ -158,7 +167,7 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
     return () => {
       cancelled = true
     }
-  }, [practiceId])
+  }, [practiceId, presetClientId])
 
   const missingNoteCount = useMemo(() => {
     if (!items) return 0
@@ -235,11 +244,11 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
     <div className="min-h-svh bg-bg text-foreground flex flex-col items-center gap-6 p-4 pb-10">
       <header className="flex w-full max-w-3xl items-center justify-between gap-4 pt-2">
         <Link
-          to="/"
+          to={backHref}
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="size-4" />
-          Dashboard
+          {backHref.startsWith("/clients/") ? "Back to client profile" : "Dashboard"}
         </Link>
       </header>
 

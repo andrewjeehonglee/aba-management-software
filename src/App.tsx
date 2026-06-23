@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom"
 import { Toaster } from "sonner"
 import type { Session } from "@supabase/supabase-js"
 import { AuditPullPage } from "@/pages/AuditPullPage"
+import { ClientBehaviorIncidentsPage } from "@/pages/ClientBehaviorIncidentsPage"
 import { ClientOverviewPage } from "@/pages/ClientOverviewPage"
 import { DashboardPage } from "@/pages/DashboardPage"
 import { ClientsPage } from "@/pages/ClientsPage"
@@ -222,12 +223,20 @@ function App() {
         <Route
           path="/audit"
           element={
-            userRole.toLowerCase() === "owner"
+            ["owner", "bcba", "supervisor"].includes(userRole.toLowerCase())
               ? <AuditPullPage practiceId={practice.practice_id} />
               : <Navigate to="/" replace />
           }
         />
         <Route path="/clients/:clientId" element={<ClientOverviewPage practiceId={practice.practice_id} />} />
+        <Route
+          path="/clients/:clientId/incidents"
+          element={
+            ["owner", "bcba", "supervisor"].includes(userRole.toLowerCase())
+              ? <ClientBehaviorIncidentsPage practiceId={practice.practice_id} />
+              : <Navigate to="/" replace />
+          }
+        />
         <Route path="/staff/:staffId" element={<StaffOverviewPage practiceId={practice.practice_id} />} />
         <Route path="/session/:sessionId" element={<SessionViewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
