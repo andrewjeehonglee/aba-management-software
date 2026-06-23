@@ -2,7 +2,7 @@ import { ChevronRight } from "lucide-react"
 import { Link } from "react-router-dom"
 import { isCompleteSessionNote } from "@/lib/notesStatus"
 import type { BehaviorIncidentRecord, SessionNoteRecord, SessionRecord } from "@/lib/supabase"
-import { P, SECTION_LABEL } from "./profileTokens"
+import { P, TILE_TITLE } from "./profileTokens"
 
 function notesDueCount(sessions: SessionRecord[], notes: SessionNoteRecord[]): number {
   const notesBySession = new Map(notes.map((n) => [n.session_id, n]))
@@ -43,9 +43,9 @@ export function RecordsBucket({
       className="p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
-      <p className={`${SECTION_LABEL} mb-4`} style={{ color: P.faint }}>
+      <h2 className={`${TILE_TITLE} mb-4`} style={{ color: P.ink }}>
         Records
-      </p>
+      </h2>
       <div className="flex flex-col gap-2">
         <RecordCard
           title="Session notes"

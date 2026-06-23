@@ -1,6 +1,7 @@
 import type { GoalRecord } from "@/lib/supabase"
 import type { Goal } from "@/types/goal"
-import { P } from "./profileTokens"
+import { AddTileButton } from "./AddTileButton"
+import { P, TILE_TITLE } from "./profileTokens"
 
 const GOAL_STATUS_ORDER: Record<string, number> = {
   "in-progress": 0,
@@ -50,23 +51,14 @@ export function GoalList({ goals, loading, canAdd, onAdd, onSelect }: GoalListPr
 
   return (
     <section
-      className="flex min-h-0 flex-col p-5"
+      className="p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
+        <h2 className={TILE_TITLE} style={{ color: P.ink }}>
           Active goals
         </h2>
-        {canAdd && (
-          <button
-            type="button"
-            onClick={onAdd}
-            className="text-[13px] font-medium transition-opacity hover:opacity-80"
-            style={{ color: P.sage }}
-          >
-            + New goal
-          </button>
-        )}
+        {canAdd && <AddTileButton label="New goal" onClick={onAdd} />}
       </div>
 
       {loading ? (
@@ -76,7 +68,7 @@ export function GoalList({ goals, loading, canAdd, onAdd, onSelect }: GoalListPr
       ) : activeGoals.length === 0 ? (
         <EmptyGoals canAdd={canAdd} onAdd={onAdd} />
       ) : (
-        <ul className="mt-4 min-h-0 flex-1">
+        <ul className="mt-4">
           {activeGoals.map((goal, index) => (
             <li
               key={goal.id}

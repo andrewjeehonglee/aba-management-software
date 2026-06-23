@@ -1,5 +1,6 @@
 import type { BehaviorIncidentRecord, BehaviorRecord } from "@/lib/supabase"
-import { P } from "./profileTokens"
+import { AddTileButton } from "./AddTileButton"
+import { P, TILE_TITLE } from "./profileTokens"
 
 function incidentsThisMonth(incidents: BehaviorIncidentRecord[]): Map<string, number> {
   const now = new Date()
@@ -39,23 +40,14 @@ export function BehaviorList({
 
   return (
     <section
-      className="flex min-h-0 flex-col p-5"
+      className="p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
+        <h2 className={TILE_TITLE} style={{ color: P.ink }}>
           Behaviors
         </h2>
-        {canAdd && (
-          <button
-            type="button"
-            onClick={onAdd}
-            className="text-[13px] font-medium transition-opacity hover:opacity-80"
-            style={{ color: P.sage }}
-          >
-            + New behavior
-          </button>
-        )}
+        {canAdd && <AddTileButton label="New behavior" onClick={onAdd} />}
       </div>
 
       {loading ? (
@@ -65,7 +57,7 @@ export function BehaviorList({
       ) : behaviors.length === 0 ? (
         <EmptyBehaviors canAdd={canAdd} onAdd={onAdd} />
       ) : (
-        <ul className="mt-4 min-h-0 flex-1">
+        <ul className="mt-4">
           {behaviors.map((behavior, index) => (
             <li
               key={behavior.id}

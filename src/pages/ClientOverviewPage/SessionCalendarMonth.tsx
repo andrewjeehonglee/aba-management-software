@@ -2,15 +2,15 @@ import { useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { isCompleteSessionNote } from "@/lib/notesStatus"
 import type { SessionNoteRecord, SessionRecord } from "@/lib/supabase"
-import { P } from "./profileTokens"
+import { P, TILE_TITLE } from "./profileTokens"
 
 type DayBarStatus = "complete" | "note-due" | "cancelled" | "scheduled"
 
 const BAR_COLOR: Record<DayBarStatus, string> = {
-  complete: P.sage,
-  "note-due": P.amber,
-  cancelled: P.cancel,
-  scheduled: P.scheduled,
+  complete: P.calComplete,
+  "note-due": P.calNoteDue,
+  cancelled: P.calCancelled,
+  scheduled: P.calScheduled,
 }
 
 const STATUS_PRIORITY: Record<DayBarStatus, number> = {
@@ -118,9 +118,9 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
     return (
       <div
         key={iso}
-        className="relative flex min-h-[80px] flex-col items-center justify-center rounded-md py-2"
+        className="relative flex min-h-[56px] flex-col items-center justify-center rounded-md py-1.5"
         style={{
-          backgroundColor: scheduledBg ? P.scheduledTint : undefined,
+          backgroundColor: scheduledBg ? P.calScheduledTint : undefined,
           boxShadow: isToday ? `inset 0 0 0 2px ${P.sage}` : undefined,
         }}
       >
@@ -132,7 +132,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         </span>
         {bar && (
           <span
-            className="absolute bottom-1.5 left-2 right-2 h-1 rounded-full"
+            className="absolute bottom-1 left-2 right-2 h-1 rounded-full"
             style={{ backgroundColor: BAR_COLOR[bar] }}
             aria-hidden="true"
           />
@@ -143,10 +143,10 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
 
   return (
     <div
-      className="flex h-full w-full flex-col p-5"
+      className="p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius, boxShadow: "0 1px 2px rgba(44,41,36,0.04)" }}
     >
-      <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
+      <h2 className={TILE_TITLE} style={{ color: P.ink }}>
         Session calendar
       </h2>
 
@@ -159,7 +159,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         >
           <ChevronLeft className="size-4" style={{ color: P.soft }} />
         </button>
-        <span className="text-[15px] font-semibold" style={{ color: P.ink }}>
+        <span className="text-[18px] font-semibold" style={{ color: P.ink }}>
           {formatMonthYear(anchorDate)}
         </span>
         <button
@@ -176,7 +176,7 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         {DOW_LABELS.map((d) => (
           <div
             key={d}
-            className="py-1.5 text-center text-[12px] font-semibold uppercase tracking-[0.06em]"
+            className="py-1.5 text-center text-[14px] font-semibold uppercase tracking-[0.06em]"
             style={{ color: P.faint }}
           >
             {d}
@@ -184,24 +184,24 @@ export function SessionCalendarMonth({ sessions, sessionNotes }: SessionCalendar
         ))}
       </div>
 
-      <div className="mt-1 flex-1 space-y-1.5">
+      <div className="mt-1 space-y-1">
         {grid.map((week, wi) => (
           <div key={wi} className="grid grid-cols-7 gap-1">
             {week.map((day, di) =>
-              day ? renderDayCell(day) : <div key={di} className="min-h-[80px]" aria-hidden="true" />,
+              day ? renderDayCell(day) : <div key={di} className="min-h-[56px]" aria-hidden="true" />,
             )}
           </div>
         ))}
       </div>
 
       <div
-        className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3.5 text-[14px]"
+        className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3 text-[14px]"
         style={{ borderColor: P.rule, color: P.soft }}
       >
-        <LegendItem color={P.sage} label="Complete" />
-        <LegendItem color={P.amber} label="Note due" />
-        <LegendItem color={P.cancel} label="Cancelled" />
-        <LegendItem color={P.scheduled} label="Scheduled" />
+        <LegendItem color={P.calComplete} label="Complete" />
+        <LegendItem color={P.calNoteDue} label="Note due" />
+        <LegendItem color={P.calCancelled} label="Cancelled" />
+        <LegendItem color={P.calScheduled} label="Scheduled" />
       </div>
     </div>
   )
