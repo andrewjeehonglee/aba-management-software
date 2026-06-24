@@ -4,8 +4,8 @@
 **Demo login:** `demo@pulseaba.app` / `PulseDemo2026!`  
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
-**Branch:** `main` · **HEAD:** `f635663` (Session 35 log) · **Feature HEAD:** `cefd6f5`  
-**Prior session HEAD:** `27ba6cc` (Session 34 — client profile v6 + session notes + varied clinical seed)  
+**Branch:** `main` · **HEAD:** `cfbf905` (Session 35 log) · **Feature HEAD:** `cefd6f5`  
+**Prior session HEAD:** `515d807` (Session 34 expanded morning log) · Morning feature HEAD: `63e5325`  
 **Transcript:** agent session `1ee2b0af-e3fb-4bb1-952e-e277eebf75b5`  
 **User sign-off:** Staff profile + Sessions page verified on Vercel — “it looks great” (evening close-out)
 
@@ -15,9 +15,9 @@
 
 Monday evening was a **Staff Profile product slice** and a new **practice-wide Sessions page** for Pulse ABA Management Software. Andrew rebuilt the staff overview page to mirror the client profile’s warm Pulse layout, iterated through five profile versions with user feedback, then shipped a Sessions calendar view with a searchable people panel.
 
-Work shipped in **12 feature commits** (~19:33–20:50 PT), all pushed to `main`; Vercel auto-deploys. **No new Supabase SQL scripts** this evening — all changes are frontend + read helpers.
+Work shipped in **11 feature commits + 2 log commits** (~19:33–20:53 PT), all pushed to `main`; Vercel auto-deploys. **No new Supabase SQL scripts** this evening — all changes are frontend + read helpers.
 
-**Totals (`27ba6cc` → `cefd6f5`):** 22 files touched · +2,517 / −392 lines · 4 new Sessions page files · 5 new Staff profile subcomponents · 1 new staff session notes page · 1 new scope lib · 2 new Supabase month-query helpers.
+**Totals (`515d807` → `cefd6f5`):** 22 files touched · +2,517 / −392 lines · 4 new Sessions page files · 5 new Staff profile subcomponents · 1 new staff session notes page · 1 new scope lib · 2 new Supabase month-query helpers.
 
 **Evening arc:** Staff profile v1→v5 (four-tile layout, care teams, calendar states, supervision legend) → bug fixes (row stretch, scroll, scrollbars) → Sessions page v1→v2→polish (people panel + month calendar, role-scoped data, centered day numbers).
 
@@ -81,7 +81,33 @@ Work shipped in **12 feature commits** (~19:33–20:50 PT), all pushed to `main`
 
 | Commit | Time (PT) | Summary |
 |--------|-----------|---------|
-| `f635663` | ~21:00 | Session 35 log — `SESSIONS.md` + this file |
+| `f635663` | ~20:53 | Session 35 log — `SESSIONS.md` + this file |
+| `cfbf905` | ~20:53 | Fix Session 35 log HEAD reference |
+
+---
+
+## Capture verification audit (triple-checked)
+
+Verified **Jun 23, 2026 ~20:54 PT** before close-out:
+
+| Check | Result |
+|-------|--------|
+| Working tree clean | ✓ `git status` — nothing to commit |
+| Remote in sync | ✓ `main` pushed through `cfbf905` |
+| Feature commits accounted | ✓ All 11 commits `bfa1fac`→`cefd6f5` listed above with per-commit file manifest |
+| Log commits accounted | ✓ `f635663` + `cfbf905` |
+| File inventory vs git | ✓ `git diff --stat 515d807..cefd6f5` — **22 files**, +2517 / −392 lines (matches totals row) |
+| Every touched file named | ✓ See **Complete file inventory** below — all 22 paths cross-referenced |
+| Routes documented | ✓ `/staff/:staffId`, `/staff/:staffId/notes`, `/sessions`, `/roster` redirect |
+| SESSIONS.md index | ✓ Session 35 entry with commit table + link to this file |
+| Morning session preserved | ✓ Session 34 unchanged; prior HEAD `515d807` (expanded morning log) |
+| User sign-off captured | ✓ “it looks great” (staff profile + Sessions polish) |
+| Transcript reference | ✓ Agent session `1ee2b0af-e3fb-4bb1-952e-e277eebf75b5` |
+| Build verified | ✓ `npm run build` passed before final feature commit `cefd6f5` |
+
+**Note:** `ClientOverviewPage.tsx` was edited in commits `891fa3f` and `ad65d93` (calendar alignment) but has **no net diff** at `cefd6f5` vs `515d807` — intermediate changes were superseded; calendar/token changes landed in `SessionCalendarMonth.tsx` and `profileTokens.ts`.
+
+**Deleted scaffold files (documented, not in final tree):** `StaffCompliancePanel.tsx`, `StaffPeoplePanel.tsx`, `StaffRecentSessionsPanel.tsx`, `StaffRecordsBucket.tsx`, `StaffMyClientsTile.tsx`.
 
 ---
 
@@ -117,6 +143,10 @@ Work shipped in **12 feature commits** (~19:33–20:50 PT), all pushed to `main`
 - `StaffCompliancePanel.tsx` (v1 scaffold, deleted v2)
 - `StaffPeoplePanel.tsx`, `StaffRecentSessionsPanel.tsx`, `StaffRecordsBucket.tsx` (v1, deleted v2)
 - `StaffMyClientsTile.tsx` (v2, replaced by `StaffCareTeamsTile` in v3)
+
+### Complete file manifest (all 22 paths at feature HEAD `cefd6f5`)
+
+`src/App.tsx` · `src/components/dashboard/OwnerNavRail.tsx` · `src/index.css` · `src/lib/auditPull.ts` · `src/lib/clientAssignments.ts` · `src/lib/notesStatus.ts` · `src/lib/sessionsPageScope.ts` · `src/lib/supabase.ts` · `src/pages/ClientOverviewPage/SessionCalendarMonth.tsx` · `src/pages/ClientOverviewPage/profileTokens.ts` · `src/pages/ClientSessionNotesPage.tsx` · `src/pages/SessionsPage/PracticeSessionCalendar.tsx` · `src/pages/SessionsPage/SessionsPage.tsx` · `src/pages/SessionsPage/SessionsPeoplePanel.tsx` · `src/pages/SessionsPage/sessionsCalendarUtils.ts` · `src/pages/StaffOverviewPage.tsx` · `src/pages/StaffOverviewPage/StaffCareTeamsTile.tsx` · `src/pages/StaffOverviewPage/StaffFactsList.tsx` · `src/pages/StaffOverviewPage/StaffMonthHoursInset.tsx` · `src/pages/StaffOverviewPage/StaffSessionNotesTile.tsx` · `src/pages/StaffOverviewPage/staffProfileUtils.ts` · `src/pages/StaffSessionNotesPage.tsx`
 
 ### Modified shared / lib files
 
