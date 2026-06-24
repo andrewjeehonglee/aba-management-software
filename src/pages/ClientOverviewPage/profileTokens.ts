@@ -32,7 +32,7 @@ export const SECTION_LABEL =
   "text-[12px] font-semibold uppercase tracking-[0.08em]"
 
 /** Max list height (~3 goal/behavior rows) before internal scroll */
-export const TILE_LIST_MAX_H = "max-h-[320px] overflow-y-auto"
+export const TILE_LIST_MAX_H = "max-h-[320px] overflow-y-auto profile-scroll"
 
 /** Shared card/tile title — 18px, weight 700, sentence case */
 export const TILE_TITLE = "text-[18px] font-bold leading-snug"

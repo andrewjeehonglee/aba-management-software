@@ -283,6 +283,24 @@
   .owner-scroll-hide::-webkit-scrollbar {
     display: none;
   }
+  /** Profile tiles — warm, low-contrast scrollbar (client + staff lists) */
+  .profile-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #d9d2c4 transparent;
+  }
+  .profile-scroll::-webkit-scrollbar {
+    width: 5px;
+  }
+  .profile-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .profile-scroll::-webkit-scrollbar-thumb {
+    background: #d9d2c4;
+    border-radius: 999px;
+  }
+  .profile-scroll::-webkit-scrollbar-thumb:hover {
+    background: #cbc3b4;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
