@@ -318,9 +318,9 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         </header>
 
         <div className="mt-6 flex flex-col gap-6">
-          <div className="grid items-stretch gap-6 max-xl:grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)_360px]">
+          <div className="grid items-stretch gap-6 max-xl:grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)_360px] xl:grid-rows-[auto]">
             <aside
-              className="min-h-0 h-full p-5"
+              className="min-h-0 self-stretch p-5 max-xl:h-auto xl:h-full"
               style={{ backgroundColor: P.card, borderRadius: P.radius }}
             >
               <h2 className={TILE_TITLE} style={{ color: P.ink }}>
@@ -341,7 +341,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
               </div>
             </aside>
 
-            <div className="flex h-full min-h-0 min-w-0">
+            <div className="flex min-h-0 min-w-0 self-stretch max-xl:h-auto xl:h-full">
               <SessionCalendarMonth
                 fillHeight
                 narrowBars
@@ -350,7 +350,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
               />
             </div>
 
-            <div className="min-h-0 h-full">
+            <div className="min-h-0 self-stretch overflow-hidden max-xl:h-auto xl:h-0">
               <StaffSessionNotesTile
                 staffRouteKey={staffRouteKey}
                 pendingCount={pendingCount}

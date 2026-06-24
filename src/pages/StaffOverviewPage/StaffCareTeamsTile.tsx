@@ -29,11 +29,23 @@ function NameChip({ externalCode, name }: { externalCode: string; name: string }
   return (
     <Link
       to={staffProfilePath(externalCode)}
-      className={`inline-flex rounded-full px-2.5 py-0.5 ${TILE_BODY} font-medium hover:opacity-90`}
+      title={name}
+      className={`inline-flex h-7 w-[6.75rem] shrink-0 items-center justify-center truncate rounded-full px-2 ${TILE_BODY} font-medium hover:opacity-90`}
       style={{ backgroundColor: P.card, color: P.ink, boxShadow: `inset 0 0 0 1px ${P.rule}` }}
     >
       {name}
     </Link>
+  )
+}
+
+function EmptyNameSlot() {
+  return (
+    <span
+      className="inline-flex h-7 w-[6.75rem] shrink-0 items-center justify-center"
+      style={{ color: P.faint }}
+    >
+      —
+    </span>
   )
 }
 
@@ -81,21 +93,26 @@ function CareTeamCard({
         {roles.map(({ label, member, warn }) => (
           <div key={label} className="flex items-center justify-between gap-3">
             <dt style={{ color: P.soft }}>{label}</dt>
-            <dd className="flex items-center gap-1 text-right">
-              {member ? (
-                <>
-                  <NameChip externalCode={member.externalCode} name={member.fullName} />
+            <dd className="flex items-center justify-end">
+              <span className="inline-flex items-center gap-1">
+                <span
+                  className="flex size-3.5 shrink-0 items-center justify-center"
+                  aria-hidden={!warn}
+                >
                   {warn && (
                     <AlertCircle
-                      className="size-3.5 shrink-0"
+                      className="size-3.5"
                       style={{ color: P.cancel }}
                       aria-label="Below 5% supervision"
                     />
                   )}
-                </>
-              ) : (
-                <span style={{ color: P.faint }}>—</span>
-              )}
+                </span>
+                {member ? (
+                  <NameChip externalCode={member.externalCode} name={member.fullName} />
+                ) : (
+                  <EmptyNameSlot />
+                )}
+              </span>
             </dd>
           </div>
         ))}
