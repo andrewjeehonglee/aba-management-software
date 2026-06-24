@@ -4,7 +4,7 @@
 **Demo login:** `demo@pulseaba.app` / `PulseDemo2026!`  
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
-**Branch:** `main` · **HEAD:** `cfbf905` (Session 35 log) · **Feature HEAD:** `cefd6f5`  
+**Branch:** `main` · **HEAD:** `79e9d86` (Session 35 log + verification audit) · **Feature HEAD:** `cefd6f5`  
 **Prior session HEAD:** `515d807` (Session 34 expanded morning log) · Morning feature HEAD: `63e5325`  
 **Transcript:** agent session `1ee2b0af-e3fb-4bb1-952e-e277eebf75b5`  
 **User sign-off:** Staff profile + Sessions page verified on Vercel — “it looks great” (evening close-out)
@@ -83,6 +83,7 @@ Work shipped in **11 feature commits + 2 log commits** (~19:33–20:53 PT), all 
 |--------|-----------|---------|
 | `f635663` | ~20:53 | Session 35 log — `SESSIONS.md` + this file |
 | `cfbf905` | ~20:53 | Fix Session 35 log HEAD reference |
+| `79e9d86` | ~20:55 | Expand Session 35 log with triple-check verification audit |
 
 ---
 
@@ -93,9 +94,9 @@ Verified **Jun 23, 2026 ~20:54 PT** before close-out:
 | Check | Result |
 |-------|--------|
 | Working tree clean | ✓ `git status` — nothing to commit |
-| Remote in sync | ✓ `main` pushed through `cfbf905` |
+| Remote in sync | ✓ `main` pushed through `79e9d86` |
 | Feature commits accounted | ✓ All 11 commits `bfa1fac`→`cefd6f5` listed above with per-commit file manifest |
-| Log commits accounted | ✓ `f635663` + `cfbf905` |
+| Log commits accounted | ✓ `f635663` + `cfbf905` + `79e9d86` |
 | File inventory vs git | ✓ `git diff --stat 515d807..cefd6f5` — **22 files**, +2517 / −392 lines (matches totals row) |
 | Every touched file named | ✓ See **Complete file inventory** below — all 22 paths cross-referenced |
 | Routes documented | ✓ `/staff/:staffId`, `/staff/:staffId/notes`, `/sessions`, `/roster` redirect |

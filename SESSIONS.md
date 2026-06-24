@@ -1906,7 +1906,7 @@ All pushed to `main` → Vercel auto-deploy.
 
 ## Session 35 — Staff profile v1→v5 + practice Sessions page (Jun 23, 2026 evening)
 
-**What landed:** Complete **Staff Profile product slice** mirroring client profile layout (four tiles + care teams row), **Staff session notes page** (547 lines), iterative polish through v5 (supervision legend, Pending/Overdue vocabulary, scrollable 7-day notes list), warm `.profile-scroll` scrollbars, and a new **practice-wide Sessions page** at `/sessions` with searchable people panel + month calendar. `/roster` redirects to `/sessions`. All pushed to `main`; **feature HEAD `cefd6f5`**, **log HEAD `cfbf905`**. Andrew verified on Vercel — “it looks great.” Capture verification audit in detailed log.
+**What landed:** Complete **Staff Profile product slice** mirroring client profile layout (four tiles + care teams row), **Staff session notes page** (547 lines), iterative polish through v5 (supervision legend, Pending/Overdue vocabulary, scrollable 7-day notes list), warm `.profile-scroll` scrollbars, and a new **practice-wide Sessions page** at `/sessions` with searchable people panel + month calendar. `/roster` redirects to `/sessions`. All pushed to `main`; **feature HEAD `cefd6f5`**, **log HEAD `79e9d86`**. Andrew verified on Vercel — “it looks great.” Capture verification audit in detailed log.
 
 **Detailed log:** `templates/SESSION_LOG_20260623_evening.md`
 
@@ -1935,6 +1935,7 @@ All pushed to `main` → Vercel auto-deploy.
 | `cefd6f5` | Polish Sessions page calendar and people panel layout |
 | `f635663` | Session 35 documentation log |
 | `cfbf905` | Fix Session 35 log HEAD reference |
+| `79e9d86` | Expand Session 35 log with triple-check verification audit |
 
 **Scope:** 22 files (`515d807` → `cefd6f5`); +2517 / −392 lines. **New:** Sessions page module (4 files), staff profile subcomponents (5 files), staff session notes page, `sessionsPageScope.ts`, 2 Supabase month-query helpers. See `templates/SESSION_LOG_20260623_evening.md` for complete per-commit file manifest and behavior specs.
 
