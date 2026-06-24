@@ -6,7 +6,6 @@ import {
   type OwnerDashboardData,
 } from "@/lib/ownerDashboardConcerns"
 import { getRosterStaffManifest } from "@/lib/rosterScope"
-import { OwnerFocalSummaryStrip } from "@/components/dashboard/OwnerFocalSummaryStrip"
 import { OwnerMonitorTiles } from "@/components/dashboard/OwnerMonitorTiles"
 import { PayrollPanel } from "@/components/dashboard/PayrollPanel"
 import { PAY_PERIOD_TIER_ORDER } from "@/lib/payPeriodHoursGap"
@@ -28,21 +27,21 @@ const EMPTY_TILES: OwnerDashboardData["monitorTiles"] = [
     id: "notes",
     title: "Session notes",
     state: "healthy",
-    headerLine: "All complete this pay period · billing and audit clear",
+    headerLine: "0 overdue · 0 pending",
     emptyLabel: "All clear — every note is in for this pay period",
-    chips: [],
-    overflowCount: 0,
-    overflowChips: [],
+    rows: [],
+    totalRowCount: 0,
+    viewAllHref: "/audit",
   },
   {
     id: "auth",
     title: "Authorized hours",
     state: "healthy",
-    headerLine: "All clients within cap · billing clear",
+    headerLine: "0 clients over cap",
     emptyLabel: "All clear — every client within authorized hours",
-    chips: [],
-    overflowCount: 0,
-    overflowChips: [],
+    rows: [],
+    totalRowCount: 0,
+    viewAllHref: "/clients",
   },
   {
     id: "directHours",
@@ -50,23 +49,12 @@ const EMPTY_TILES: OwnerDashboardData["monitorTiles"] = [
     state: "healthy",
     headerLine: "Direct engagement on track · monitor (month in progress)",
     emptyLabel: "All clear — direct engagement on track this month",
-    chips: [],
-    overflowCount: 0,
-    overflowChips: [],
+    rows: [],
+    totalRowCount: 0,
+    viewAllHref: "/clients",
+    summaryOnly: true,
   },
 ]
-
-const EMPTY_FOCAL: OwnerDashboardData["focalSummary"] = {
-  allClear: true,
-  segments: [
-    {
-      id: "notes",
-      text: "All clear this morning — notes in, payroll ready, auth on track",
-      severity: "neutral",
-      scrollTargetId: "owner-pillar-notes",
-    },
-  ],
-}
 
 export function OwnerDashboard({
   practiceId,
@@ -89,7 +77,6 @@ export function OwnerDashboard({
 }) {
   const [data, setData] = useState<OwnerDashboardData>({
     monitorTiles: EMPTY_TILES,
-    focalSummary: EMPTY_FOCAL,
     payroll: EMPTY_PAYROLL,
     loading: true,
   })
@@ -170,11 +157,6 @@ export function OwnerDashboard({
           </p>
         )}
       </header>
-
-      <OwnerFocalSummaryStrip
-        summary={showPlaceholder ? null : data.focalSummary}
-        loading={showPlaceholder}
-      />
 
       <OwnerMonitorTiles tiles={data.monitorTiles} loading={showPlaceholder} />
 

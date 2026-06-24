@@ -21,10 +21,9 @@ import { daysUntilPeriodEnd } from "@/lib/payPeriod"
 import { PRACTICE_TIMEZONE } from "@/lib/sessions"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 
-export const OWNER_CHIP_CAP = 6
+export const OWNER_ROW_CAP = 5
 
 export type OwnerMonitorTileId = "notes" | "auth" | "directHours"
-export type OwnerFocalSegmentId = "notes" | "payroll" | "auth" | "direct"
 
 export interface OwnerPopoverLine {
   id: string
@@ -32,40 +31,36 @@ export interface OwnerPopoverLine {
   href?: string
 }
 
-export interface OwnerMonitorChip {
+export type OwnerRankedRowSeverity = "overdue" | "pending" | "over-cap" | "near-cap" | "monitor"
+
+export interface OwnerRankedRow {
   id: string
   label: string
-  popoverTitle: string
-  popoverLines: OwnerPopoverLine[]
+  severity: OwnerRankedRowSeverity
+  magnitude: number
+  usedHours?: number
+  authorizedHours?: number
+  href?: string
+  popoverTitle?: string
+  popoverLines?: OwnerPopoverLine[]
 }
 
 export interface OwnerMonitorTile {
   id: OwnerMonitorTileId
   title: string
   state: BcbaTileState
-  /** Consequence-framed header line — the tile states the "so what" once. */
+  /** Tight count line only — no editorial consequence copy. */
   headerLine: string
   emptyLabel: string
-  chips: OwnerMonitorChip[]
-  overflowCount: number
-  overflowChips: OwnerMonitorChip[]
-}
-
-export interface OwnerFocalSegment {
-  id: OwnerFocalSegmentId
-  text: string
-  severity: "neutral" | "monitor" | "urgent"
-  scrollTargetId: string
-}
-
-export interface OwnerFocalSummary {
-  segments: OwnerFocalSegment[]
-  allClear: boolean
+  rows: OwnerRankedRow[]
+  totalRowCount: number
+  viewAllHref?: string
+  /** When true, show header + view-all only (direct hours monitor). */
+  summaryOnly?: boolean
 }
 
 export interface OwnerDashboardData {
   monitorTiles: OwnerMonitorTile[]
-  focalSummary: OwnerFocalSummary
   payroll: PayPeriodHoursGapSummary & {
     daysUntilClose: number
     totalOnHoldHours: number
@@ -91,18 +86,10 @@ function noteItemToPopoverLine(item: NotesStatusItem): OwnerPopoverLine {
   }
 }
 
-function capChips(chips: OwnerMonitorChip[]): {
-  chips: OwnerMonitorChip[]
-  overflowCount: number
-  overflowChips: OwnerMonitorChip[]
-} {
-  if (chips.length <= OWNER_CHIP_CAP) {
-    return { chips, overflowCount: 0, overflowChips: [] }
-  }
+function capRows(rows: OwnerRankedRow[]): { rows: OwnerRankedRow[]; totalRowCount: number } {
   return {
-    chips: chips.slice(0, OWNER_CHIP_CAP),
-    overflowCount: chips.length - OWNER_CHIP_CAP,
-    overflowChips: chips.slice(OWNER_CHIP_CAP),
+    rows: rows.slice(0, OWNER_ROW_CAP),
+    totalRowCount: rows.length,
   }
 }
 
@@ -129,74 +116,11 @@ function totalOnHoldHours(payroll: PayPeriodHoursGapSummary): number {
     .reduce((sum, row) => sum + row.onHoldHours, 0)
 }
 
-function buildFocalSummary(options: {
-  notesOverdue: number
-  notesMissing: number
-  onHoldHours: number
-  authNearCapCount: number
-  authOverCapCount: number
-  directFlagCount: number
-}): OwnerFocalSummary {
-  const segments: OwnerFocalSegment[] = []
-
-  const incompleteNotes = options.notesOverdue + options.notesMissing
-  if (incompleteNotes > 0) {
-    const overduePart =
-      options.notesOverdue > 0
-        ? `${options.notesOverdue} note${options.notesOverdue === 1 ? "" : "s"} overdue`
-        : `${options.notesMissing} note${options.notesMissing === 1 ? "" : "s"} missing`
-    segments.push({
-      id: "notes",
-      text: overduePart,
-      severity: options.notesOverdue > 0 ? "urgent" : "monitor",
-      scrollTargetId: "owner-pillar-notes",
-    })
-  }
-
-  if (options.onHoldHours > 0) {
-    segments.push({
-      id: "payroll",
-      text: `${options.onHoldHours} hrs on hold this pay period`,
-      severity: "monitor",
-      scrollTargetId: "owner-pillar-payroll",
-    })
-  }
-
-  if (options.authOverCapCount > 0) {
-    segments.push({
-      id: "auth",
-      text: `${options.authOverCapCount} client${options.authOverCapCount === 1 ? "" : "s"} over auth cap`,
-      severity: "urgent",
-      scrollTargetId: "owner-pillar-auth",
-    })
-  } else if (options.authNearCapCount > 0) {
-    segments.push({
-      id: "auth",
-      text: `${options.authNearCapCount} client${options.authNearCapCount === 1 ? "" : "s"} near auth cap`,
-      severity: "monitor",
-      scrollTargetId: "owner-pillar-auth",
-    })
-  }
-
-  if (options.directFlagCount > 0) {
-    segments.push({
-      id: "direct",
-      text: `${options.directFlagCount} client${options.directFlagCount === 1 ? "" : "s"} under 50% direct`,
-      severity: "monitor",
-      scrollTargetId: "owner-pillar-direct",
-    })
-  }
-
-  if (segments.length === 0) {
-    segments.push({
-      id: "notes",
-      text: "All clear this morning — notes in, payroll ready, auth on track",
-      severity: "neutral",
-      scrollTargetId: "owner-pillar-notes",
-    })
-  }
-
-  return { segments, allClear: incompleteNotes === 0 && options.onHoldHours === 0 && options.authOverCapCount === 0 && options.authNearCapCount === 0 && options.directFlagCount === 0 }
+function notesHeaderLine(overdue: number, pending: number): string {
+  const parts: string[] = []
+  if (overdue > 0) parts.push(`${overdue} overdue`)
+  if (pending > 0) parts.push(`${pending} pending`)
+  return parts.join(" · ")
 }
 
 export async function getOwnerDashboardData(options: {
@@ -242,41 +166,62 @@ export async function getOwnerDashboardData(options: {
   const notesState: BcbaTileState =
     notes.totalOverdue > 0 ? "urgent" : staffWithNoteIssues.length > 0 ? "monitor" : "healthy"
 
-  const notesStaffCount = staffWithNoteIssues.length
-  const notesHeaderLine =
-    notesState === "healthy"
-      ? "All complete this pay period · billing and audit clear"
-      : `${notes.totalOverdue > 0 ? `${notes.totalOverdue} overdue` : `${notes.totalMissing} missing`}${notesStaffCount > 0 ? ` across ${notesStaffCount} staff` : ""} · blocks billing, fails audit, holds pay`
-
-  const notesChipCandidates: OwnerMonitorChip[] = staffWithNoteIssues.map((row) => {
-    const count = row.overdueCount > 0 ? row.overdueCount : row.missingCount
-    const bucket = row.overdueCount > 0 ? "overdue" : "missing"
+  const noteRowCandidates: OwnerRankedRow[] = staffWithNoteIssues.flatMap((row) => {
+    const rows: OwnerRankedRow[] = []
+    const name = firstName(row.staffName)
     const notesHref = row.staffExternalCode
       ? `${staffProfilePath(row.staffExternalCode)}/notes`
       : undefined
-    return {
-      id: row.staffId,
-      label: `${firstName(row.staffName)} · ${count} ${bucket}`,
-      popoverTitle: firstName(row.staffName),
-      popoverLines: [
-        ...(notesHref
-          ? [{ id: `${row.staffId}-notes`, text: "View all notes →", href: notesHref }]
-          : []),
-        ...row.items.map(noteItemToPopoverLine),
-      ],
+    const popoverLines: OwnerPopoverLine[] = [
+      ...(notesHref ? [{ id: `${row.staffId}-notes`, text: "View all notes →", href: notesHref }] : []),
+      ...row.items.map(noteItemToPopoverLine),
+    ]
+
+    if (row.overdueCount > 0) {
+      rows.push({
+        id: `${row.staffId}-overdue`,
+        label: `${name} — ${row.overdueCount} overdue`,
+        severity: "overdue",
+        magnitude: row.overdueCount,
+        href: notesHref,
+        popoverTitle: name,
+        popoverLines,
+      })
     }
+    if (row.missingCount > 0) {
+      rows.push({
+        id: `${row.staffId}-pending`,
+        label: `${name} — ${row.missingCount} pending`,
+        severity: "pending",
+        magnitude: row.missingCount,
+        href: notesHref,
+        popoverTitle: name,
+        popoverLines,
+      })
+    }
+    return rows
   })
-  const notesCapped = capChips(notesChipCandidates)
+
+  noteRowCandidates.sort(
+    (a, b) =>
+      (a.severity === "overdue" ? 0 : 1) - (b.severity === "overdue" ? 0 : 1) ||
+      b.magnitude - a.magnitude,
+  )
+
+  const notesCapped = capRows(noteRowCandidates)
 
   const notesTile: OwnerMonitorTile = {
     id: "notes",
     title: "Session notes",
     state: notesState,
-    headerLine: notesHeaderLine,
+    headerLine:
+      notesState === "healthy"
+        ? "0 overdue · 0 pending"
+        : notesHeaderLine(notes.totalOverdue, notes.totalMissing),
     emptyLabel: "All clear — every note is in for this pay period",
-    chips: notesCapped.chips,
-    overflowCount: notesCapped.overflowCount,
-    overflowChips: notesCapped.overflowChips,
+    rows: notesCapped.rows,
+    totalRowCount: notesCapped.totalRowCount,
+    viewAllHref: "/audit",
   }
 
   const authFlagged = sortAuthRunwayRows(
@@ -289,100 +234,88 @@ export async function getOwnerDashboardData(options: {
   if (authOverCap.length > 0) authState = "urgent"
   else if (authNearCap.length > 0) authState = "monitor"
 
-  const authHeaderLine =
-    authState === "healthy"
-      ? "All clients within cap · billing clear"
-      : authOverCap.length > 0
-        ? `${authOverCap.length} client${authOverCap.length === 1 ? "" : "s"} over cap · billing stopped`
-        : `${authNearCap.length} client${authNearCap.length === 1 ? "" : "s"} near cap · billing-stop risk`
+  const authRowCandidates: OwnerRankedRow[] = [
+    ...authOverCap.map((row) => ({
+      id: row.authId,
+      label: `${shortClientLabel(row.clientName)} — ${row.overHours} hrs over`,
+      severity: "over-cap" as const,
+      magnitude: row.overHours,
+      usedHours: row.usedHours,
+      authorizedHours: row.authorizedHours,
+      href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+      popoverTitle: shortClientLabel(row.clientName),
+      popoverLines: [
+        {
+          id: row.authId,
+          text: `${row.usedHours} hrs used of ${row.authorizedHours} authorized`,
+          href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+        },
+      ],
+    })),
+    ...authNearCap.map((row) => ({
+      id: row.authId,
+      label: `${shortClientLabel(row.clientName)} — ${row.hoursRemaining} hrs left`,
+      severity: "near-cap" as const,
+      magnitude: row.hoursRemaining,
+      usedHours: row.usedHours,
+      authorizedHours: row.authorizedHours,
+      href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+      popoverTitle: shortClientLabel(row.clientName),
+      popoverLines: [
+        {
+          id: row.authId,
+          text: `${row.hoursRemaining} hrs left of ${row.authorizedHours} authorized`,
+          href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+        },
+      ],
+    })),
+  ]
 
-  const authChipCandidates: OwnerMonitorChip[] = authFlagged.map((row) => ({
-    id: row.authId,
-    label:
-      row.usedHours > row.authorizedHours
-        ? `${shortClientLabel(row.clientName)} · ${row.overHours} hrs over`
-        : `${shortClientLabel(row.clientName)} · ${row.hoursRemaining} hrs left`,
-    popoverTitle: shortClientLabel(row.clientName),
-    popoverLines: [
-      {
-        id: row.authId,
-        text: `${row.hoursRemaining} hrs left of ${row.authorizedHours} authorized`,
-        href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-      },
-      {
-        id: `${row.authId}-used`,
-        text: `${row.usedHours} hrs used this month`,
-        href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-      },
-    ],
-  }))
-  const authCapped = capChips(authChipCandidates)
+  authRowCandidates.sort((a, b) => {
+    if (a.severity === "over-cap" && b.severity !== "over-cap") return -1
+    if (b.severity === "over-cap" && a.severity !== "over-cap") return 1
+    return b.magnitude - a.magnitude
+  })
+
+  const authCapped = capRows(authRowCandidates)
 
   const authTile: OwnerMonitorTile = {
     id: "auth",
     title: "Authorized hours",
     state: authState,
-    headerLine: authHeaderLine,
+    headerLine:
+      authState === "healthy"
+        ? "0 clients over cap"
+        : authOverCap.length > 0
+          ? `${authOverCap.length} client${authOverCap.length === 1 ? "" : "s"} over cap`
+          : `${authNearCap.length} client${authNearCap.length === 1 ? "" : "s"} near cap`,
     emptyLabel: "All clear — every client within authorized hours",
-    chips: authCapped.chips,
-    overflowCount: authCapped.overflowCount,
-    overflowChips: authCapped.overflowChips,
+    rows: authCapped.rows,
+    totalRowCount: authCapped.totalRowCount,
+    viewAllHref: "/clients",
   }
 
   const directFlagging = shouldFlagClientDirectEngagement()
   const directState: BcbaTileState =
     directFlagging && directFlags.length > 0 ? "monitor" : "healthy"
 
-  const directHeaderLine =
-    directState === "healthy"
-      ? "Direct engagement on track · monitor (month in progress)"
-      : `${directFlags.length} client${directFlags.length === 1 ? "" : "s"} under 50% direct · monitor (month in progress)`
-
-  const directChipCandidates: OwnerMonitorChip[] = directFlagging
-    ? directFlags.map((row) => ({
-        id: row.clientId,
-        label: `${row.clientLabel} · ${Math.round(row.directRatio * 100)}%`,
-        popoverTitle: row.clientLabel,
-        popoverLines: [
-          {
-            id: row.clientId,
-            text: `${row.directHours} direct hrs of ${row.authorizedHours} authorized`,
-            href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-          },
-          {
-            id: `${row.clientId}-pct`,
-            text: `${Math.round(row.directRatio * 100)}% direct engagement`,
-            href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-          },
-        ],
-      }))
-    : []
-
-  const directCapped = capChips(directChipCandidates)
-
   const directTile: OwnerMonitorTile = {
     id: "directHours",
     title: "Direct hours",
     state: directState,
-    headerLine: directHeaderLine,
+    headerLine:
+      directState === "healthy"
+        ? "Direct engagement on track · monitor (month in progress)"
+        : `${directFlags.length} client${directFlags.length === 1 ? "" : "s"} under 50% · monitor (month in progress)`,
     emptyLabel: "All clear — direct engagement on track this month",
-    chips: directCapped.chips,
-    overflowCount: directCapped.overflowCount,
-    overflowChips: directCapped.overflowChips,
+    rows: [],
+    totalRowCount: directFlagging ? directFlags.length : 0,
+    viewAllHref: "/clients",
+    summaryOnly: true,
   }
-
-  const focalSummary = buildFocalSummary({
-    notesOverdue: notes.totalOverdue,
-    notesMissing: notes.totalMissing,
-    onHoldHours: payroll.totalOnHoldHours,
-    authNearCapCount: authNearCap.length,
-    authOverCapCount: authOverCap.length,
-    directFlagCount: directFlagging ? directFlags.length : 0,
-  })
 
   return {
     monitorTiles: [notesTile, authTile, directTile],
-    focalSummary,
     payroll,
   }
 }

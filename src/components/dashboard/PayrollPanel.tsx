@@ -10,6 +10,8 @@ import {
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 import { OwnerDetailPopover } from "@/components/dashboard/OwnerDetailPopover"
+import { PayrollSplitBar, TILE_BODY } from "@/components/dashboard/OwnerRankedRows"
+import { P } from "@/pages/ClientOverviewPage/profileTokens"
 
 const TIER_FILTER_LABELS: Record<PayPeriodRoleTier, string> = {
   technician: "Technicians",
@@ -32,18 +34,11 @@ function PanelSkeleton() {
   return (
     <div className="animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
       <div className="h-5 w-48 rounded bg-line-soft" />
-      <div className="mt-2 h-4 w-full max-w-lg rounded bg-line-soft" />
+      <div className="mt-2 h-4 w-64 rounded bg-line-soft" />
       <div className="mt-3 h-8 w-full max-w-md rounded-full bg-line-soft" />
-      <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-3">
-        <div className="h-3 rounded bg-line-soft" />
-        <div className="h-3 w-16 rounded bg-line-soft" />
-        <div className="h-3 w-16 rounded bg-line-soft" />
+      <div className="mt-4 space-y-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="contents">
-            <div className="h-4 rounded bg-line-soft" />
-            <div className="h-4 rounded bg-line-soft" />
-            <div className="h-4 rounded bg-line-soft" />
-          </div>
+          <div key={i} className="h-8 rounded bg-line-soft" />
         ))}
       </div>
     </div>
@@ -77,9 +72,8 @@ export function PayrollPanel({
         <span className="text-[14px] text-muted">({closeContextLabel(payroll.daysUntilClose)})</span>
       </div>
 
-      <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
-        On-hold hours are sessions completed without a finished note — hold pay until documentation
-        is in. Payable hours are ready to run.
+      <p className="mt-1.5 text-[14px] leading-snug" style={{ color: P.amberInk }}>
+        Amber = on hold until notes are complete.
       </p>
 
       <div
@@ -108,43 +102,38 @@ export function PayrollPanel({
       </div>
 
       <div className="mt-4 w-full">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-4 gap-y-0 border-b border-line-soft pb-2">
-          <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
-            Name
-          </span>
-          <span className="text-right text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
-            Payable hours
-          </span>
-          <span className="text-right text-[12px] font-semibold uppercase tracking-[0.08em] text-muted">
-            On hold hours
-          </span>
-        </div>
-
-        <div className="divide-y divide-line-soft">
-          {tierDetail.staff.length === 0 ? (
-            <p className="py-3 text-[14px] text-muted">No staff in this group.</p>
-          ) : (
-            tierDetail.staff.map((row) => {
+        {tierDetail.staff.length === 0 ? (
+          <p className="py-3 text-[14px] text-muted">No staff in this group.</p>
+        ) : (
+          <ul className="space-y-0">
+            {tierDetail.staff.map((row, index) => {
               const nameHref = row.staffExternalCode
                 ? staffProfilePath(row.staffExternalCode)
                 : `/staff/${row.staffId}`
 
               return (
-                <div
+                <li
                   key={row.staffId}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-4 py-2"
+                  className="grid grid-cols-1 gap-2 py-3 sm:grid-cols-[minmax(0,140px)_1fr_auto] sm:items-center sm:gap-4"
+                  style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
                 >
                   <Link
                     to={nameHref}
-                    className="truncate text-[14px] font-medium text-ink transition-colors hover:text-brand"
+                    className={cn(TILE_BODY, "truncate font-medium hover:underline underline-offset-2")}
+                    style={{ color: P.ink }}
                   >
                     {firstName(row.staffName)}
                   </Link>
-                  <span className="text-right text-[14px] tabular-nums text-brand">
-                    {row.payableHours} hrs
-                  </span>
-                  {row.onHoldHours > 0 ? (
-                    <div className="text-right">
+
+                  <PayrollSplitBar
+                    payableHours={row.payableHours}
+                    onHoldHours={row.onHoldHours}
+                  />
+
+                  <div className={cn(TILE_BODY, "flex shrink-0 items-center gap-2 tabular-nums sm:justify-end")}>
+                    <span style={{ color: P.sageInk }}>{row.payableHours} payable</span>
+                    <span style={{ color: P.faint }}>·</span>
+                    {row.onHoldHours > 0 ? (
                       <OwnerDetailPopover
                         title={firstName(row.staffName)}
                         lines={row.onHoldSessions.map((session) => ({
@@ -157,22 +146,24 @@ export function PayrollPanel({
                         align="end"
                         ariaLabel={`${firstName(row.staffName)} on hold hours`}
                         trigger={
-                          <span className="text-[14px] font-semibold tabular-nums text-alert">
-                            {row.onHoldHours} hrs
-                          </span>
+                          <button
+                            type="button"
+                            className="font-semibold hover:underline underline-offset-2"
+                            style={{ color: P.amberInk }}
+                          >
+                            {row.onHoldHours} on hold
+                          </button>
                         }
                       />
-                    </div>
-                  ) : (
-                    <span className="text-right text-[14px] tabular-nums text-muted">
-                      0 hrs
-                    </span>
-                  )}
-                </div>
+                    ) : (
+                      <span style={{ color: P.faint }}>0 on hold</span>
+                    )}
+                  </div>
+                </li>
               )
-            })
-          )}
-        </div>
+            })}
+          </ul>
+        )}
       </div>
     </section>
   )
