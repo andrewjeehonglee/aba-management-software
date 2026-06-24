@@ -4,7 +4,7 @@
 **Demo login:** `demo@pulseaba.app` / `PulseDemo2026!`  
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
-**Branch:** `main` · **HEAD:** `79e9d86` (Session 35 log + verification audit) · **Feature HEAD:** `cefd6f5`  
+**Branch:** `main` · **HEAD:** `c05c7c1` (Session 35 capture complete) · **Feature HEAD:** `cefd6f5`  
 **Prior session HEAD:** `515d807` (Session 34 expanded morning log) · Morning feature HEAD: `63e5325`  
 **Transcript:** agent session `1ee2b0af-e3fb-4bb1-952e-e277eebf75b5`  
 **User sign-off:** Staff profile + Sessions page verified on Vercel — “it looks great” (evening close-out)
@@ -15,7 +15,7 @@
 
 Monday evening was a **Staff Profile product slice** and a new **practice-wide Sessions page** for Pulse ABA Management Software. Andrew rebuilt the staff overview page to mirror the client profile’s warm Pulse layout, iterated through five profile versions with user feedback, then shipped a Sessions calendar view with a searchable people panel.
 
-Work shipped in **11 feature commits + 2 log commits** (~19:33–20:53 PT), all pushed to `main`; Vercel auto-deploys. **No new Supabase SQL scripts** this evening — all changes are frontend + read helpers.
+Work shipped in **11 feature commits + 4 log commits** (~19:33–20:55 PT), all pushed to `main`; Vercel auto-deploys. **No new Supabase SQL scripts** this evening — all changes are frontend + read helpers.
 
 **Totals (`515d807` → `cefd6f5`):** 22 files touched · +2,517 / −392 lines · 4 new Sessions page files · 5 new Staff profile subcomponents · 1 new staff session notes page · 1 new scope lib · 2 new Supabase month-query helpers.
 
@@ -84,19 +84,20 @@ Work shipped in **11 feature commits + 2 log commits** (~19:33–20:53 PT), all 
 | `f635663` | ~20:53 | Session 35 log — `SESSIONS.md` + this file |
 | `cfbf905` | ~20:53 | Fix Session 35 log HEAD reference |
 | `79e9d86` | ~20:55 | Expand Session 35 log with triple-check verification audit |
+| `c05c7c1` | ~20:55 | Final Session 35 log HEAD sync — capture complete |
 
 ---
 
 ## Capture verification audit (triple-checked)
 
-Verified **Jun 23, 2026 ~20:54 PT** before close-out:
+Verified **Jun 23, 2026 ~20:55 PT** — final capture at **`c05c7c1`**:
 
 | Check | Result |
 |-------|--------|
 | Working tree clean | ✓ `git status` — nothing to commit |
-| Remote in sync | ✓ `main` pushed through `79e9d86` |
+| Remote in sync | ✓ `main` pushed through `c05c7c1` |
 | Feature commits accounted | ✓ All 11 commits `bfa1fac`→`cefd6f5` listed above with per-commit file manifest |
-| Log commits accounted | ✓ `f635663` + `cfbf905` + `79e9d86` |
+| Log commits accounted | ✓ `f635663` + `cfbf905` + `79e9d86` + `c05c7c1` |
 | File inventory vs git | ✓ `git diff --stat 515d807..cefd6f5` — **22 files**, +2517 / −392 lines (matches totals row) |
 | Every touched file named | ✓ See **Complete file inventory** below — all 22 paths cross-referenced |
 | Routes documented | ✓ `/staff/:staffId`, `/staff/:staffId/notes`, `/sessions`, `/roster` redirect |
