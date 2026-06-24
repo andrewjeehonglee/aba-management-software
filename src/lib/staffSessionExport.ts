@@ -104,6 +104,7 @@ export async function getStaffSessionExportBundle(
     return {
       sessionId: session.id,
       sessionAt: session.scheduled_at,
+      staffId,
       staffName: session.staff?.full_name ?? "Unknown",
       sessionType: session.session_type,
       status: session.status,

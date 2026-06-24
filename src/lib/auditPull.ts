@@ -3,6 +3,7 @@ import { supabase, type SessionNoteRecord } from "@/lib/supabase"
 export interface AuditNoteBundleItem {
   sessionId: string
   sessionAt: string
+  staffId: string
   staffName: string
   sessionType: string
   status: string
@@ -16,6 +17,7 @@ interface AuditSessionRow {
   scheduled_at: string
   session_type: string
   status: string
+  staff_id: string
   client_id: string
   clients: { first_name: string; last_name: string; external_code: string | null }
   staff: { full_name: string; team: string } | null
@@ -74,7 +76,7 @@ export async function getStaffAuditNotesBundle(
 
   const { data, error } = await supabase
     .from("sessions")
-    .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)")
+    .select("id, scheduled_at, session_type, status, staff_id, client_id, clients(first_name, last_name, external_code), staff(full_name, team)")
     .eq("staff_id", staffId)
     .gte("scheduled_at", start)
     .lte("scheduled_at", end)
@@ -106,6 +108,7 @@ export async function getStaffAuditNotesBundle(
   return sessions.map((row) => ({
     sessionId: row.id,
     sessionAt: row.scheduled_at,
+    staffId: row.staff_id,
     staffName: row.staff?.full_name ?? "Unknown",
     sessionType: row.session_type,
     status: row.status,
@@ -124,7 +127,7 @@ export async function getAuditNotesBundle(
 
   const { data, error } = await supabase
     .from("sessions")
-    .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)")
+    .select("id, scheduled_at, session_type, status, staff_id, client_id, clients(first_name, last_name, external_code), staff(full_name, team)")
     .eq("client_id", clientId)
     .gte("scheduled_at", start)
     .lte("scheduled_at", end)
@@ -156,6 +159,7 @@ export async function getAuditNotesBundle(
   return sessions.map((row) => ({
     sessionId: row.id,
     sessionAt: row.scheduled_at,
+    staffId: row.staff_id,
     staffName: row.staff?.full_name ?? "Unknown",
     sessionType: row.session_type,
     status: row.status,
@@ -163,4 +167,18 @@ export async function getAuditNotesBundle(
     clientName: clientDisplayName(row.clients),
     note: notesBySessionId.get(row.id) ?? null,
   }))
+}
+
+export async function getSessionIdsWithBehaviorIncidents(
+  sessionIds: string[],
+): Promise<Set<string>> {
+  if (sessionIds.length === 0) return new Set()
+
+  const { data, error } = await supabase
+    .from("behavior_incidents")
+    .select("session_id")
+    .in("session_id", sessionIds)
+
+  if (error) throw error
+  return new Set(((data ?? []) as { session_id: string }[]).map((row) => row.session_id))
 }

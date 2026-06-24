@@ -237,7 +237,7 @@ function App() {
           path="/audit"
           element={
             ["owner", "bcba", "supervisor"].includes(userRole.toLowerCase())
-              ? <AuditPullPage practiceId={practice.practice_id} />
+              ? <AuditPullPage practiceId={practice.practice_id} userRole={userRole} currentStaffId={currentStaffId} />
               : <Navigate to="/" replace />
           }
         />

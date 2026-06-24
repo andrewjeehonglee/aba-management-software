@@ -160,3 +160,110 @@ export function downloadTextFile(
   document.body.removeChild(anchor)
   URL.revokeObjectURL(url)
 }
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
+function buildSessionHtmlBlock(item: AuditNoteBundleItem): string {
+  const { date, time } = sessionStamp(item.sessionAt)
+  const when = time ? `${escapeHtml(date)} at ${escapeHtml(time)}` : escapeHtml(date)
+
+  const soapRows = item.note
+    ? (["Subjective", "Objective", "Assessment", "Plan"] as const).map((label, index) => {
+        const key = ["subjective", "objective", "assessment", "plan"][index] as keyof NonNullable<
+          typeof item.note
+        >
+        const value = item.note?.[key]?.trim() || "Not on file"
+        return `<tr><th>${label}</th><td>${escapeHtml(value).replace(/\n/g, "<br>")}</td></tr>`
+      }).join("")
+    : `<tr><td colspan="2"><em>No session note on file for this session.</em></td></tr>`
+
+  return `
+    <section class="session">
+      <h3>${when} · ${escapeHtml(item.staffName)} · ${escapeHtml(item.sessionType)}</h3>
+      <p class="meta">Status: ${escapeHtml(item.status)}</p>
+      <table>${soapRows}</table>
+    </section>
+  `
+}
+
+export function buildAuditPdfHtml(
+  clientCode: string,
+  clientName: string,
+  startDate: string,
+  endDate: string,
+  items: AuditNoteBundleItem[],
+): string {
+  const clientLabel = clientCode ? `${clientCode} — ${clientName}` : clientName
+  const sessionBlocks =
+    items.length === 0
+      ? "<p>No sessions in this date range.</p>"
+      : items.map((item) => buildSessionHtmlBlock(item)).join("")
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Audit packet — ${escapeHtml(clientLabel)}</title>
+  <style>
+    @page { margin: 0.75in; }
+    body {
+      font-family: "Hanken Grotesk", "Inter", sans-serif;
+      color: #2C2924;
+      font-size: 11pt;
+      line-height: 1.45;
+    }
+    h1 { font-size: 18pt; margin: 0 0 4px; }
+    .subtitle { color: #6B6459; margin: 0 0 20px; }
+    .session { page-break-inside: avoid; margin: 0 0 24px; padding-top: 12px; border-top: 1px solid #E2DACB; }
+    .session h3 { font-size: 12pt; margin: 0 0 6px; }
+    .meta { color: #6B6459; margin: 0 0 10px; font-size: 10pt; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { vertical-align: top; text-align: left; padding: 6px 8px 6px 0; }
+    th { width: 88px; color: #97907F; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.06em; }
+  </style>
+</head>
+<body>
+  <h1>Insurance audit packet</h1>
+  <p class="subtitle">Session notes bundle · Generated ${escapeHtml(formatGeneratedTimestamp())}</p>
+  <p><strong>Client:</strong> ${escapeHtml(clientLabel)}</p>
+  <p><strong>Date range:</strong> ${escapeHtml(startDate)} to ${escapeHtml(endDate)}</p>
+  <p><strong>Sessions:</strong> ${items.length}</p>
+  ${sessionBlocks}
+</body>
+</html>`
+}
+
+export function downloadAuditPdfPacket(
+  clientCode: string,
+  clientName: string,
+  startDate: string,
+  endDate: string,
+  items: AuditNoteBundleItem[],
+): void {
+  const html = buildAuditPdfHtml(clientCode, clientName, startDate, endDate, items)
+  const printWindow = window.open("", "_blank", "noopener,noreferrer")
+  if (!printWindow) return
+
+  printWindow.document.write(html)
+  printWindow.document.close()
+  printWindow.focus()
+  printWindow.onload = () => {
+    printWindow.print()
+  }
+}
+
+export function auditFilename(
+  clientCode: string,
+  startDate: string,
+  endDate: string,
+  ext: "txt" | "csv",
+): string {
+  const safeCode = clientCode.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "") || "client"
+  return `audit-${safeCode}-${startDate}-to-${endDate}.${ext}`
+}

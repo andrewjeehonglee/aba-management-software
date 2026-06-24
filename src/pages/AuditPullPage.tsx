@@ -1,32 +1,22 @@
 import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Link, useSearchParams } from "react-router-dom"
-import { Button } from "@/components/ui/button"
+import { AuditExportMenu } from "@/components/audit/AuditExportMenu"
+import { AuditReadinessSummary } from "@/components/audit/AuditReadinessSummary"
+import { AuditSessionList } from "@/components/audit/AuditSessionList"
+import { ClientSearchSelect } from "@/components/audit/ClientSearchSelect"
+import { getAuditScopedClients, type AuditClientEntry } from "@/lib/auditClients"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+  buildNoteBucketMap,
+  computeAuditReadiness,
+  sortAuditSessions,
+} from "@/lib/auditReadiness"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { SessionStatusBadge } from "@/components/SessionStatusBadge"
-import { getAuditNotesBundle, type AuditNoteBundleItem } from "@/lib/auditPull"
-import {
-  buildAuditCsvBundle,
-  buildAuditTextBundle,
-  downloadTextFile,
-} from "@/lib/auditExport"
-import { getRosterClients, type RosterClientEntry } from "@/lib/rosterScope"
-import { formatEventStamp } from "@/lib/sessions"
-import type { SessionStatus } from "@/types/session"
+  getAuditNotesBundle,
+  getSessionIdsWithBehaviorIncidents,
+  type AuditNoteBundleItem,
+} from "@/lib/auditPull"
+import { P, SECTION_LABEL, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 
 function formatDateInput(date: Date): string {
   const y = date.getFullYear()
@@ -35,94 +25,58 @@ function formatDateInput(date: Date): string {
   return `${y}-${m}-${d}`
 }
 
-function defaultDateRange(): { startDate: string; endDate: string } {
+function defaultDateRange(days: number): { startDate: string; endDate: string } {
   const end = new Date()
   const start = new Date()
-  start.setDate(start.getDate() - 13)
+  start.setDate(start.getDate() - (days - 1))
   return { startDate: formatDateInput(start), endDate: formatDateInput(end) }
 }
 
-function clientOptionLabel(client: RosterClientEntry): string {
-  if (client.displayName.toLowerCase() !== client.externalCode.toLowerCase()) {
-    return `${client.externalCode} — ${client.displayName}`
+type DatePreset = "30" | "90" | "auth" | "custom"
+
+const DATE_PRESETS: { id: Exclude<DatePreset, "custom">; label: string; days?: number }[] = [
+  { id: "30", label: "Last 30 days", days: 30 },
+  { id: "90", label: "Last 90 days", days: 90 },
+  { id: "auth", label: "This auth period" },
+]
+
+function presetForRange(
+  startDate: string,
+  endDate: string,
+  authStart: string | null,
+  authEnd: string | null,
+): DatePreset {
+  if (authStart && authEnd && startDate === authStart && endDate === authEnd) {
+    return "auth"
   }
-  return client.externalCode
+  for (const preset of DATE_PRESETS) {
+    if (!preset.days) continue
+    const range = defaultDateRange(preset.days)
+    if (range.startDate === startDate && range.endDate === endDate) return preset.id
+  }
+  return "custom"
 }
 
-type NoteBadgeKind = "on-file" | "missing" | "not-expected"
-
-function noteBadgeKind(item: AuditNoteBundleItem): NoteBadgeKind {
-  if (item.note) return "on-file"
-  if (item.status === "completed") return "missing"
-  return "not-expected"
-}
-
-const NOTE_BADGE_STYLES: Record<NoteBadgeKind, string> = {
-  "on-file": "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  missing: "bg-amber-50 text-amber-800 ring-amber-200",
-  "not-expected": "bg-muted text-muted-foreground ring-border",
-}
-
-const NOTE_BADGE_LABELS: Record<NoteBadgeKind, string> = {
-  "on-file": "Note on file",
-  missing: "Missing note",
-  "not-expected": "No note expected",
-}
-
-function soapPreviewLine(item: AuditNoteBundleItem): string | null {
-  if (!item.note) return null
-  const text = item.note.subjective.trim() || item.note.objective.trim()
-  if (!text) return null
-  return text.replace(/\s+/g, " ")
-}
-
-function auditFilename(clientCode: string, startDate: string, endDate: string, ext: "txt" | "csv"): string {
-  const safeCode = clientCode.replace(/[^a-zA-Z0-9_-]+/g, "-").replace(/^-|-$/g, "") || "client"
-  return `audit-${safeCode}-${startDate}-to-${endDate}.${ext}`
-}
-
-function SessionPreviewRow({ item }: { item: AuditNoteBundleItem }) {
-  const { date, time } = formatEventStamp(undefined, item.sessionAt)
-  const badgeKind = noteBadgeKind(item)
-  const preview = soapPreviewLine(item)
-
-  return (
-    <li className="rounded-lg border border-border bg-background px-3 py-3 space-y-2">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0 space-y-0.5">
-          <p className="text-sm font-medium text-foreground">
-            {time ? `${date} · ${time}` : date}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {item.staffName} · {item.sessionType}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <SessionStatusBadge status={item.status as SessionStatus} />
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ${NOTE_BADGE_STYLES[badgeKind]}`}
-          >
-            {NOTE_BADGE_LABELS[badgeKind]}
-          </span>
-        </div>
-      </div>
-      {preview && (
-        <p className="text-xs text-muted-foreground line-clamp-1">{preview}</p>
-      )}
-    </li>
-  )
-}
-
-export function AuditPullPage({ practiceId }: { practiceId: string }) {
+export function AuditPullPage({
+  practiceId,
+  userRole,
+  currentStaffId,
+}: {
+  practiceId: string
+  userRole?: string
+  currentStaffId?: string | null
+}) {
   const [searchParams] = useSearchParams()
   const presetClientId = searchParams.get("clientId") ?? ""
   const backHref = searchParams.get("from") ?? "/"
-  const defaults = useMemo(() => defaultDateRange(), [])
-  const [clients, setClients] = useState<RosterClientEntry[]>([])
+  const defaults = useMemo(() => defaultDateRange(30), [])
+
+  const [clients, setClients] = useState<AuditClientEntry[]>([])
   const [clientsLoading, setClientsLoading] = useState(true)
   const [clientsError, setClientsError] = useState<string | null>(null)
 
   const [clientId, setClientId] = useState("")
+  const [datePreset, setDatePreset] = useState<DatePreset>("30")
   const [startDate, setStartDate] = useState(defaults.startDate)
   const [endDate, setEndDate] = useState(defaults.endDate)
   const [formError, setFormError] = useState<string | null>(null)
@@ -130,6 +84,7 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
   const [pulling, setPulling] = useState(false)
   const [pullError, setPullError] = useState<string | null>(null)
   const [items, setItems] = useState<AuditNoteBundleItem[] | null>(null)
+  const [incidentSessionIds, setIncidentSessionIds] = useState<Set<string>>(new Set())
   const [pulledMeta, setPulledMeta] = useState<{
     clientCode: string
     clientName: string
@@ -137,19 +92,24 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
     endDate: string
   } | null>(null)
 
+  const selectedClient = clients.find((client) => client.id === clientId) ?? null
+  const authPeriodAvailable = Boolean(
+    selectedClient?.authStartDate && selectedClient?.authEndDate,
+  )
+
   useEffect(() => {
     let cancelled = false
     setClientsLoading(true)
     setClientsError(null)
 
-    getRosterClients(practiceId)
+    getAuditScopedClients(practiceId, userRole ?? "technician", currentStaffId ?? null)
       .then((rows) => {
         if (cancelled) return
         setClients(rows)
         if (rows.length > 0) {
           setClientId((current) => {
-            if (current) return current
-            if (presetClientId && rows.some((r) => r.id === presetClientId)) {
+            if (current && rows.some((row) => row.id === current)) return current
+            if (presetClientId && rows.some((row) => row.id === presetClientId)) {
               return presetClientId
             }
             return rows[0].id
@@ -167,14 +127,55 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
     return () => {
       cancelled = true
     }
-  }, [practiceId, presetClientId])
+  }, [practiceId, presetClientId, userRole, currentStaffId])
 
-  const missingNoteCount = useMemo(() => {
-    if (!items) return 0
-    return items.filter((item) => item.status === "completed" && !item.note).length
-  }, [items])
+  useEffect(() => {
+    if (datePreset !== "auth" || !selectedClient?.authStartDate || !selectedClient?.authEndDate) {
+      return
+    }
+    setStartDate(selectedClient.authStartDate)
+    setEndDate(selectedClient.authEndDate)
+  }, [clientId, datePreset, selectedClient?.authStartDate, selectedClient?.authEndDate])
 
-  const selectedClientCode = clients.find((c) => c.id === clientId)?.externalCode ?? ""
+  const activePreset = selectedClient
+    ? presetForRange(
+        startDate,
+        endDate,
+        selectedClient.authStartDate,
+        selectedClient.authEndDate,
+      )
+    : datePreset
+
+  const bucketMap = useMemo(
+    () => (items ? buildNoteBucketMap(items) : new Map()),
+    [items],
+  )
+
+  const readiness = useMemo(
+    () => (items ? computeAuditReadiness(items, bucketMap) : null),
+    [items, bucketMap],
+  )
+
+  const sortedItems = useMemo(
+    () => (items ? sortAuditSessions(items, bucketMap) : []),
+    [items, bucketMap],
+  )
+
+  function applyPreset(preset: Exclude<DatePreset, "custom">) {
+    setDatePreset(preset)
+    if (preset === "auth") {
+      if (selectedClient?.authStartDate && selectedClient?.authEndDate) {
+        setStartDate(selectedClient.authStartDate)
+        setEndDate(selectedClient.authEndDate)
+      }
+      return
+    }
+    const match = DATE_PRESETS.find((entry) => entry.id === preset)
+    if (!match?.days) return
+    const range = defaultDateRange(match.days)
+    setStartDate(range.startDate)
+    setEndDate(range.endDate)
+  }
 
   async function handlePull() {
     setFormError(null)
@@ -192,11 +193,16 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
     setPulling(true)
     setItems(null)
     setPulledMeta(null)
+    setIncidentSessionIds(new Set())
 
     try {
       const bundle = await getAuditNotesBundle(clientId, startDate, endDate)
-      const client = clients.find((c) => c.id === clientId)
+      const client = clients.find((entry) => entry.id === clientId)
+      const sessionIds = bundle.map((item) => item.sessionId)
+      const incidents = await getSessionIdsWithBehaviorIncidents(sessionIds)
+
       setItems(bundle)
+      setIncidentSessionIds(incidents)
       setPulledMeta({
         clientCode: client?.externalCode ?? bundle[0]?.clientCode ?? "",
         clientName: client?.displayName ?? bundle[0]?.clientName ?? "",
@@ -210,181 +216,221 @@ export function AuditPullPage({ practiceId }: { practiceId: string }) {
     }
   }
 
-  function handleDownloadTxt() {
-    if (!items || !pulledMeta) return
-    const content = buildAuditTextBundle(
-      pulledMeta.clientCode,
-      pulledMeta.clientName,
-      pulledMeta.startDate,
-      pulledMeta.endDate,
-      items,
-    )
-    downloadTextFile(
-      auditFilename(pulledMeta.clientCode, pulledMeta.startDate, pulledMeta.endDate, "txt"),
-      content,
-    )
-  }
-
-  function handleDownloadCsv() {
-    if (!items || !pulledMeta) return
-    const content = buildAuditCsvBundle(
-      pulledMeta.clientCode,
-      pulledMeta.startDate,
-      pulledMeta.endDate,
-      items,
-    )
-    downloadTextFile(
-      auditFilename(pulledMeta.clientCode, pulledMeta.startDate, pulledMeta.endDate, "csv"),
-      content,
-      "text/csv;charset=utf-8",
-    )
-  }
+  const backLabel = backHref.startsWith("/clients/") ? "Back to client profile" : "Dashboard"
 
   return (
-    <div className="min-h-svh bg-bg text-foreground flex flex-col items-center gap-6 p-4 pb-10">
-      <header className="flex w-full max-w-3xl items-center justify-between gap-4 pt-2">
+    <div className="min-h-svh px-6 py-6 sm:px-10" style={{ backgroundColor: P.bg, color: P.ink }}>
+      <div className="mx-auto w-full max-w-[1100px]">
         <Link
           to={backHref}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
+          style={{ color: P.soft }}
         >
           <ArrowLeft className="size-4" />
-          {backHref.startsWith("/clients/") ? "Back to client profile" : "Dashboard"}
+          {backLabel}
         </Link>
-      </header>
 
-      <div className="w-full max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            Audit pull
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Pick a client and date range to bundle session notes for an insurance audit.
+        <header className="mt-6">
+          <h1 className="text-[28px] font-semibold tracking-tight">Audit</h1>
+          <p className="mt-1.5 text-[16px]" style={{ color: P.soft }}>
+            Pull session notes for an insurance audit.
           </p>
-        </div>
+        </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Search</CardTitle>
-            <CardDescription>
-              Sessions in the range are listed with SOAP notes where available.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {clientsLoading && (
-              <p className="text-sm text-muted-foreground animate-pulse">Loading clients…</p>
-            )}
+        <section
+          className="mt-6 p-5"
+          style={{ backgroundColor: P.card, borderRadius: P.radius }}
+        >
+          <h2 className={TILE_TITLE} style={{ color: P.ink }}>
+            Pull controls
+          </h2>
 
-            {clientsError && (
-              <p className="text-sm text-red-600">{clientsError}</p>
-            )}
+          {clientsLoading && (
+            <p className="mt-4 text-[15px] animate-pulse" style={{ color: P.faint }}>
+              Loading clients…
+            </p>
+          )}
 
-            {!clientsLoading && !clientsError && clients.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                No active clients with roster codes. Import a roster first.
-              </p>
-            )}
+          {clientsError && (
+            <p className="mt-4 text-[14px]" style={{ color: P.cancel }}>
+              {clientsError}
+            </p>
+          )}
 
-            {!clientsLoading && !clientsError && clients.length > 0 && (
-              <>
-                <div className="space-y-1.5">
-                  <label htmlFor="audit-client" className="text-sm font-medium">
-                    Client
-                  </label>
-                  <Select
-                    value={selectedClientCode}
-                    onValueChange={(code) => {
-                      const client = clients.find((c) => c.externalCode === code)
-                      setClientId(client?.id ?? "")
-                    }}
+          {!clientsLoading && !clientsError && clients.length === 0 && (
+            <p className="mt-4 text-[15px]" style={{ color: P.soft }}>
+              No clients on your caseload with roster codes. Import a roster first.
+            </p>
+          )}
+
+          {!clientsLoading && !clientsError && clients.length > 0 && (
+            <div className="mt-4 space-y-5">
+              <ClientSearchSelect
+                clients={clients}
+                value={clientId}
+                onChange={setClientId}
+                disabled={pulling}
+              />
+
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`${SECTION_LABEL} mr-1`} style={{ color: P.faint }}>
+                    Date range
+                  </span>
+                  {DATE_PRESETS.map((preset) => {
+                    const selected = activePreset === preset.id
+                    const disabledPreset = preset.id === "auth" && !authPeriodAvailable
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        disabled={pulling || disabledPreset}
+                        onClick={() => applyPreset(preset.id)}
+                        className="rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+                        style={{
+                          backgroundColor: selected ? P.sageBg : P.inset,
+                          color: selected ? P.sageInk : P.soft,
+                          boxShadow: selected ? `inset 0 0 0 1px ${P.sage}` : undefined,
+                        }}
+                        title={
+                          disabledPreset
+                            ? "No authorization dates on file for this client"
+                            : undefined
+                        }
+                      >
+                        {preset.label}
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
                     disabled={pulling}
+                    onClick={() => setDatePreset("custom")}
+                    className="rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+                    style={{
+                      backgroundColor: activePreset === "custom" ? P.sageBg : P.inset,
+                      color: activePreset === "custom" ? P.sageInk : P.soft,
+                      boxShadow: activePreset === "custom" ? `inset 0 0 0 1px ${P.sage}` : undefined,
+                    }}
                   >
-                    <SelectTrigger id="audit-client" className="w-full">
-                      <SelectValue placeholder="Select client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.externalCode}>
-                          {clientOptionLabel(client)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    Custom
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label htmlFor="audit-start" className="text-sm font-medium">
-                      Start date
+                {(activePreset === "custom" || datePreset === "custom") && (
+                  <div className="mt-4 flex flex-wrap items-end gap-4">
+                    <label className="space-y-1">
+                      <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
+                        Start date
+                      </span>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => {
+                          setDatePreset("custom")
+                          setStartDate(e.target.value)
+                        }}
+                        disabled={pulling}
+                        className="rounded-lg border px-3 py-2 text-[15px]"
+                        style={{ borderColor: P.rule, backgroundColor: P.inset, color: P.ink }}
+                      />
                     </label>
-                    <Input
-                      id="audit-start"
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      disabled={pulling}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="audit-end" className="text-sm font-medium">
-                      End date
+                    <label className="space-y-1">
+                      <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
+                        End date
+                      </span>
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => {
+                          setDatePreset("custom")
+                          setEndDate(e.target.value)
+                        }}
+                        disabled={pulling}
+                        className="rounded-lg border px-3 py-2 text-[15px]"
+                        style={{ borderColor: P.rule, backgroundColor: P.inset, color: P.ink }}
+                      />
                     </label>
-                    <Input
-                      id="audit-end"
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      disabled={pulling}
-                    />
                   </div>
-                </div>
-
-                {(formError || pullError) && (
-                  <p className="text-sm text-red-600">{formError ?? pullError}</p>
                 )}
+              </div>
 
-                <Button type="button" onClick={handlePull} disabled={pulling}>
-                  {pulling ? "Pulling notes…" : "Pull notes"}
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {items !== null && pulledMeta && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {items.length} session{items.length === 1 ? "" : "s"}
-              </CardTitle>
-              <CardDescription>
-                {items.length === 0
-                  ? "No sessions in this date range."
-                  : missingNoteCount > 0
-                    ? `${missingNoteCount} completed session${missingNoteCount === 1 ? "" : "s"} missing notes.`
-                    : "All completed sessions have notes on file."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {items.length > 0 && (
-                <>
-                  <ul className="space-y-2">
-                    {items.map((item) => (
-                      <SessionPreviewRow key={item.sessionId} item={item} />
-                    ))}
-                  </ul>
-
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Button type="button" variant="outline" onClick={handleDownloadTxt}>
-                      Download .txt
-                    </Button>
-                    <Button type="button" variant="outline" onClick={handleDownloadCsv}>
-                      Download .csv
-                    </Button>
-                  </div>
-                </>
+              {(formError || pullError) && (
+                <p className="text-[14px]" style={{ color: P.cancel }}>
+                  {formError ?? pullError}
+                </p>
               )}
-            </CardContent>
-          </Card>
+
+              {startDate > endDate && (
+                <p className="text-[14px]" style={{ color: P.cancel }}>
+                  Start date must be on or before end date.
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handlePull}
+                disabled={pulling || startDate > endDate}
+                className="inline-flex rounded-full px-5 py-2.5 text-[15px] font-semibold text-white disabled:opacity-50"
+                style={{ backgroundColor: P.sage }}
+              >
+                {pulling ? "Pulling notes…" : "Pull notes"}
+              </button>
+            </div>
+          )}
+        </section>
+
+        {items === null && !pulling && (
+          <section
+            className="mt-6 p-5"
+            style={{ backgroundColor: P.card, borderRadius: P.radius }}
+          >
+            <p className="text-[15px]" style={{ color: P.soft }}>
+              Pick a client and date range to pull an audit bundle.
+            </p>
+          </section>
+        )}
+
+        {items !== null && pulledMeta && readiness && (
+          <div className="mt-6 space-y-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h2 className={TILE_TITLE} style={{ color: P.ink }}>
+                  Results
+                </h2>
+                <p className="mt-1 text-[14px]" style={{ color: P.soft }}>
+                  {pulledMeta.clientName}
+                  {pulledMeta.clientCode ? ` (${pulledMeta.clientCode})` : ""} ·{" "}
+                  {pulledMeta.startDate} to {pulledMeta.endDate}
+                </p>
+              </div>
+              <AuditExportMenu
+                clientCode={pulledMeta.clientCode}
+                clientName={pulledMeta.clientName}
+                startDate={pulledMeta.startDate}
+                endDate={pulledMeta.endDate}
+                items={sortedItems}
+              />
+            </div>
+
+            <AuditReadinessSummary stats={readiness} />
+
+            <section className="p-5" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
+              <h2 className={TILE_TITLE} style={{ color: P.ink }}>
+                Sessions
+              </h2>
+              <p className="mt-1 text-[13px]" style={{ color: P.faint }}>
+                Gaps appear first — expand a row for SOAP notes and signature status.
+              </p>
+              <div className="mt-3">
+                <AuditSessionList
+                  items={sortedItems}
+                  bucketMap={bucketMap}
+                  incidentSessionIds={incidentSessionIds}
+                />
+              </div>
+            </section>
+          </div>
         )}
       </div>
     </div>
