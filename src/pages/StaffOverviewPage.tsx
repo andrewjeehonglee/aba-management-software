@@ -26,7 +26,6 @@ import { unslug } from "@/lib/slug"
 import {
   getSessionNotesBySessionIds,
   getSessionsByStaffIdForMonth,
-  getSupervisionByStaffId,
   getSupervisionForStaffIds,
   supabase,
   type SessionNoteRecord,
@@ -95,9 +94,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
 
   const [staff, setStaff] = useState<StaffRecord | null>(null)
   const [resolvedRole, setResolvedRole] = useState<RosterStaffRole | null>(null)
-  const [supervision, setSupervision] = useState<SupervisionRecord | null>(null)
   const [caseloadSupervision, setCaseloadSupervision] = useState<SupervisionRecord[]>([])
-  const [supervisionMonthLabel, setSupervisionMonthLabel] = useState("")
   const [monthSessions, setMonthSessions] = useState<SessionRecord[]>([])
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
   const [monthLabel, setMonthLabel] = useState("")
@@ -213,12 +210,8 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         setSessionNotes(notes)
 
         if (isTechnicianRole(role)) {
-          const [supervisionRow, table] = await Promise.all([
-            getSupervisionByStaffId(entry.id),
-            getStaffClientTableForTechnician(entry.id),
-          ])
+          const table = await getStaffClientTableForTechnician(entry.id)
           if (cancelled) return
-          setSupervision(supervisionRow)
           setClientTable(table)
           setCaseloadSupervision([])
         } else if (isLeadershipRole(role)) {
@@ -233,9 +226,8 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
             ? await getSupervisionForStaffIds(btIds)
             : []
           const enriched = await enrichSupervisionForStaffIds(btIds, rawSupervision)
-          const { records, displayMonthLabel } = filterSupervisionRecordsForTile(enriched)
+          const { records } = filterSupervisionRecordsForTile(enriched)
           if (cancelled) return
-          setSupervision(null)
           setClientTable(table)
           setCaseloadSupervision(
             [...records].sort(
@@ -244,7 +236,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
                 a.staffName.localeCompare(b.staffName),
             ),
           )
-          setSupervisionMonthLabel(displayMonthLabel)
         }
       })
       .catch(() => {
@@ -265,7 +256,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
     ?? (staffRouteKey ? unslug(staffRouteKey) : "Unknown staff")
 
   const roleBadgeLabel = resolvedRole ? staffRoleHeaderLabel(resolvedRole) : null
-  const supervisionPanelMonth = supervisionMonthLabel || monthLabel
 
   if (dataLoading) {
     return (
@@ -330,7 +320,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         <div className="mt-6 flex flex-col gap-6">
           <div className="grid items-stretch gap-6 max-xl:grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)_360px]">
             <aside
-              className="h-full p-5"
+              className="min-h-0 h-full p-5"
               style={{ backgroundColor: P.card, borderRadius: P.radius }}
             >
               <h2 className={TILE_TITLE} style={{ color: P.ink }}>
@@ -351,7 +341,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
               </div>
             </aside>
 
-            <div className="flex h-full min-w-0">
+            <div className="flex h-full min-h-0 min-w-0">
               <SessionCalendarMonth
                 fillHeight
                 narrowBars
@@ -360,7 +350,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
               />
             </div>
 
-            <div className="self-stretch">
+            <div className="min-h-0 h-full">
               <StaffSessionNotesTile
                 staffRouteKey={staffRouteKey}
                 pendingCount={pendingCount}
@@ -375,8 +365,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
             role={resolvedRole}
             clientTable={clientTable}
             caseloadRecords={caseloadSupervision}
-            supervision={supervision}
-            monthLabel={supervisionPanelMonth}
           />
         </div>
       </div>

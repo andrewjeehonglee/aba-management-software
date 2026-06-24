@@ -58,75 +58,77 @@ export function StaffSessionNotesTile({
 
   return (
     <section
-      className="flex h-full flex-col p-5"
+      className="flex h-full min-h-0 flex-col overflow-hidden p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
-      <h2 className={TILE_TITLE} style={{ color: P.ink }}>
+      <h2 className={`${TILE_TITLE} shrink-0`} style={{ color: P.ink }}>
         Session notes
       </h2>
 
-      {hasIssues ? (
-        <Link
-          to={notesPath}
-          className="group mt-4 flex items-start justify-between gap-3 rounded-[14px] p-4 transition-colors hover:opacity-90"
-          style={{ backgroundColor: P.inset }}
-        >
-          <div className="min-w-0 space-y-1">
-            <p className={`${TILE_BODY} font-semibold`} style={{ color: P.ink }}>
-              My session notes
+      <div className="mt-4 shrink-0">
+        {hasIssues ? (
+          <Link
+            to={notesPath}
+            className="group flex items-start justify-between gap-3 rounded-[14px] p-4 transition-colors hover:opacity-90"
+            style={{ backgroundColor: P.inset }}
+          >
+            <div className="min-w-0 space-y-1">
+              <p className={`${TILE_BODY} font-semibold`} style={{ color: P.ink }}>
+                My session notes
+              </p>
+              <p className={`${TILE_BODY} tabular-nums`} style={{ color: P.soft }}>
+                {overdueCount > 0 && (
+                  <span style={{ color: P.cancel }}>
+                    {overdueCount} overdue
+                  </span>
+                )}
+                {overdueCount > 0 && pendingCount > 0 && (
+                  <span style={{ color: P.faint }}> · </span>
+                )}
+                {pendingCount > 0 && (
+                  <span style={{ color: P.amberInk }}>
+                    {pendingCount} pending
+                  </span>
+                )}
+              </p>
+              <p className={`${TILE_BODY} leading-snug`} style={{ color: P.faint }}>
+                View notes by client and date
+              </p>
+            </div>
+            <ChevronRight
+              className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
+              style={{ color: P.faint }}
+              aria-hidden="true"
+            />
+          </Link>
+        ) : (
+          <div
+            className="rounded-[14px] p-4"
+            style={{ backgroundColor: P.inset }}
+          >
+            <p className={`${TILE_BODY} font-semibold`} style={{ color: P.sageInk }}>
+              All notes complete
             </p>
-            <p className={`${TILE_BODY} tabular-nums`} style={{ color: P.soft }}>
-              {overdueCount > 0 && (
-                <span style={{ color: P.cancel }}>
-                  {overdueCount} overdue
-                </span>
-              )}
-              {overdueCount > 0 && pendingCount > 0 && (
-                <span style={{ color: P.faint }}> · </span>
-              )}
-              {pendingCount > 0 && (
-                <span style={{ color: P.amberInk }}>
-                  {pendingCount} pending
-                </span>
-              )}
-            </p>
-            <p className={`${TILE_BODY} leading-snug`} style={{ color: P.faint }}>
-              View notes by client and date
+            <p className={`mt-1 ${TILE_BODY}`} style={{ color: P.faint }}>
+              No overdue or pending session notes this pay period
             </p>
           </div>
-          <ChevronRight
-            className="size-4 shrink-0 transition-transform group-hover:translate-x-0.5"
-            style={{ color: P.faint }}
-            aria-hidden="true"
-          />
-        </Link>
-      ) : (
-        <div
-          className="mt-4 rounded-[14px] p-4"
-          style={{ backgroundColor: P.inset }}
-        >
-          <p className={`${TILE_BODY} font-semibold`} style={{ color: P.sageInk }}>
-            All notes complete
-          </p>
-          <p className={`mt-1 ${TILE_BODY}`} style={{ color: P.faint }}>
-            No overdue or pending session notes this pay period
-          </p>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="mt-4 min-h-0 flex-1">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col">
         <p
-          className="text-[12px] font-semibold uppercase tracking-[0.08em]"
+          className="shrink-0 text-[12px] font-semibold uppercase tracking-[0.08em]"
           style={{ color: P.faint }}
         >
           Last 7 days
         </p>
         {recentSessions.length === 0 ? (
-          <p className={`mt-3 ${TILE_BODY}`} style={{ color: P.soft }}>
+          <p className={`mt-3 shrink-0 ${TILE_BODY}`} style={{ color: P.soft }}>
             No sessions in the last 7 days.
           </p>
         ) : (
-          <ul className="mt-2">
+          <ul className="mt-2 min-h-0 flex-1 overflow-y-auto">
             {recentSessions.map((item, index) => {
               const { date, time } = formatEventStamp(undefined, item.sessionAt)
               const clientLabel = item.clientCode || item.clientName

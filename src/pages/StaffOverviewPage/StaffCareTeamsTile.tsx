@@ -3,7 +3,6 @@ import { Link } from "react-router-dom"
 import type { StaffClientTableRow } from "@/lib/clientAssignments"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 import type { RosterStaffRole } from "@/lib/staffRole"
-import { isLeadershipRole, isTechnicianRole } from "@/lib/staffRole"
 import {
   SUPERVISION_THRESHOLD,
   isSupervisionBelowRequirement,
@@ -14,12 +13,16 @@ import { P, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 /** Body copy — matches Staff details / calendar value size */
 const TILE_BODY = "text-[15px]"
 
+const ROLE_ROW_LABEL: Record<RosterStaffRole, string> = {
+  bcba: "BCBA",
+  supervisor: "Clinical Supervisor",
+  technician: "Technician",
+}
+
 interface StaffCareTeamsTileProps {
   role: RosterStaffRole
   clientTable: StaffClientTableRow[]
   caseloadRecords: SupervisionRecord[]
-  supervision: SupervisionRecord | null
-  monthLabel: string
 }
 
 function NameChip({ externalCode, name }: { externalCode: string; name: string }) {
@@ -34,97 +37,13 @@ function NameChip({ externalCode, name }: { externalCode: string; name: string }
   )
 }
 
-function SupervisionCornerFlag({
-  role,
-  caseloadRecords,
-  supervision,
-  monthLabel,
-}: {
-  role: RosterStaffRole
-  caseloadRecords: SupervisionRecord[]
-  supervision: SupervisionRecord | null
-  monthLabel: string
-}) {
-  if (isTechnicianRole(role)) {
-    if (!supervision || !isSupervisionBelowRequirement(supervision.supervisionPct)) {
-      return (
-        <p className={`${TILE_BODY} text-right font-medium`} style={{ color: P.sageInk }}>
-          Supervision ≥ {SUPERVISION_THRESHOLD}%
-        </p>
-      )
-    }
-    return (
-      <div className={`${TILE_BODY} max-w-[220px] text-right`}>
-        <p className="flex items-start justify-end gap-1 font-medium" style={{ color: P.cancel }}>
-          <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          My supervision below {SUPERVISION_THRESHOLD}%
-        </p>
-        {monthLabel && (
-          <p className="mt-0.5" style={{ color: P.soft }}>
-            {monthLabel}
-          </p>
-        )}
-        <p className="mt-0.5 tabular-nums font-semibold" style={{ color: P.cancel }}>
-          {supervision.supervisionPct.toFixed(1)}%
-        </p>
-      </div>
-    )
-  }
-
-  if (!isLeadershipRole(role)) return null
-
-  const flagged = caseloadRecords.filter((r) =>
-    isSupervisionBelowRequirement(r.supervisionPct),
-  )
-
-  if (flagged.length === 0) {
-    return (
-      <p className={`${TILE_BODY} text-right font-medium`} style={{ color: P.sageInk }}>
-        All technicians ≥ {SUPERVISION_THRESHOLD}%
-      </p>
-    )
-  }
-
-  const n = flagged.length
-  return (
-    <div className={`${TILE_BODY} max-w-[240px] text-right`}>
-      <p className="flex items-start justify-end gap-1 font-medium" style={{ color: P.cancel }}>
-        <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-        {n} technician{n === 1 ? "" : "s"} below {SUPERVISION_THRESHOLD}% supervision
-      </p>
-      {monthLabel && (
-        <p className="mt-0.5" style={{ color: P.soft }}>
-          {monthLabel}
-        </p>
-      )}
-      <ul className="mt-1 space-y-0.5">
-        {flagged.map((row) => (
-          <li key={row.staffId} className="tabular-nums" style={{ color: P.cancel }}>
-            {row.staffExternalCode ? (
-              <Link
-                to={staffProfilePath(row.staffExternalCode)}
-                className="font-medium hover:underline underline-offset-2"
-                style={{ color: P.cancel }}
-              >
-                {row.staffName}
-              </Link>
-            ) : (
-              <span className="font-medium">{row.staffName}</span>
-            )}
-            {" — "}
-            <span className="font-semibold">{row.supervisionPct.toFixed(1)}%</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
 function CareTeamCard({
   row,
+  pageRole,
   flaggedTechnicianIds,
 }: {
   row: StaffClientTableRow
+  pageRole: RosterStaffRole
   flaggedTechnicianIds: Set<string>
 }) {
   const techFlagged = Boolean(
@@ -143,7 +62,7 @@ function CareTeamCard({
       member: row.technician,
       warn: techFlagged,
     },
-  ]
+  ].filter((entry) => entry.label !== ROLE_ROW_LABEL[pageRole])
 
   return (
     <article
@@ -189,8 +108,6 @@ export function StaffCareTeamsTile({
   role,
   clientTable,
   caseloadRecords,
-  supervision,
-  monthLabel,
 }: StaffCareTeamsTileProps) {
   const flaggedTechnicianIds = new Set(
     caseloadRecords
@@ -198,22 +115,22 @@ export function StaffCareTeamsTile({
       .map((r) => r.staffId),
   )
 
+  const showTechnicianRow = role !== "technician"
+  const hasFlaggedMarker =
+    showTechnicianRow &&
+    clientTable.some(
+      (row) =>
+        row.technician && flaggedTechnicianIds.has(row.technician.staffId),
+    )
+
   return (
     <section
       className="p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
-      <div className="flex items-start justify-between gap-4">
-        <h2 className={`${TILE_TITLE} shrink-0`} style={{ color: P.ink }}>
-          Care teams
-        </h2>
-        <SupervisionCornerFlag
-          role={role}
-          caseloadRecords={caseloadRecords}
-          supervision={supervision}
-          monthLabel={monthLabel}
-        />
-      </div>
+      <h2 className={TILE_TITLE} style={{ color: P.ink }}>
+        Care teams
+      </h2>
 
       {clientTable.length === 0 ? (
         <div
@@ -228,9 +145,26 @@ export function StaffCareTeamsTile({
             <CareTeamCard
               key={row.clientId}
               row={row}
+              pageRole={role}
               flaggedTechnicianIds={flaggedTechnicianIds}
             />
           ))}
+        </div>
+      )}
+
+      {hasFlaggedMarker && (
+        <div
+          className="mt-3 flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3 text-[14px]"
+          style={{ borderColor: P.rule, color: P.soft }}
+        >
+          <span className="inline-flex items-center gap-2">
+            <AlertCircle
+              className="size-3.5 shrink-0"
+              style={{ color: P.cancel }}
+              aria-hidden="true"
+            />
+            Technician below {SUPERVISION_THRESHOLD}% supervision.
+          </span>
         </div>
       )}
     </section>
