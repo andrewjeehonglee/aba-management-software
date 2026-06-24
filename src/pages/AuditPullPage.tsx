@@ -183,41 +183,38 @@ export function AuditPullPage({
   }
 
   return (
-    <OwnerAppShell ownerName={ownerName} practiceName={practiceName} maxWidthClass="max-w-[1100px]">
-      <div className="owner-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+    <OwnerAppShell ownerName={ownerName} practiceName={practiceName} maxWidthClass="max-w-[1600px]">
+      <div className="flex min-h-0 flex-1 flex-col">
         <AppPageHeader
           title="Audit"
           subtitle="Pick a client and date range to pull session notes for an insurance audit."
         />
 
         <section
-          className="p-5"
+          className="p-6"
           style={{ backgroundColor: P.card, borderRadius: P.radius }}
         >
-          <h2 className={TILE_TITLE} style={{ color: P.ink }}>
-            Pull controls
-          </h2>
 
           {clientsLoading && (
-            <p className="mt-4 text-[15px] animate-pulse" style={{ color: P.faint }}>
+            <p className="text-[16px] animate-pulse" style={{ color: P.faint }}>
               Loading clients…
             </p>
           )}
 
           {clientsError && (
-            <p className="mt-4 text-[14px]" style={{ color: P.cancel }}>
+            <p className="text-[15px]" style={{ color: P.cancel }}>
               {clientsError}
             </p>
           )}
 
           {!clientsLoading && !clientsError && clients.length === 0 && (
-            <p className="mt-4 text-[15px]" style={{ color: P.soft }}>
+            <p className="text-[16px]" style={{ color: P.soft }}>
               No clients on your caseload with roster codes. Import a roster first.
             </p>
           )}
 
           {!clientsLoading && !clientsError && clients.length > 0 && (
-            <div className="mt-4 space-y-5">
+            <div className="space-y-6">
               <ClientSearchSelect
                 clients={clients}
                 value={clientId}
@@ -227,7 +224,7 @@ export function AuditPullPage({
 
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`${SECTION_LABEL} mr-1`} style={{ color: P.faint }}>
+                  <span className={`${SECTION_LABEL} mr-1 text-[13px]`} style={{ color: P.faint }}>
                     Date range
                   </span>
                   {DATE_PRESETS.map((preset) => {
@@ -238,7 +235,7 @@ export function AuditPullPage({
                         type="button"
                         disabled={pulling}
                         onClick={() => applyPreset(preset.id)}
-                        className="rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+                        className="rounded-full px-4 py-2 text-[15px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
                         style={{
                           backgroundColor: selected ? P.sageBg : P.inset,
                           color: selected ? P.sageInk : P.soft,
@@ -253,7 +250,7 @@ export function AuditPullPage({
                     type="button"
                     disabled={pulling}
                     onClick={() => setDatePreset("custom")}
-                    className="rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+                    className="rounded-full px-4 py-2 text-[15px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
                     style={{
                       backgroundColor: activePreset === "custom" ? P.sageBg : P.inset,
                       color: activePreset === "custom" ? P.sageInk : P.soft,
@@ -266,8 +263,8 @@ export function AuditPullPage({
 
                 {activePreset === "custom" && (
                   <div className="mt-4 flex flex-wrap items-end gap-4">
-                    <label className="space-y-1">
-                      <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
+                    <label className="space-y-1.5">
+                      <span className={`block ${SECTION_LABEL} text-[13px]`} style={{ color: P.faint }}>
                         Start date
                       </span>
                       <input
@@ -278,12 +275,12 @@ export function AuditPullPage({
                           setStartDate(e.target.value)
                         }}
                         disabled={pulling}
-                        className="rounded-lg border px-3 py-2 text-[15px]"
+                        className="rounded-lg border px-3 py-2.5 text-[16px]"
                         style={{ borderColor: P.rule, backgroundColor: P.inset, color: P.ink }}
                       />
                     </label>
-                    <label className="space-y-1">
-                      <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
+                    <label className="space-y-1.5">
+                      <span className={`block ${SECTION_LABEL} text-[13px]`} style={{ color: P.faint }}>
                         End date
                       </span>
                       <input
@@ -294,7 +291,7 @@ export function AuditPullPage({
                           setEndDate(e.target.value)
                         }}
                         disabled={pulling}
-                        className="rounded-lg border px-3 py-2 text-[15px]"
+                        className="rounded-lg border px-3 py-2.5 text-[16px]"
                         style={{ borderColor: P.rule, backgroundColor: P.inset, color: P.ink }}
                       />
                     </label>
@@ -303,13 +300,13 @@ export function AuditPullPage({
               </div>
 
               {(formError || pullError) && (
-                <p className="text-[14px]" style={{ color: P.cancel }}>
+                <p className="text-[15px]" style={{ color: P.cancel }}>
                   {formError ?? pullError}
                 </p>
               )}
 
               {startDate > endDate && (
-                <p className="text-[14px]" style={{ color: P.cancel }}>
+                <p className="text-[15px]" style={{ color: P.cancel }}>
                   Start date must be on or before end date.
                 </p>
               )}
@@ -318,7 +315,7 @@ export function AuditPullPage({
                 type="button"
                 onClick={handlePull}
                 disabled={pulling || startDate > endDate}
-                className="inline-flex rounded-full px-5 py-2.5 text-[15px] font-semibold text-white disabled:opacity-50"
+                className="inline-flex rounded-full px-6 py-3 text-[16px] font-semibold text-white disabled:opacity-50"
                 style={{ backgroundColor: P.sage }}
               >
                 {pulling ? "Pulling notes…" : "Pull notes"}
@@ -328,13 +325,13 @@ export function AuditPullPage({
         </section>
 
         {items !== null && pulledMeta && readiness && (
-          <div className="mt-6 space-y-6 pb-2">
+          <div className="owner-scroll mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto pb-2 pr-1">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className={TILE_TITLE} style={{ color: P.ink }}>
                   Results
                 </h2>
-                <p className="mt-1 text-[14px]" style={{ color: P.soft }}>
+                <p className="mt-1.5 text-[15px]" style={{ color: P.soft }}>
                   {pulledMeta.clientName}
                   {pulledMeta.clientCode ? ` (${pulledMeta.clientCode})` : ""} ·{" "}
                   {pulledMeta.startDate} to {pulledMeta.endDate}
@@ -351,11 +348,11 @@ export function AuditPullPage({
 
             <AuditReadinessSummary stats={readiness} />
 
-            <section className="p-5" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
+            <section className="p-6" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
               <h2 className={TILE_TITLE} style={{ color: P.ink }}>
                 Sessions
               </h2>
-              <p className="mt-1 text-[13px]" style={{ color: P.faint }}>
+              <p className="mt-1.5 text-[14px]" style={{ color: P.faint }}>
                 Gaps appear first — expand a row for SOAP notes and signature status.
               </p>
               <div className="mt-3">

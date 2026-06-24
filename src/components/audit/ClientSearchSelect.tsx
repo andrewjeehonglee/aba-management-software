@@ -55,12 +55,16 @@ export function ClientSearchSelect({
 
   return (
     <div ref={rootRef} className="relative">
-      <label htmlFor="audit-client-search" className={`block ${SECTION_LABEL} mb-1.5`} style={{ color: P.faint }}>
+      <label
+        htmlFor="audit-client-search"
+        className={`block ${SECTION_LABEL} mb-2 text-[13px]`}
+        style={{ color: P.faint }}
+      >
         Client
       </label>
       <div className="relative">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
+          className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2"
           style={{ color: P.faint }}
           aria-hidden
         />
@@ -75,7 +79,7 @@ export function ClientSearchSelect({
           }}
           onFocus={() => setOpen(true)}
           placeholder="Search by client name…"
-          className="w-full rounded-[12px] py-2.5 pl-9 pr-9 text-[15px] outline-none"
+          className="w-full rounded-[12px] py-3 pl-10 pr-10 text-[17px] outline-none"
           style={{
             backgroundColor: P.inset,
             color: P.ink,
@@ -91,11 +95,11 @@ export function ClientSearchSelect({
               onChange("")
               setOpen(true)
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 transition-opacity hover:opacity-80"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 transition-opacity hover:opacity-80"
             style={{ color: P.faint }}
             aria-label="Clear client search"
           >
-            <X className="size-4" />
+            <X className="size-[18px]" />
           </button>
         )}
       </div>
@@ -112,7 +116,7 @@ export function ClientSearchSelect({
               <li key={client.id} role="option" aria-selected={active}>
                 <button
                   type="button"
-                  className="flex w-full px-3 py-2.5 text-left text-[15px] transition-colors hover:opacity-90"
+                  className="flex w-full px-3.5 py-3 text-left text-[16px] transition-colors hover:opacity-90"
                   style={{
                     backgroundColor: active ? P.sageBg : undefined,
                     color: active ? P.sageInk : P.ink,
@@ -129,7 +133,7 @@ export function ClientSearchSelect({
 
       {open && !disabled && query && filtered.length === 0 && (
         <p
-          className="absolute z-20 mt-2 w-full rounded-[14px] px-3 py-2.5 text-[14px]"
+          className="absolute z-20 mt-2 w-full rounded-[14px] px-3.5 py-3 text-[15px]"
           style={{ backgroundColor: P.card, color: P.soft, boxShadow: `inset 0 0 0 1px ${P.rule}` }}
         >
           No clients match &ldquo;{query}&rdquo;
