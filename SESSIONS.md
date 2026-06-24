@@ -1947,43 +1947,60 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-## Session 36 — Pulse owner dashboard v2: ranked rows + split-bar payroll (Jun 24, 2026 morning)
+## Session 36 — Audit page rebuild + shell consistency + owner dashboard v2 (Jun 24, 2026 morning)
 
-**What landed:** **Owner Dashboard Revision v2** — unified visual language (ranked rows + magnitude bars), removed headline strip/chips/payroll table, **Pending/Overdue** terminology aligned with staff page. Commit `8b3208c` → Vercel auto-deploy.
+**What landed:** Three surfaces shipped on `main` with Vercel auto-deploy. **(1) Audit page (`/audit`)** — full rebuild around readiness-first audit bundles: search-first role-scoped client picker, date presets (30/90/custom), readiness hero, gap-sorted session drill-down with SOAP expand, txt/csv/PDF export, `OwnerAppShell` nav. **(2) Shell consistency** — shared `AppPageHeader` on Clients, Staff, Sessions, Audit; Staff header width/alignment fix. **(3) Owner dashboard** — v1 (focal strip + consequence pillars + payroll linkage) then **v2** (ranked rows + magnitude/utilization bars + split-bar payroll; strip/chips/table removed). Andrew verified Audit — “It looks great.” **Feature HEAD `8b3208c`.**
 
-**Detailed log:** `templates/SESSION_LOG_20260624_morning.md` · personal-os `session-logs/2026-06-24-aba-owner-dashboard-v2.md`
+**Detailed log:** `templates/SESSION_LOG_20260624_morning.md`
 
-### Five spec changes shipped
+### Audit page (`6a71b75` → `df9caaa`)
 
-1. **Remove headline strip** — greeting + date only; deleted `OwnerFocalSummaryStrip.tsx`
-2. **Strip filler copy** — tile headers = tight counts only
-3. **Pending / Overdue** — display "pending" not "missing" (matches staff page)
-4. **Ranked rows + bars** — notes (magnitude), auth (utilization), direct (summary + drill only)
-5. **Payroll split bars** — sage payable + amber on-hold; sorted by on-hold desc; role tabs kept
+- Readiness hero before session list; billable-session denominator; consequence-stated gaps
+- `auditClients.ts`, `auditReadiness.ts`, `auditExport` PDF packet
+- Components: `ClientSearchSelect`, `AuditReadinessSummary`, `AuditSessionList`, `AuditExportMenu`
+- Access: owner + BCBA + supervisor; technicians blocked
+- Nav shell + subtitle under title; no “Pull controls” heading; wider typography
 
-### Files
+### Shell headers (`6f777f3`, `e038eea`)
 
-| File | Change |
-|------|--------|
-| `OwnerRankedRows.tsx` | **NEW** |
-| `OwnerFocalSummaryStrip.tsx` | **Deleted** |
-| `OwnerDashboard.tsx` | Modified |
-| `OwnerMonitorTiles.tsx` | Modified |
-| `PayrollPanel.tsx` | Modified |
-| `ownerDashboardConcerns.ts` | Rewritten (`OwnerRankedRow` model) |
+- **NEW** `AppPageHeader.tsx` — unified title/subtitle on all four nav pages
+- Staff: `max-w-[1600px]`, header as direct shell child (matches Sessions/Audit)
 
-### Commits
+### Owner dashboard v1 → v2 (`a8cf323` → `8b3208c`)
+
+| v1 (intermediate) | v2 (current) |
+|---|---|
+| `OwnerFocalSummaryStrip` headline | Greeting + date only |
+| Chip tiles + URGENT labels | Ranked rows + bars |
+| Payroll table | Split bars (payable sage / on-hold amber) |
+| Consequence sentences in headers | Tight counts; Pending/Overdue terminology |
+
+- **NEW** `OwnerRankedRows.tsx`
+- **Deleted** `OwnerFocalSummaryStrip.tsx` (transient)
+
+### Commits (chronological, Jun 24 morning)
 
 | Hash | Message |
 |------|---------|
+| `6a71b75` | Rebuild audit page around readiness-first audit bundle workflow |
+| `4c130d6` | Add nav shell to audit page and simplify date presets |
+| `6f777f3` | Unify page title and subtitle styling across shell pages |
+| `a8cf323` | Revamp owner dashboard around documentation-first hierarchy |
+| `df9caaa` | Polish audit page layout and typography |
+| `e038eea` | Align Staff page header layout with Sessions and Audit |
 | `8b3208c` | Revise owner dashboard v2 around ranked rows and split-bar payroll |
+
+**Scope:** 21 product files (`aa2ba3b` → `8b3208c`); +1881 / −520 lines. **New:** 8 source files (6 audit + AppPageHeader + OwnerRankedRows). See `templates/SESSION_LOG_20260624_morning.md` for file manifest, smoke-check, and triple-check audit.
+
+### Open questions (Jenny)
+
+- Audit bundle: behavior incidents + trial data, or SOAP + signatures sufficient?
+- Direct hours under 50%: daily morning action vs period-end monitor?
 
 ### Not done / deferred
 
-- Full rewrite of `aba-owner-dashboard-design-locked.md` (v2 supersedes Jun 16 bubble layout for owner body)
-- Jenny Mode A share packaging (gate unlocked Jun 23 — Andrew to decide if v2 is share candidate)
-- Phase E: sessions mobile, client list badges
+- Signature fields in DB; auth-period audit preset; multi-client audit pull; dashboard design doc update for v2 layout
 
 ---
 
-*Last updated: Jun 24, 2026 (Session 36 — owner dashboard v2 ranked rows).*
+*Last updated: Jun 24, 2026 (Session 36 — complete morning capture: Audit + shell + dashboard v2).*
