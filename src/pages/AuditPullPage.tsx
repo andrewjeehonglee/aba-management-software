@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft } from "lucide-react"
-import { Link, useSearchParams } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import { AuditExportMenu } from "@/components/audit/AuditExportMenu"
 import { AuditReadinessSummary } from "@/components/audit/AuditReadinessSummary"
 import { AuditSessionList } from "@/components/audit/AuditSessionList"
 import { ClientSearchSelect } from "@/components/audit/ClientSearchSelect"
+import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
+import { useOwnerShell } from "@/hooks/useOwnerShell"
 import { getAuditScopedClients, type AuditClientEntry } from "@/lib/auditClients"
 import {
   buildNoteBucketMap,
@@ -32,25 +33,15 @@ function defaultDateRange(days: number): { startDate: string; endDate: string } 
   return { startDate: formatDateInput(start), endDate: formatDateInput(end) }
 }
 
-type DatePreset = "30" | "90" | "auth" | "custom"
+type DatePreset = "30" | "90" | "custom"
 
-const DATE_PRESETS: { id: Exclude<DatePreset, "custom">; label: string; days?: number }[] = [
+const DATE_PRESETS: { id: Exclude<DatePreset, "custom">; label: string; days: number }[] = [
   { id: "30", label: "Last 30 days", days: 30 },
   { id: "90", label: "Last 90 days", days: 90 },
-  { id: "auth", label: "This auth period" },
 ]
 
-function presetForRange(
-  startDate: string,
-  endDate: string,
-  authStart: string | null,
-  authEnd: string | null,
-): DatePreset {
-  if (authStart && authEnd && startDate === authStart && endDate === authEnd) {
-    return "auth"
-  }
+function presetForRange(startDate: string, endDate: string): DatePreset {
   for (const preset of DATE_PRESETS) {
-    if (!preset.days) continue
     const range = defaultDateRange(preset.days)
     if (range.startDate === startDate && range.endDate === endDate) return preset.id
   }
@@ -66,9 +57,9 @@ export function AuditPullPage({
   userRole?: string
   currentStaffId?: string | null
 }) {
+  const { ownerName, practiceName } = useOwnerShell(practiceId, userRole)
   const [searchParams] = useSearchParams()
   const presetClientId = searchParams.get("clientId") ?? ""
-  const backHref = searchParams.get("from") ?? "/"
   const defaults = useMemo(() => defaultDateRange(30), [])
 
   const [clients, setClients] = useState<AuditClientEntry[]>([])
@@ -91,11 +82,6 @@ export function AuditPullPage({
     startDate: string
     endDate: string
   } | null>(null)
-
-  const selectedClient = clients.find((client) => client.id === clientId) ?? null
-  const authPeriodAvailable = Boolean(
-    selectedClient?.authStartDate && selectedClient?.authEndDate,
-  )
 
   useEffect(() => {
     let cancelled = false
@@ -129,22 +115,8 @@ export function AuditPullPage({
     }
   }, [practiceId, presetClientId, userRole, currentStaffId])
 
-  useEffect(() => {
-    if (datePreset !== "auth" || !selectedClient?.authStartDate || !selectedClient?.authEndDate) {
-      return
-    }
-    setStartDate(selectedClient.authStartDate)
-    setEndDate(selectedClient.authEndDate)
-  }, [clientId, datePreset, selectedClient?.authStartDate, selectedClient?.authEndDate])
-
-  const activePreset = selectedClient
-    ? presetForRange(
-        startDate,
-        endDate,
-        selectedClient.authStartDate,
-        selectedClient.authEndDate,
-      )
-    : datePreset
+  const activePreset: DatePreset =
+    datePreset === "custom" ? "custom" : presetForRange(startDate, endDate)
 
   const bucketMap = useMemo(
     () => (items ? buildNoteBucketMap(items) : new Map()),
@@ -163,15 +135,8 @@ export function AuditPullPage({
 
   function applyPreset(preset: Exclude<DatePreset, "custom">) {
     setDatePreset(preset)
-    if (preset === "auth") {
-      if (selectedClient?.authStartDate && selectedClient?.authEndDate) {
-        setStartDate(selectedClient.authStartDate)
-        setEndDate(selectedClient.authEndDate)
-      }
-      return
-    }
     const match = DATE_PRESETS.find((entry) => entry.id === preset)
-    if (!match?.days) return
+    if (!match) return
     const range = defaultDateRange(match.days)
     setStartDate(range.startDate)
     setEndDate(range.endDate)
@@ -216,24 +181,15 @@ export function AuditPullPage({
     }
   }
 
-  const backLabel = backHref.startsWith("/clients/") ? "Back to client profile" : "Dashboard"
-
   return (
-    <div className="min-h-svh px-6 py-6 sm:px-10" style={{ backgroundColor: P.bg, color: P.ink }}>
-      <div className="mx-auto w-full max-w-[1100px]">
-        <Link
-          to={backHref}
-          className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
-          style={{ color: P.soft }}
-        >
-          <ArrowLeft className="size-4" />
-          {backLabel}
-        </Link>
-
-        <header className="mt-6">
-          <h1 className="text-[28px] font-semibold tracking-tight">Audit</h1>
+    <OwnerAppShell ownerName={ownerName} practiceName={practiceName} maxWidthClass="max-w-[1100px]">
+      <div className="owner-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
+        <header className="shrink-0">
+          <h1 className="text-[28px] font-semibold tracking-tight" style={{ color: P.ink }}>
+            Audit
+          </h1>
           <p className="mt-1.5 text-[16px]" style={{ color: P.soft }}>
-            Pull session notes for an insurance audit.
+            Pick a client and date range to pull session notes for an insurance audit.
           </p>
         </header>
 
@@ -279,12 +235,11 @@ export function AuditPullPage({
                   </span>
                   {DATE_PRESETS.map((preset) => {
                     const selected = activePreset === preset.id
-                    const disabledPreset = preset.id === "auth" && !authPeriodAvailable
                     return (
                       <button
                         key={preset.id}
                         type="button"
-                        disabled={pulling || disabledPreset}
+                        disabled={pulling}
                         onClick={() => applyPreset(preset.id)}
                         className="rounded-full px-3.5 py-1.5 text-[14px] font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
                         style={{
@@ -292,11 +247,6 @@ export function AuditPullPage({
                           color: selected ? P.sageInk : P.soft,
                           boxShadow: selected ? `inset 0 0 0 1px ${P.sage}` : undefined,
                         }}
-                        title={
-                          disabledPreset
-                            ? "No authorization dates on file for this client"
-                            : undefined
-                        }
                       >
                         {preset.label}
                       </button>
@@ -317,7 +267,7 @@ export function AuditPullPage({
                   </button>
                 </div>
 
-                {(activePreset === "custom" || datePreset === "custom") && (
+                {activePreset === "custom" && (
                   <div className="mt-4 flex flex-wrap items-end gap-4">
                     <label className="space-y-1">
                       <span className={`block ${SECTION_LABEL}`} style={{ color: P.faint }}>
@@ -380,19 +330,8 @@ export function AuditPullPage({
           )}
         </section>
 
-        {items === null && !pulling && (
-          <section
-            className="mt-6 p-5"
-            style={{ backgroundColor: P.card, borderRadius: P.radius }}
-          >
-            <p className="text-[15px]" style={{ color: P.soft }}>
-              Pick a client and date range to pull an audit bundle.
-            </p>
-          </section>
-        )}
-
         {items !== null && pulledMeta && readiness && (
-          <div className="mt-6 space-y-6">
+          <div className="mt-6 space-y-6 pb-2">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h2 className={TILE_TITLE} style={{ color: P.ink }}>
@@ -433,6 +372,6 @@ export function AuditPullPage({
           </div>
         )}
       </div>
-    </div>
+    </OwnerAppShell>
   )
 }
