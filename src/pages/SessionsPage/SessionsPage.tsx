@@ -4,7 +4,6 @@ import { useOwnerShell } from "@/hooks/useOwnerShell"
 import {
   filterPanelBySearch,
   loadSessionsPagePanelData,
-  type SessionsClientEntry,
   type SessionsPerson,
 } from "@/lib/sessionsPageScope"
 import {
@@ -25,32 +24,6 @@ import {
   type CalendarColorMode,
 } from "@/pages/SessionsPage/sessionsCalendarUtils"
 
-const RECENT_CLIENTS_KEY = "pulse-sessions-recent-clients"
-const MAX_RECENT = 5
-
-function loadRecentClientIds(): string[] {
-  try {
-    const raw = localStorage.getItem(RECENT_CLIENTS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : []
-  } catch {
-    return []
-  }
-}
-
-function saveRecentClientIds(ids: string[]) {
-  try {
-    localStorage.setItem(RECENT_CLIENTS_KEY, JSON.stringify(ids.slice(0, MAX_RECENT)))
-  } catch {
-    // ignore quota errors
-  }
-}
-
-function pushRecentClient(ids: string[], clientId: string): string[] {
-  return [clientId, ...ids.filter((id) => id !== clientId)].slice(0, MAX_RECENT)
-}
-
 export function SessionsPage({
   practiceId,
   userRole,
@@ -63,12 +36,13 @@ export function SessionsPage({
   const { ownerName, practiceName } = useOwnerShell(practiceId, userRole)
 
   const [panelLoading, setPanelLoading] = useState(true)
-  const [clients, setClients] = useState<SessionsClientEntry[]>([])
+  const [clients, setClients] = useState<
+    Awaited<ReturnType<typeof loadSessionsPagePanelData>>["clients"]
+  >([])
   const [staffGroups, setStaffGroups] = useState<
     Awaited<ReturnType<typeof loadSessionsPagePanelData>>["staffGroups"]
   >([])
   const [hidePanel, setHidePanel] = useState(false)
-  const [recentClientIds, setRecentClientIds] = useState<string[]>(() => loadRecentClientIds())
 
   const [panelTab, setPanelTab] = useState<PanelTab>("clients")
   const [searchQuery, setSearchQuery] = useState("")
@@ -110,19 +84,6 @@ export function SessionsPage({
   const filtered = useMemo(
     () => filterPanelBySearch(clients, staffGroups, searchQuery),
     [clients, staffGroups, searchQuery],
-  )
-
-  const clientById = useMemo(
-    () => new Map(clients.map((c) => [c.id, c])),
-    [clients],
-  )
-
-  const recentClients = useMemo(
-    () =>
-      recentClientIds
-        .map((id) => clientById.get(id))
-        .filter((c): c is SessionsClientEntry => c != null),
-    [recentClientIds, clientById],
   )
 
   const viewKind = selected?.kind ?? "client"
@@ -170,21 +131,7 @@ export function SessionsPage({
     setSelected(person)
     setColorModeOverride(null)
     setPanelTab(person.kind === "client" ? "clients" : "staff")
-
-    if (person.kind === "client") {
-      setRecentClientIds((prev) => {
-        const next = pushRecentClient(prev, person.id)
-        saveRecentClientIds(next)
-        return next
-      })
-    }
   }
-
-  const selectedLabel = selected
-    ? selected.kind === "client"
-      ? `Client · ${selected.label}`
-      : `Staff · ${selected.label}`
-    : undefined
 
   return (
     <OwnerAppShell
@@ -219,7 +166,6 @@ export function SessionsPage({
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               clients={filtered.clients}
-              recentClients={recentClients}
               staffGroups={filtered.staffGroups}
               selected={selected}
               onSelect={handleSelect}
@@ -237,7 +183,7 @@ export function SessionsPage({
           onAnchorDateChange={setAnchorDate}
           loading={sessionsLoading}
           empty={!selected}
-          selectedLabel={selectedLabel}
+          showColorBy={Boolean(selected)}
         />
       </div>
     </OwnerAppShell>

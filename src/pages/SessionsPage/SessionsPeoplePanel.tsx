@@ -15,7 +15,6 @@ interface SessionsPeoplePanelProps {
   searchQuery: string
   onSearchChange: (query: string) => void
   clients: SessionsClientEntry[]
-  recentClients: SessionsClientEntry[]
   staffGroups: SessionsStaffGroup[]
   selected: SessionsPerson | null
   onSelect: (person: SessionsPerson) => void
@@ -58,13 +57,19 @@ function ClientRowButton({
         }}
       >
         <span className="block text-[15px]">{client.code}</span>
-        {client.displayName.toLowerCase() !== client.code.toLowerCase() && (
-          <span className="block truncate text-[13px]" style={{ color: P.soft }}>
-            {client.displayName}
-          </span>
-        )}
       </button>
     </li>
+  )
+}
+
+function StaffRoleHeader({ label }: { label: string }) {
+  return (
+    <div
+      className="mb-1 rounded-[8px] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.1em]"
+      style={{ backgroundColor: P.inset, color: P.soft }}
+    >
+      {label}
+    </div>
   )
 }
 
@@ -74,15 +79,10 @@ export function SessionsPeoplePanel({
   searchQuery,
   onSearchChange,
   clients,
-  recentClients,
   staffGroups,
   selected,
   onSelect,
 }: SessionsPeoplePanelProps) {
-  const showRecent = tab === "clients" && !searchQuery.trim() && recentClients.length > 0
-  const recentIds = new Set(recentClients.map((c) => c.id))
-  const alphabeticalClients = clients.filter((c) => !showRecent || !recentIds.has(c.id))
-
   return (
     <aside
       className="flex min-h-0 w-full shrink-0 flex-col lg:w-[300px]"
@@ -149,58 +149,19 @@ export function SessionsPeoplePanel({
         {tab === "clients" ? (
           clients.length === 0 ? (
             <p className="px-2 py-6 text-center text-[15px]" style={{ color: P.soft }}>
-              No clients in your scope.
+              {searchQuery.trim() ? "No clients match your search." : "No clients in your scope."}
             </p>
           ) : (
-            <div className="space-y-4">
-              {showRecent && (
-                <section>
-                  <p
-                    className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-[0.07em]"
-                    style={{ color: P.faint }}
-                  >
-                    Recent
-                  </p>
-                  <ul className="space-y-0.5">
-                    {recentClients.map((client) => (
-                      <ClientRowButton
-                        key={`recent-${client.id}`}
-                        client={client}
-                        selected={selected}
-                        onSelect={onSelect}
-                      />
-                    ))}
-                  </ul>
-                </section>
-              )}
-
-              <section>
-                {!searchQuery.trim() && (
-                  <p
-                    className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-[0.07em]"
-                    style={{ color: P.faint }}
-                  >
-                    A–Z
-                  </p>
-                )}
-                {searchQuery.trim() && alphabeticalClients.length === 0 && recentClients.length === 0 ? (
-                  <p className="px-2 py-4 text-center text-[15px]" style={{ color: P.soft }}>
-                    No clients match your search.
-                  </p>
-                ) : (
-                  <ul className="space-y-0.5">
-                    {(searchQuery.trim() ? clients : alphabeticalClients).map((client) => (
-                      <ClientRowButton
-                        key={client.id}
-                        client={client}
-                        selected={selected}
-                        onSelect={onSelect}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </section>
-            </div>
+            <ul className="space-y-0.5">
+              {clients.map((client) => (
+                <ClientRowButton
+                  key={client.id}
+                  client={client}
+                  selected={selected}
+                  onSelect={onSelect}
+                />
+              ))}
+            </ul>
           )
         ) : staffGroups.length === 0 ? (
           <p className="px-2 py-6 text-center text-[15px]" style={{ color: P.soft }}>
@@ -210,12 +171,7 @@ export function SessionsPeoplePanel({
           <div className="space-y-4">
             {staffGroups.map((group) => (
               <section key={group.role}>
-                <p
-                  className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-[0.07em]"
-                  style={{ color: P.faint }}
-                >
-                  {group.roleLabel}
-                </p>
+                <StaffRoleHeader label={group.roleLabel} />
                 <ul className="space-y-0.5">
                   {group.members.map((member) => {
                     const active = isSelected(selected, "staff", member.id)
@@ -241,7 +197,7 @@ export function SessionsPeoplePanel({
                             boxShadow: active ? `inset 0 0 0 1px ${P.sage}` : undefined,
                           }}
                         >
-                          <span className="block text-[15px]">{member.fullName}</span>
+                          <span className="block text-[15px] font-normal">{member.fullName}</span>
                         </button>
                       </li>
                     )

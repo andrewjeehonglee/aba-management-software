@@ -33,7 +33,7 @@ export interface SessionsPagePanelData {
 
 const STAFF_ROLE_LABELS: Record<"bcba" | "supervisor" | "technician", string> = {
   bcba: "BCBA",
-  supervisor: "Supervisor",
+  supervisor: "Clinical Supervisor",
   technician: "Technician",
 }
 

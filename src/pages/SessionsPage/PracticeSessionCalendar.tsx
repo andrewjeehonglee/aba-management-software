@@ -28,7 +28,7 @@ interface PracticeSessionCalendarProps {
   onAnchorDateChange: (date: Date) => void
   loading?: boolean
   empty?: boolean
-  selectedLabel?: string
+  showColorBy?: boolean
 }
 
 function ColorByToggle({
@@ -123,7 +123,7 @@ export function PracticeSessionCalendar({
   onAnchorDateChange,
   loading = false,
   empty = false,
-  selectedLabel,
+  showColorBy = false,
 }: PracticeSessionCalendarProps) {
   const todayISO = localISO(new Date())
   const notesBySessionId = useMemo(
@@ -153,20 +153,20 @@ export function PracticeSessionCalendar({
     return (
       <div
         key={iso}
-        className="flex h-full min-h-[52px] flex-col rounded-md p-1.5"
+        className="relative flex h-full min-h-[52px] items-center justify-center rounded-md"
         style={{
           backgroundColor: hasScheduled ? P.calScheduledTint : undefined,
           boxShadow: isToday ? `inset 0 0 0 2px ${P.sage}` : undefined,
         }}
       >
         <span
-          className="shrink-0 text-[18px] font-semibold tabular-nums leading-none"
+          className="text-[18px] font-semibold tabular-nums leading-none"
           style={{ color: isToday ? P.sageInk : daySessions.length ? P.ink : P.faint }}
         >
           {day.getDate()}
         </span>
         {daySessions.length > 0 && (
-          <div className="mt-1 min-h-0 flex-1 space-y-0.5 overflow-hidden">
+          <div className="absolute inset-x-1 bottom-1 space-y-0.5">
             {daySessions.map((session) => (
               <SessionChip
                 key={session.id}
@@ -188,22 +188,11 @@ export function PracticeSessionCalendar({
       className="flex h-full min-h-0 min-w-0 flex-1 flex-col p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius, boxShadow: "0 1px 2px rgba(44,41,36,0.04)" }}
     >
-      <div className="flex shrink-0 items-start justify-between gap-3">
-        <div className="min-w-0">
-          {selectedLabel ? (
-            <p className="text-[15px] font-semibold" style={{ color: P.ink }}>
-              {selectedLabel}
-            </p>
-          ) : (
-            <p className="text-[15px]" style={{ color: P.soft }}>
-              No one selected
-            </p>
-          )}
-        </div>
-        {!empty && selectedLabel && (
+      {showColorBy && (
+        <div className="flex shrink-0 justify-end">
           <ColorByToggle colorMode={colorMode} onChange={onColorModeChange} />
-        )}
-      </div>
+        </div>
+      )}
 
       {empty ? (
         <div
