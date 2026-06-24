@@ -6,9 +6,12 @@ import { clientProfilePath } from "@/lib/rosterScope"
 import { formatEventStamp } from "@/lib/sessions"
 import { P, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 
+/** Body copy — matches Staff details / calendar value size */
+const TILE_BODY = "text-[15px]"
+
 interface StaffSessionNotesTileProps {
   staffRouteKey: string
-  missingCount: number
+  pendingCount: number
   overdueCount: number
   recentSessions: AuditNoteBundleItem[]
   dueItems: NotesStatusItem[]
@@ -35,20 +38,20 @@ function sessionBadge(
     if (bucket === "overdue") {
       return { label: "Overdue", bg: "#F5D5CE", ink: P.cancel }
     }
-    return { label: "Missing", bg: P.amberBg, ink: P.amberInk }
+    return { label: "Pending", bg: P.amberBg, ink: P.amberInk }
   }
   return { label: "Scheduled", bg: P.calScheduledTint, ink: P.calScheduled }
 }
 
 export function StaffSessionNotesTile({
   staffRouteKey,
-  missingCount,
+  pendingCount,
   overdueCount,
   recentSessions,
   dueItems,
 }: StaffSessionNotesTileProps) {
   const notesPath = `/staff/${encodeURIComponent(staffRouteKey)}/notes`
-  const hasIssues = missingCount > 0 || overdueCount > 0
+  const hasIssues = pendingCount > 0 || overdueCount > 0
   const bucketBySessionId = new Map(
     dueItems.map((item) => [item.sessionId, item.bucket]),
   )
@@ -69,26 +72,26 @@ export function StaffSessionNotesTile({
           style={{ backgroundColor: P.inset }}
         >
           <div className="min-w-0 space-y-1">
-            <p className="text-[16px] font-semibold" style={{ color: P.ink }}>
+            <p className={`${TILE_BODY} font-semibold`} style={{ color: P.ink }}>
               My session notes
             </p>
-            <p className="text-[13.5px] tabular-nums" style={{ color: P.soft }}>
+            <p className={`${TILE_BODY} tabular-nums`} style={{ color: P.soft }}>
               {overdueCount > 0 && (
                 <span style={{ color: P.cancel }}>
                   {overdueCount} overdue
                 </span>
               )}
-              {overdueCount > 0 && missingCount > 0 && (
+              {overdueCount > 0 && pendingCount > 0 && (
                 <span style={{ color: P.faint }}> · </span>
               )}
-              {missingCount > 0 && (
+              {pendingCount > 0 && (
                 <span style={{ color: P.amberInk }}>
-                  {missingCount} missing
+                  {pendingCount} pending
                 </span>
               )}
             </p>
-            <p className="text-[13px] leading-snug" style={{ color: P.faint }}>
-              View due notes by client and date
+            <p className={`${TILE_BODY} leading-snug`} style={{ color: P.faint }}>
+              View notes by client and date
             </p>
           </div>
           <ChevronRight
@@ -102,11 +105,11 @@ export function StaffSessionNotesTile({
           className="mt-4 rounded-[14px] p-4"
           style={{ backgroundColor: P.inset }}
         >
-          <p className="text-[16px] font-semibold" style={{ color: P.sageInk }}>
+          <p className={`${TILE_BODY} font-semibold`} style={{ color: P.sageInk }}>
             All notes complete
           </p>
-          <p className="mt-1 text-[13px]" style={{ color: P.faint }}>
-            No overdue or missing session notes this pay period
+          <p className={`mt-1 ${TILE_BODY}`} style={{ color: P.faint }}>
+            No overdue or pending session notes this pay period
           </p>
         </div>
       )}
@@ -119,7 +122,7 @@ export function StaffSessionNotesTile({
           Last 7 days
         </p>
         {recentSessions.length === 0 ? (
-          <p className="mt-3 text-[14px]" style={{ color: P.soft }}>
+          <p className={`mt-3 ${TILE_BODY}`} style={{ color: P.soft }}>
             No sessions in the last 7 days.
           </p>
         ) : (
@@ -144,19 +147,19 @@ export function StaffSessionNotesTile({
                           ? clientProfilePath(item.clientCode)
                           : "#"
                       }
-                      className="block truncate text-[14px] font-medium hover:underline underline-offset-2"
+                      className={`block truncate ${TILE_BODY} font-medium hover:underline underline-offset-2`}
                       style={{ color: P.ink }}
                     >
                       {clientLabel}
                     </Link>
-                    <p className="mt-0.5 text-[12px] tabular-nums" style={{ color: P.faint }}>
+                    <p className={`mt-0.5 ${TILE_BODY} tabular-nums`} style={{ color: P.faint }}>
                       {date}
                       {time ? ` · ${time}` : ""}
                     </p>
                   </div>
                   <span
-                    className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                    style={{ backgroundColor: badge.bg, color: badge.ink }}
+                    className={`shrink-0 rounded-full px-2 py-0.5 ${TILE_BODY} font-medium`}
+                    style={{ backgroundColor: badge.bg, color: badge.ink, fontSize: "13px" }}
                   >
                     {badge.label}
                   </span>

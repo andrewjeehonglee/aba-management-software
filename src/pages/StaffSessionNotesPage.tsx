@@ -151,7 +151,7 @@ function DueNoteRow({ item }: { item: NotesStatusItem }) {
             color: isOverdue ? P.cancel : P.amberInk,
           }}
         >
-          {isOverdue ? "Overdue" : "Missing"}
+          {isOverdue ? "Overdue" : "Pending"}
         </span>
         <Link
           to={`/session/${item.sessionId}`}
@@ -281,6 +281,15 @@ export function StaffSessionNotesPage({ practiceId }: { practiceId: string }) {
       cancelled = true
     }
   }, [staffUuid])
+
+  const pendingItems = useMemo(
+    () => dueItems.filter((item) => item.bucket === "missing"),
+    [dueItems],
+  )
+  const overdueItems = useMemo(
+    () => dueItems.filter((item) => item.bucket === "overdue"),
+    [dueItems],
+  )
 
   const completedItems = useMemo(
     () =>
@@ -464,15 +473,45 @@ export function StaffSessionNotesPage({ practiceId }: { practiceId: string }) {
           style={{ backgroundColor: P.card, borderRadius: P.radius }}
         >
           <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
-            Due
+            Pending
+            {pendingItems.length > 0 && (
+              <span className="ml-2 text-[15px] font-normal tabular-nums" style={{ color: P.amberInk }}>
+                ({pendingItems.length})
+              </span>
+            )}
           </h2>
-          {dueItems.length === 0 ? (
+          {pendingItems.length === 0 ? (
             <p className="mt-4 text-[15px]" style={{ color: P.soft }}>
-              No notes due — all caught up.
+              No pending notes.
             </p>
           ) : (
             <ul className="mt-2">
-              {dueItems.map((item) => (
+              {pendingItems.map((item) => (
+                <DueNoteRow key={item.sessionId} item={item} />
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section
+          className="mt-6 p-5"
+          style={{ backgroundColor: P.card, borderRadius: P.radius }}
+        >
+          <h2 className="text-[18px] font-semibold" style={{ color: P.ink }}>
+            Overdue
+            {overdueItems.length > 0 && (
+              <span className="ml-2 text-[15px] font-normal tabular-nums" style={{ color: P.cancel }}>
+                ({overdueItems.length})
+              </span>
+            )}
+          </h2>
+          {overdueItems.length === 0 ? (
+            <p className="mt-4 text-[15px]" style={{ color: P.soft }}>
+              No overdue notes.
+            </p>
+          ) : (
+            <ul className="mt-2">
+              {overdueItems.map((item) => (
                 <DueNoteRow key={item.sessionId} item={item} />
               ))}
             </ul>

@@ -21,7 +21,6 @@ import {
 import { resolveClientByRouteKey } from "@/lib/rosterScope"
 import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
-import { getNotesStatus, noteBucketMapFromSummary } from "@/lib/notesStatus"
 import type { Goal } from "@/types/goal"
 import { AuthSummary } from "@/pages/ClientOverviewPage/AuthSummary"
 import { BehaviorList } from "@/pages/ClientOverviewPage/BehaviorList"
@@ -571,9 +570,6 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
   }, [])
 
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
-  const [noteBucketBySessionId, setNoteBucketBySessionId] = useState<
-    Map<string, "missing" | "overdue">
-  >(new Map())
 
   const [behaviorIncidents, setBehaviorIncidents] = useState<BehaviorIncidentRecord[]>([])
 
@@ -587,13 +583,6 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
     getSessionNotesByClientId(resolvedClientId)
       .then(setSessionNotes)
       .catch(console.error)
-  }, [resolvedClientId, canViewNotes])
-
-  useEffect(() => {
-    if (!resolvedClientId || !canViewNotes) return
-    getNotesStatus(undefined, { clientIds: [resolvedClientId] })
-      .then((summary) => setNoteBucketBySessionId(noteBucketMapFromSummary(summary)))
-      .catch(() => setNoteBucketBySessionId(new Map()))
   }, [resolvedClientId, canViewNotes])
 
   useEffect(() => {
@@ -778,7 +767,6 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
                 fillHeight
                 sessions={liveSessions ?? []}
                 sessionNotes={sessionNotes}
-                noteBucketBySessionId={noteBucketBySessionId}
               />
             </div>
 

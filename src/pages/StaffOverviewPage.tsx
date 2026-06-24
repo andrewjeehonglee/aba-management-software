@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import { getStaffAuditNotesBundle, type AuditNoteBundleItem } from "@/lib/auditPull"
@@ -105,7 +105,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const [directHours, setDirectHours] = useState(0)
   const [indirectHours, setIndirectHours] = useState(0)
   const [hoursMonthLabel, setHoursMonthLabel] = useState("")
-  const [missingCount, setMissingCount] = useState(0)
+  const [pendingCount, setPendingCount] = useState(0)
   const [overdueCount, setOverdueCount] = useState(0)
   const [dueItems, setDueItems] = useState<NotesStatusItem[]>([])
   const [recentSevenDaySessions, setRecentSevenDaySessions] = useState<AuditNoteBundleItem[]>([])
@@ -201,7 +201,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         setHoursMonthLabel(hoursSummary.monthLabel)
 
         const notesRow = notesSummary.byStaff.find((s) => s.staffId === entry.id)
-        setMissingCount(notesRow?.missingCount ?? 0)
+        setPendingCount(notesRow?.missingCount ?? 0)
         setOverdueCount(notesRow?.overdueCount ?? 0)
         setDueItems(notesRow?.items ?? [])
 
@@ -266,11 +266,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
 
   const roleBadgeLabel = resolvedRole ? staffRoleHeaderLabel(resolvedRole) : null
   const supervisionPanelMonth = supervisionMonthLabel || monthLabel
-
-  const noteBucketBySessionId = useMemo(
-    () => new Map(dueItems.map((item) => [item.sessionId, item.bucket])),
-    [dueItems],
-  )
 
   if (dataLoading) {
     return (
@@ -362,14 +357,13 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
                 narrowBars
                 sessions={monthSessions}
                 sessionNotes={sessionNotes}
-                noteBucketBySessionId={noteBucketBySessionId}
               />
             </div>
 
             <div className="self-stretch">
               <StaffSessionNotesTile
                 staffRouteKey={staffRouteKey}
-                missingCount={missingCount}
+                pendingCount={pendingCount}
                 overdueCount={overdueCount}
                 recentSessions={recentSevenDaySessions}
                 dueItems={dueItems}

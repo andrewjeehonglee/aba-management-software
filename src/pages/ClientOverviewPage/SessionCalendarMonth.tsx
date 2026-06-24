@@ -4,23 +4,20 @@ import { isCompleteSessionNote } from "@/lib/notesStatus"
 import type { SessionNoteRecord, SessionRecord } from "@/lib/supabase"
 import { P, TILE_TITLE } from "./profileTokens"
 
-type DayBarStatus = "complete" | "missing" | "overdue" | "cancelled" | "scheduled"
+type DayBarStatus = "complete" | "note-overdue" | "cancelled" | "scheduled"
 
 const BAR_COLOR: Record<DayBarStatus, string> = {
   complete: P.calComplete,
-  missing: P.calMissing,
-  overdue: P.calOverdue,
+  "note-overdue": P.calNoteDue,
   cancelled: P.calCancelled,
   scheduled: P.calScheduled,
 }
 
-/** Most severe wins: Overdue > Missing > Scheduled > Complete > Cancelled */
 const STATUS_PRIORITY: Record<DayBarStatus, number> = {
-  overdue: 5,
-  missing: 4,
-  scheduled: 3,
-  complete: 2,
-  cancelled: 1,
+  cancelled: 4,
+  "note-overdue": 3,
+  scheduled: 2,
+  complete: 1,
 }
 
 const DOW_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
@@ -56,13 +53,12 @@ function sessionBarStatus(
   session: SessionRecord,
   todayISO: string,
   notesBySessionId: Map<string, SessionNoteRecord>,
-  noteBucketBySessionId: Map<string, "missing" | "overdue">,
 ): DayBarStatus | null {
   if (session.status === "cancelled" || session.status === "no-show") return "cancelled"
   if (session.status === "completed") {
-    if (isCompleteSessionNote(notesBySessionId.get(session.id))) return "complete"
-    const bucket = noteBucketBySessionId.get(session.id)
-    return bucket === "overdue" ? "overdue" : "missing"
+    return isCompleteSessionNote(notesBySessionId.get(session.id))
+      ? "complete"
+      : "note-overdue"
   }
   const day = session.time.slice(0, 10)
   if ((session.status === "scheduled" || session.status === "in-progress") && day >= todayISO) {
@@ -75,17 +71,11 @@ function dayBarStatus(
   daySessions: SessionRecord[],
   todayISO: string,
   notesBySessionId: Map<string, SessionNoteRecord>,
-  noteBucketBySessionId: Map<string, "missing" | "overdue">,
 ): DayBarStatus | null {
   let best: DayBarStatus | null = null
   let bestPriority = 0
   for (const session of daySessions) {
-    const status = sessionBarStatus(
-      session,
-      todayISO,
-      notesBySessionId,
-      noteBucketBySessionId,
-    )
+    const status = sessionBarStatus(session, todayISO, notesBySessionId)
     if (!status) continue
     const priority = STATUS_PRIORITY[status]
     if (priority > bestPriority) {
@@ -99,8 +89,6 @@ function dayBarStatus(
 interface SessionCalendarMonthProps {
   sessions: SessionRecord[]
   sessionNotes: SessionNoteRecord[]
-  /** Missing vs overdue — from `getNotesStatus` / `noteBucketMapFromSummary`. */
-  noteBucketBySessionId?: Map<string, "missing" | "overdue">
   fillHeight?: boolean
   /** Narrower, centered day status bars (staff profile). */
   narrowBars?: boolean
@@ -109,7 +97,6 @@ interface SessionCalendarMonthProps {
 export function SessionCalendarMonth({
   sessions,
   sessionNotes,
-  noteBucketBySessionId = new Map(),
   fillHeight = false,
   narrowBars = false,
 }: SessionCalendarMonthProps) {
@@ -133,12 +120,7 @@ export function SessionCalendarMonth({
   function renderDayCell(day: Date, stretch: boolean) {
     const iso = localISO(day)
     const daySessions = sessionsOnDay(iso)
-    const bar = dayBarStatus(
-      daySessions,
-      todayISO,
-      notesBySessionId,
-      noteBucketBySessionId,
-    )
+    const bar = dayBarStatus(daySessions, todayISO, notesBySessionId)
     const isToday = iso === todayISO
     const scheduledBg = bar === "scheduled"
 
@@ -242,12 +224,11 @@ export function SessionCalendarMonth({
       </div>
 
       <div
-        className="mt-3 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 border-t pt-3 text-[14px]"
+        className="mt-3 flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-t pt-3 text-[14px]"
         style={{ borderColor: P.rule, color: P.soft }}
       >
         <LegendItem color={P.calComplete} label="Completed" />
-        <LegendItem color={P.calMissing} label="Missing" />
-        <LegendItem color={P.calOverdue} label="Overdue" />
+        <LegendItem color={P.calNoteDue} label="Note overdue" />
         <LegendItem color={P.calCancelled} label="Cancelled" />
         <LegendItem color={P.calScheduled} label="Scheduled" />
       </div>
