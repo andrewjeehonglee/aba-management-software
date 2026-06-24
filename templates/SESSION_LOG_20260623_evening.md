@@ -4,7 +4,7 @@
 **Demo login:** `demo@pulseaba.app` / `PulseDemo2026!`  
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
-**Branch:** `main` · **HEAD:** `cefd6f5` (feature + polish) · **Log HEAD:** _(this commit)_  
+**Branch:** `main` · **HEAD:** `f635663` (Session 35 log) · **Feature HEAD:** `cefd6f5`  
 **Prior session HEAD:** `27ba6cc` (Session 34 — client profile v6 + session notes + varied clinical seed)  
 **Transcript:** agent session `1ee2b0af-e3fb-4bb1-952e-e277eebf75b5`  
 **User sign-off:** Staff profile + Sessions page verified on Vercel — “it looks great” (evening close-out)
@@ -81,7 +81,7 @@ Work shipped in **12 feature commits** (~19:33–20:50 PT), all pushed to `main`
 
 | Commit | Time (PT) | Summary |
 |--------|-----------|---------|
-| _(pending)_ | ~21:xx | Session 35 log — `SESSIONS.md` + this file |
+| `f635663` | ~21:00 | Session 35 log — `SESSIONS.md` + this file |
 
 ---
 
