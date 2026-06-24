@@ -4,7 +4,7 @@ import type { AuditNoteBundleItem } from "@/lib/auditPull"
 import { isCompleteSessionNote, type NotesStatusItem } from "@/lib/notesStatus"
 import { clientProfilePath } from "@/lib/rosterScope"
 import { formatEventStamp } from "@/lib/sessions"
-import { P, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
+import { P, TILE_LIST_MAX_H, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 
 /** Body copy — matches Staff details / calendar value size */
 const TILE_BODY = "text-[15px]"
@@ -58,14 +58,14 @@ export function StaffSessionNotesTile({
 
   return (
     <section
-      className="flex h-full min-h-0 flex-col overflow-hidden p-5"
+      className="h-full p-5"
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
-      <h2 className={`${TILE_TITLE} shrink-0`} style={{ color: P.ink }}>
+      <h2 className={TILE_TITLE} style={{ color: P.ink }}>
         Session notes
       </h2>
 
-      <div className="mt-4 shrink-0">
+      <div className="mt-4">
         {hasIssues ? (
           <Link
             to={notesPath}
@@ -116,19 +116,19 @@ export function StaffSessionNotesTile({
         )}
       </div>
 
-      <div className="mt-4 flex min-h-0 flex-1 flex-col">
+      <div className="mt-4">
         <p
-          className="shrink-0 text-[12px] font-semibold uppercase tracking-[0.08em]"
+          className="text-[12px] font-semibold uppercase tracking-[0.08em]"
           style={{ color: P.faint }}
         >
           Last 7 days
         </p>
         {recentSessions.length === 0 ? (
-          <p className={`mt-3 shrink-0 ${TILE_BODY}`} style={{ color: P.soft }}>
+          <p className={`mt-3 ${TILE_BODY}`} style={{ color: P.soft }}>
             No sessions in the last 7 days.
           </p>
         ) : (
-          <ul className="mt-2 min-h-0 flex-1 overflow-y-auto">
+          <ul className={`mt-2 ${TILE_LIST_MAX_H}`}>
             {recentSessions.map((item, index) => {
               const { date, time } = formatEventStamp(undefined, item.sessionAt)
               const clientLabel = item.clientCode || item.clientName
