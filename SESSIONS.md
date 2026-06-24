@@ -1904,4 +1904,42 @@ All pushed to `main` → Vercel auto-deploy.
 
 ---
 
-*Last updated: Jun 23, 2026 (Session 34 — client profile v6 + session notes + varied clinical seed).*
+## Session 35 — Staff profile v1→v5 + practice Sessions page (Jun 23, 2026 evening)
+
+**What landed:** Complete **Staff Profile product slice** mirroring client profile layout (four tiles + care teams row), **Staff session notes page** (547 lines), iterative polish through v5 (supervision legend, Pending/Overdue vocabulary, scrollable 7-day notes list), warm `.profile-scroll` scrollbars, and a new **practice-wide Sessions page** at `/sessions` with searchable people panel + month calendar. `/roster` redirects to `/sessions`. All pushed to `main`; **feature HEAD `cefd6f5`**. Andrew verified on Vercel — “it looks great.”
+
+**Detailed log:** `templates/SESSION_LOG_20260623_evening.md`
+
+### Highlights
+
+1. **Staff overview** — Row 1: Staff details | Calendar | Session notes; Row 2: Care teams with BCBA / Clinical Supervisor / Technician chips and supervision below-threshold legend.
+2. **Staff session notes** — `/staff/:staffId/notes`; Due queue + date-filtered Completed; audit .txt/.csv export.
+3. **Sessions page** — `/sessions`; one person at a time; role-scoped people panel; month calendar with Color-by Status/Type; centered day numbers; flat A–Z client list; styled staff role category headers.
+4. **Technician UX** — People panel hidden; auto-selects self on Sessions page.
+5. **Shared polish** — Profile tile scrollbars; `TILE_LIST_MAX_H`; calendar token alignment across client + staff profiles.
+
+### Commits (chronological, Jun 23 evening)
+
+| Hash | Message |
+|------|---------|
+| `bfa1fac` | Rebuild staff profile page to mirror client profile layout |
+| `9ec3ad9` | Staff profile v2: consolidate to four tiles with merged notes and clients |
+| `891fa3f` | Staff profile v3: notes vocabulary, care teams tile, calendar states |
+| `ad65d93` | Staff profile v4: calendar revert, pending labels, care-team roles |
+| `403b2ef` | Staff profile v5: supervision legend, hide self-role, scroll notes |
+| `792a73f` | Fix staff page row stretch and care-team chip alignment |
+| `a2a2c3e` | Restore session notes tile; scroll only the 7-day list |
+| `d353430` | Soften profile tile scrollbars to match warm UI |
+| `9fd8263` | Add practice-wide Sessions page with people panel and calendar |
+| `4ab4a5f` | Sessions page v2: staff-style calendar, flat client list |
+| `cefd6f5` | Polish Sessions page calendar and people panel layout |
+
+**Scope:** 22 files (`27ba6cc` → `cefd6f5`); +2517 / −392 lines. **New:** Sessions page module (4 files), staff profile subcomponents (5 files), staff session notes page, `sessionsPageScope.ts`, 2 Supabase month-query helpers. See `templates/SESSION_LOG_20260623_evening.md` for complete per-commit file manifest and behavior specs.
+
+### Not done / deferred
+
+- Sessions list/table view; calendar chip click-through to session detail; mobile Sessions layout; dashboard changes for non-owner roles; client list badges.
+
+---
+
+*Last updated: Jun 23, 2026 (Session 35 — staff profile v5 + practice Sessions page).*
