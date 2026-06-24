@@ -90,12 +90,15 @@ interface SessionCalendarMonthProps {
   sessions: SessionRecord[]
   sessionNotes: SessionNoteRecord[]
   fillHeight?: boolean
+  /** Narrower, centered day status bars (staff profile). */
+  narrowBars?: boolean
 }
 
 export function SessionCalendarMonth({
   sessions,
   sessionNotes,
   fillHeight = false,
+  narrowBars = false,
 }: SessionCalendarMonthProps) {
   const today = new Date()
   const todayISO = localISO(today)
@@ -140,8 +143,13 @@ export function SessionCalendarMonth({
         </span>
         {bar && (
           <span
-            className={`absolute bottom-1.5 left-2 right-2 ${BAR_HEIGHT} rounded-full`}
-            style={{ backgroundColor: BAR_COLOR[bar] }}
+            className={`absolute bottom-1.5 rounded-full ${
+              narrowBars ? "h-1.5 w-[55%]" : `left-2 right-2 ${BAR_HEIGHT}`
+            }`}
+            style={{
+              backgroundColor: BAR_COLOR[bar],
+              ...(narrowBars ? { left: "50%", transform: "translateX(-50%)" } : {}),
+            }}
             aria-hidden="true"
           />
         )}

@@ -23,12 +23,12 @@ export function roleFactLabel(role: RosterStaffRole): string {
 }
 
 export function certExpiryDisplay(cert: string): {
-  label: string
+  date: string
   ink: string | undefined
 } {
   const parsed = parseCertification(cert)
   if (!parsed) {
-    return { label: factValue(cert), ink: undefined }
+    return { date: factValue(cert), ink: undefined }
   }
 
   const formatted = parsed.expiryDate.toLocaleDateString("en-US", {
@@ -36,7 +36,6 @@ export function certExpiryDisplay(cert: string): {
     month: "short",
     day: "numeric",
   })
-  const label = `Cert expires ${formatted}`
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -45,10 +44,10 @@ export function certExpiryDisplay(cert: string): {
   const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
   if (daysLeft < CERT_RED_DAYS) {
-    return { label, ink: "#B0492F" }
+    return { date: formatted, ink: "#B0492F" }
   }
   if (daysLeft < CERT_AMBER_DAYS) {
-    return { label, ink: "#845A18" }
+    return { date: formatted, ink: "#845A18" }
   }
-  return { label, ink: undefined }
+  return { date: formatted, ink: undefined }
 }

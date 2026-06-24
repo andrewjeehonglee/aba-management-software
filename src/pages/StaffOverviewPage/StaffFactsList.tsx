@@ -13,12 +13,12 @@ interface StaffFactsListProps {
 export function StaffFactsList({ staff, role, phone, email }: StaffFactsListProps) {
   const certRow = staff.certification
     ? certExpiryDisplay(staff.certification)
-    : { label: factValue(null), ink: undefined }
+    : { date: factValue(null), ink: undefined }
 
   const rows: { label: string; value: string; ink?: string }[] = [
     { label: "Role", value: roleFactLabel(role) },
     { label: "Hired", value: formatProfileDate(staff.hireDate) },
-    { label: "Certification", value: certRow.label, ink: certRow.ink },
+    { label: "Cert expires", value: certRow.date, ink: certRow.ink },
     { label: "Phone", value: factValue(phone) },
     { label: "Email", value: factValue(email) },
   ]

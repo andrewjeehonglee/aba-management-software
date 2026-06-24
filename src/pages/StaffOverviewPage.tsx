@@ -1,17 +1,16 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
+import { getStaffAuditNotesBundle, type AuditNoteBundleItem } from "@/lib/auditPull"
 import {
   getCaseloadBtStaffIds,
   getStaffClientTableForBcba,
   getStaffClientTableForSupervisor,
   getStaffClientTableForTechnician,
-  getSuperviseesWithClients,
   type StaffClientTableRow,
-  type SuperviseeClientsRow,
 } from "@/lib/clientAssignments"
 import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
-import { getNotesStatus } from "@/lib/notesStatus"
+import { getNotesStatus, type NotesStatusItem } from "@/lib/notesStatus"
 import { resolveStaffByRouteKey } from "@/lib/rosterScope"
 import { getStaffHoursByMonth } from "@/lib/staffHours"
 import { demoStaffEmail, demoStaffPhone } from "@/lib/staffContact"
@@ -23,11 +22,6 @@ import {
   staffRoleHeaderLabel,
   type RosterStaffRole,
 } from "@/lib/staffRole"
-import {
-  downloadStaffSessionsCsv,
-  getStaffSessionExportBundle,
-} from "@/lib/staffSessionExport"
-import { getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
 import { unslug } from "@/lib/slug"
 import {
   getSessionNotesBySessionIds,
@@ -42,12 +36,24 @@ import {
 } from "@/lib/supabase"
 import { P, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 import { SessionCalendarMonth } from "@/pages/ClientOverviewPage/SessionCalendarMonth"
-import { StaffCompliancePanel } from "@/pages/StaffOverviewPage/StaffCompliancePanel"
 import { StaffFactsList } from "@/pages/StaffOverviewPage/StaffFactsList"
 import { StaffMonthHoursInset } from "@/pages/StaffOverviewPage/StaffMonthHoursInset"
-import { StaffPeoplePanel } from "@/pages/StaffOverviewPage/StaffPeoplePanel"
-import { StaffRecentSessionsPanel } from "@/pages/StaffOverviewPage/StaffRecentSessionsPanel"
-import { StaffRecordsBucket } from "@/pages/StaffOverviewPage/StaffRecordsBucket"
+import { StaffMyClientsTile } from "@/pages/StaffOverviewPage/StaffMyClientsTile"
+import { StaffSessionNotesTile } from "@/pages/StaffOverviewPage/StaffSessionNotesTile"
+
+function formatDateInput(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
+}
+
+function lastSevenDayRange(): { startDate: string; endDate: string } {
+  const end = new Date()
+  const start = new Date()
+  start.setDate(start.getDate() - 6)
+  return { startDate: formatDateInput(start), endDate: formatDateInput(end) }
+}
 
 async function enrichSupervisionForStaffIds(
   staffIds: string[],
@@ -96,15 +102,15 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
   const [monthLabel, setMonthLabel] = useState("")
   const [clientTable, setClientTable] = useState<StaffClientTableRow[]>([])
-  const [supervisees, setSupervisees] = useState<SuperviseeClientsRow[]>([])
   const [directHours, setDirectHours] = useState(0)
   const [indirectHours, setIndirectHours] = useState(0)
   const [hoursMonthLabel, setHoursMonthLabel] = useState("")
   const [missingCount, setMissingCount] = useState(0)
   const [overdueCount, setOverdueCount] = useState(0)
+  const [dueItems, setDueItems] = useState<NotesStatusItem[]>([])
+  const [recentSevenDaySessions, setRecentSevenDaySessions] = useState<AuditNoteBundleItem[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(false)
-  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (!staffRouteKey) {
@@ -173,16 +179,21 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         setStaff(staffRecord)
         setResolvedRole(role)
 
-        const [monthResult, hoursSummary, notesSummary] = await Promise.all([
+        const sevenDay = lastSevenDayRange()
+        const [monthResult, hoursSummary, notesSummary, sevenDayBundle] = await Promise.all([
           getSessionsByStaffIdForMonth(entry.id),
           getStaffHoursByMonth(undefined, { staffIds: [entry.id] }),
           getNotesStatus(undefined, { staffIds: [entry.id] }),
+          getStaffAuditNotesBundle(entry.id, sevenDay.startDate, sevenDay.endDate),
         ])
 
         if (cancelled) return
 
         setMonthLabel(monthResult.label)
         setMonthSessions(monthResult.sessions)
+        setRecentSevenDaySessions(
+          [...sevenDayBundle].sort((a, b) => b.sessionAt.localeCompare(a.sessionAt)),
+        )
 
         const hoursRow = hoursSummary.byStaff[0]
         setDirectHours(Math.round(hoursRow?.directHours ?? 0))
@@ -192,6 +203,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         const notesRow = notesSummary.byStaff.find((s) => s.staffId === entry.id)
         setMissingCount(notesRow?.missingCount ?? 0)
         setOverdueCount(notesRow?.overdueCount ?? 0)
+        setDueItems(notesRow?.items ?? [])
 
         const sessionIds = monthResult.sessions.map((s) => s.id)
         const notes = sessionIds.length
@@ -209,17 +221,13 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           setSupervision(supervisionRow)
           setClientTable(table)
           setCaseloadSupervision([])
-          setSupervisees([])
         } else if (isLeadershipRole(role)) {
           const viewerRole = isBcbaRole(role) ? "bcba" : "supervisor"
-          const [btIds, table, superviseeRows] = await Promise.all([
+          const [btIds, table] = await Promise.all([
             getCaseloadBtStaffIds(entry.id, viewerRole),
             isBcbaRole(role)
               ? getStaffClientTableForBcba(entry.id)
               : getStaffClientTableForSupervisor(entry.id),
-            isBcbaRole(role)
-              ? Promise.resolve([] as SuperviseeClientsRow[])
-              : getSuperviseesWithClients(entry.id),
           ])
           const rawSupervision = btIds.length
             ? await getSupervisionForStaffIds(btIds)
@@ -229,7 +237,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           if (cancelled) return
           setSupervision(null)
           setClientTable(table)
-          setSupervisees(superviseeRows)
           setCaseloadSupervision(
             [...records].sort(
               (a, b) =>
@@ -258,35 +265,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
     ?? (staffRouteKey ? unslug(staffRouteKey) : "Unknown staff")
 
   const roleBadgeLabel = resolvedRole ? staffRoleHeaderLabel(resolvedRole) : null
-
-  const recentSessions = useMemo(
-    () =>
-      [...monthSessions]
-        .sort((a, b) => b.time.localeCompare(a.time))
-        .slice(0, 5),
-    [monthSessions],
-  )
-
   const supervisionPanelMonth = supervisionMonthLabel || monthLabel
-
-  async function handleExportSessions() {
-    if (!staff) return
-    setExporting(true)
-    try {
-      const { start, end } = getCurrentCalendarMonthDateBounds()
-      const items = await getStaffSessionExportBundle(staff.id, start, end)
-      downloadStaffSessionsCsv(
-        staff.externalCode ?? staff.id,
-        staff.name,
-        start.slice(0, 7),
-        start,
-        end,
-        items,
-      )
-    } finally {
-      setExporting(false)
-    }
-  }
 
   if (dataLoading) {
     return (
@@ -368,6 +347,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
                   directHours={directHours}
                   indirectHours={indirectHours}
                   monthLabel={hoursMonthLabel || monthLabel}
+                  role={resolvedRole}
                 />
               </div>
             </aside>
@@ -375,40 +355,29 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
             <div className="flex h-full min-w-0">
               <SessionCalendarMonth
                 fillHeight
+                narrowBars
                 sessions={monthSessions}
                 sessionNotes={sessionNotes}
               />
             </div>
 
-            <div className="self-start">
-              <StaffRecordsBucket
+            <div className="self-stretch">
+              <StaffSessionNotesTile
                 staffRouteKey={staffRouteKey}
                 missingCount={missingCount}
                 overdueCount={overdueCount}
+                recentSessions={recentSevenDaySessions}
+                dueItems={dueItems}
               />
             </div>
           </div>
 
-          <div className="grid items-start gap-6 max-xl:grid-cols-1 xl:grid-cols-2">
-            <StaffPeoplePanel
-              role={resolvedRole}
-              clientTable={clientTable}
-              supervisees={supervisees}
-            />
-            <StaffCompliancePanel
-              role={resolvedRole}
-              monthLabel={supervisionPanelMonth}
-              supervision={supervision}
-              staff={staff}
-              caseloadRecords={caseloadSupervision}
-            />
-          </div>
-
-          <StaffRecentSessionsPanel
-            monthLabel={monthLabel}
-            sessions={recentSessions}
-            exporting={exporting}
-            onExport={handleExportSessions}
+          <StaffMyClientsTile
+            role={resolvedRole}
+            clientTable={clientTable}
+            caseloadRecords={caseloadSupervision}
+            supervision={supervision}
+            monthLabel={supervisionPanelMonth}
           />
         </div>
       </div>
