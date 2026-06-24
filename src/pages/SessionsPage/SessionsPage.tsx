@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
+import { AppPageHeader } from "@/components/dashboard/AppPageHeader"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
 import {
   filterPanelBySearch,
@@ -139,16 +140,12 @@ export function SessionsPage({
       practiceName={practiceName}
       maxWidthClass="max-w-[1600px]"
     >
-      <header className="shrink-0">
-        <h1 className="text-[28px] font-semibold tracking-tight" style={{ color: P.ink }}>
-          Sessions
-        </h1>
-        <p className="mt-1 text-[15px]" style={{ color: P.soft }}>
-          One person&apos;s schedule at a time.
-        </p>
-      </header>
+      <AppPageHeader
+        title="Sessions"
+        subtitle="One person's schedule at a time."
+      />
 
-      <div className="mt-6 flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
         {!hidePanel && (
           panelLoading ? (
             <aside

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
+import { AppPageHeader } from "@/components/dashboard/AppPageHeader"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
 import { cn } from "@/lib/utils"
 import { getRosterRows } from "@/lib/rosterTable"
@@ -101,16 +102,14 @@ export function StaffPage({
   return (
     <OwnerAppShell ownerName={ownerName} practiceName={practiceName}>
       <div className="flex min-h-0 flex-1 flex-col">
-        <header className="mb-6 shrink-0 short:mb-4">
-          <h1 className="text-[clamp(1.75rem,3vw,2.25rem)] font-semibold tracking-[-0.02em] text-ink">
-            Staff
-          </h1>
-          <p className="mt-1.5 text-[16px] text-muted">
-            {hasStaff
+        <AppPageHeader
+          title="Staff"
+          subtitle={
+            hasStaff
               ? `${roleCounts.bcba ?? 0} BCBAs · ${roleCounts.supervisor ?? 0} clinical supervisors · ${roleCounts.technician ?? 0} technicians`
-              : "Your practice team"}
-          </p>
-        </header>
+              : "Your practice team"
+          }
+        />
 
         <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
           {loading && (

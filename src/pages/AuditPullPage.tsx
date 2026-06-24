@@ -5,6 +5,7 @@ import { AuditReadinessSummary } from "@/components/audit/AuditReadinessSummary"
 import { AuditSessionList } from "@/components/audit/AuditSessionList"
 import { ClientSearchSelect } from "@/components/audit/ClientSearchSelect"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
+import { AppPageHeader } from "@/components/dashboard/AppPageHeader"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
 import { getAuditScopedClients, type AuditClientEntry } from "@/lib/auditClients"
 import {
@@ -184,17 +185,13 @@ export function AuditPullPage({
   return (
     <OwnerAppShell ownerName={ownerName} practiceName={practiceName} maxWidthClass="max-w-[1100px]">
       <div className="owner-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
-        <header className="shrink-0">
-          <h1 className="text-[28px] font-semibold tracking-tight" style={{ color: P.ink }}>
-            Audit
-          </h1>
-          <p className="mt-1.5 text-[16px]" style={{ color: P.soft }}>
-            Pick a client and date range to pull session notes for an insurance audit.
-          </p>
-        </header>
+        <AppPageHeader
+          title="Audit"
+          subtitle="Pick a client and date range to pull session notes for an insurance audit."
+        />
 
         <section
-          className="mt-6 p-5"
+          className="p-5"
           style={{ backgroundColor: P.card, borderRadius: P.radius }}
         >
           <h2 className={TILE_TITLE} style={{ color: P.ink }}>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { AlertCircle, Search, X } from "lucide-react"
 import { Link } from "react-router-dom"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
+import { AppPageHeader } from "@/components/dashboard/AppPageHeader"
 import { OwnerRoleTabs } from "@/components/dashboard/OwnerRoleTabs"
 import { Input } from "@/components/ui/input"
 import {
@@ -422,17 +423,11 @@ export function ClientsPage({
       maxWidthClass="max-w-[min(100%,1680px)]"
     >
       <div className="flex min-h-0 flex-1 flex-col">
-        <header className="mb-5 shrink-0 short:mb-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-[clamp(1.75rem,3vw,2.25rem)] font-semibold tracking-[-0.02em] text-ink">
-                Clients
-              </h1>
-              <p className="mt-1.5 text-[17px] text-muted">
-                {hasRoster ? subtitle : "Active client care teams"}
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-1.5">
+        <AppPageHeader
+          title="Clients"
+          subtitle={hasRoster ? subtitle : "Active client care teams"}
+          actions={
+            <>
               {isDemo && isAccountOwner ? (
                 <OwnerRoleTabs viewRole={viewRole} onViewRoleChange={setViewRole} />
               ) : !isAccountOwner ? (
@@ -463,9 +458,9 @@ export function ClientsPage({
                   </SelectContent>
                 </Select>
               )}
-            </div>
-          </div>
-
+            </>
+          }
+        >
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="relative min-w-0 flex-1 sm:max-w-md">
               <Search
@@ -495,7 +490,7 @@ export function ClientsPage({
               <GroupingToggle mode={groupMode} onModeChange={setGroupMode} />
             )}
           </div>
-        </header>
+        </AppPageHeader>
 
         <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
           {loading && (
