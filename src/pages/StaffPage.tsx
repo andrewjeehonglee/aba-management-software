@@ -100,18 +100,21 @@ export function StaffPage({
   const hasStaff = staff.length > 0
 
   return (
-    <OwnerAppShell ownerName={ownerName} practiceName={practiceName}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <AppPageHeader
-          title="Staff"
-          subtitle={
-            hasStaff
-              ? `${roleCounts.bcba ?? 0} BCBAs · ${roleCounts.supervisor ?? 0} clinical supervisors · ${roleCounts.technician ?? 0} technicians`
-              : "Your practice team"
-          }
-        />
+    <OwnerAppShell
+      ownerName={ownerName}
+      practiceName={practiceName}
+      maxWidthClass="max-w-[1600px]"
+    >
+      <AppPageHeader
+        title="Staff"
+        subtitle={
+          hasStaff
+            ? `${roleCounts.bcba ?? 0} BCBAs · ${roleCounts.supervisor ?? 0} clinical supervisors · ${roleCounts.technician ?? 0} technicians`
+            : "Your practice team"
+        }
+      />
 
-        <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="owner-scroll min-h-0 flex-1 overflow-y-auto pr-1">
           {loading && (
             <p className="py-16 text-center text-[15px] text-muted animate-pulse">Loading staff…</p>
           )}
@@ -168,7 +171,6 @@ export function StaffPage({
             </div>
           )}
         </div>
-      </div>
     </OwnerAppShell>
   )
 }
