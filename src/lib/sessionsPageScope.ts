@@ -1,5 +1,5 @@
 import { getSuperviseeStaffIdsForBcba } from "@/lib/dashboardScope"
-import { getBcbaSummaries, getRosterRows, type BcbaSummary } from "@/lib/rosterTable"
+import { getRosterRows } from "@/lib/rosterTable"
 import { getRosterStaffByRole, type RosterStaffEntry } from "@/lib/rosterScope"
 import { supabase } from "@/lib/supabase"
 
@@ -18,13 +18,6 @@ export interface SessionsClientEntry {
   displayName: string
 }
 
-export interface SessionsClientGroup {
-  bcbaId: string
-  bcbaName: string
-  bcbaCode: string | null
-  clients: SessionsClientEntry[]
-}
-
 export interface SessionsStaffGroup {
   role: "bcba" | "supervisor" | "technician"
   roleLabel: string
@@ -32,7 +25,7 @@ export interface SessionsStaffGroup {
 }
 
 export interface SessionsPagePanelData {
-  clientGroups: SessionsClientGroup[]
+  clients: SessionsClientEntry[]
   staffGroups: SessionsStaffGroup[]
   hidePanel: boolean
   defaultPerson: SessionsPerson | null
@@ -48,43 +41,14 @@ function normaliseRole(raw?: string): string {
   return (raw ?? "technician").toLowerCase()
 }
 
-function clientGroupsFromRows(
-  rows: Awaited<ReturnType<typeof getRosterRows>>,
-  bcbaSummaries: BcbaSummary[],
-): SessionsClientGroup[] {
-  const byBcba = new Map<string, SessionsClientGroup>()
-
-  for (const summary of bcbaSummaries) {
-    byBcba.set(summary.staffId, {
-      bcbaId: summary.staffId,
-      bcbaName: summary.fullName,
-      bcbaCode: rows.find((r) => r.bcbaId === summary.staffId)?.bcbaCode ?? null,
-      clients: [],
-    })
-  }
-
-  for (const row of rows) {
-    const bcbaId = row.bcbaId ?? "unassigned"
-    let group = byBcba.get(bcbaId)
-    if (!group) {
-      group = {
-        bcbaId,
-        bcbaName: row.bcbaName ?? "Unassigned",
-        bcbaCode: row.bcbaCode,
-        clients: [],
-      }
-      byBcba.set(bcbaId, group)
-    }
-    group.clients.push({
+function clientsFromRows(rows: Awaited<ReturnType<typeof getRosterRows>>): SessionsClientEntry[] {
+  return rows
+    .map((row) => ({
       id: row.clientId,
       code: row.clientCode,
       displayName: row.clientDisplayName,
-    })
-  }
-
-  return [...byBcba.values()]
-    .filter((g) => g.clients.length > 0)
-    .sort((a, b) => a.bcbaName.localeCompare(b.bcbaName))
+    }))
+    .sort((a, b) => a.code.localeCompare(b.code, undefined, { sensitivity: "base" }))
 }
 
 async function staffEntriesByIds(ids: string[]): Promise<RosterStaffEntry[]> {
@@ -151,7 +115,7 @@ export async function loadSessionsPagePanelData(
   if (role === "technician" && currentStaffId) {
     const person = await staffPerson(currentStaffId)
     return {
-      clientGroups: [],
+      clients: [],
       staffGroups: [],
       hidePanel: true,
       defaultPerson: person,
@@ -159,16 +123,15 @@ export async function loadSessionsPagePanelData(
   }
 
   if (role === "owner") {
-    const [rows, bcbaSummaries, bcbaStaff, supervisorStaff, technicianStaff] = await Promise.all([
+    const [rows, bcbaStaff, supervisorStaff, technicianStaff] = await Promise.all([
       getRosterRows(practiceId),
-      getBcbaSummaries(practiceId),
       getRosterStaffByRole(practiceId, "bcba"),
       getRosterStaffByRole(practiceId, "supervisor"),
       getRosterStaffByRole(practiceId, "technician"),
     ])
 
     return {
-      clientGroups: clientGroupsFromRows(rows, bcbaSummaries),
+      clients: clientsFromRows(rows),
       staffGroups: groupStaffByRole([...bcbaStaff, ...supervisorStaff, ...technicianStaff]),
       hidePanel: false,
       defaultPerson: null,
@@ -176,16 +139,15 @@ export async function loadSessionsPagePanelData(
   }
 
   if (role === "bcba" && currentStaffId) {
-    const [rows, bcbaSummaries, teamStaffIds] = await Promise.all([
+    const [rows, teamStaffIds] = await Promise.all([
       getRosterRows(practiceId, { bcbaStaffId: currentStaffId }),
-      getBcbaSummaries(practiceId),
       getSuperviseeStaffIdsForBcba(currentStaffId),
     ])
 
     const teamMembers = await staffEntriesByIds(teamStaffIds)
 
     return {
-      clientGroups: clientGroupsFromRows(rows, bcbaSummaries),
+      clients: clientsFromRows(rows),
       staffGroups: groupStaffByRole(teamMembers),
       hidePanel: false,
       defaultPerson: null,
@@ -197,34 +159,18 @@ export async function loadSessionsPagePanelData(
     const btIds = [...new Set(rows.filter((r) => r.btId).map((r) => r.btId as string))]
     const teamMembers = await staffEntriesByIds(btIds)
 
-    const bcbaIds = [...new Set(rows.filter((r) => r.bcbaId).map((r) => r.bcbaId as string))]
-    const bcbaSummaries: BcbaSummary[] = bcbaIds.map((id) => {
-      const match = rows.find((r) => r.bcbaId === id)
-      const caseload = rows.filter((r) => r.bcbaId === id)
-      return {
-        staffId: id,
-        fullName: match?.bcbaName ?? "Unknown",
-        clientCount: caseload.length,
-        btCount: caseload.filter((r) => r.btId).length,
-        unassignedBtCount: caseload.filter((r) => r.btUnassigned).length,
-      }
-    })
-
     return {
-      clientGroups: clientGroupsFromRows(rows, bcbaSummaries),
+      clients: clientsFromRows(rows),
       staffGroups: groupStaffByRole(teamMembers),
       hidePanel: false,
       defaultPerson: null,
     }
   }
 
-  const [rows, bcbaSummaries] = await Promise.all([
-    getRosterRows(practiceId),
-    getBcbaSummaries(practiceId),
-  ])
+  const rows = await getRosterRows(practiceId)
 
   return {
-    clientGroups: clientGroupsFromRows(rows, bcbaSummaries),
+    clients: clientsFromRows(rows),
     staffGroups: [],
     hidePanel: false,
     defaultPerson: null,
@@ -232,24 +178,18 @@ export async function loadSessionsPagePanelData(
 }
 
 export function filterPanelBySearch(
-  clientGroups: SessionsClientGroup[],
+  clients: SessionsClientEntry[],
   staffGroups: SessionsStaffGroup[],
   query: string,
-): { clientGroups: SessionsClientGroup[]; staffGroups: SessionsStaffGroup[] } {
+): { clients: SessionsClientEntry[]; staffGroups: SessionsStaffGroup[] } {
   const q = query.trim().toLowerCase()
-  if (!q) return { clientGroups, staffGroups }
+  if (!q) return { clients, staffGroups }
 
-  const filteredClients = clientGroups
-    .map((group) => ({
-      ...group,
-      clients: group.clients.filter(
-        (c) =>
-          c.code.toLowerCase().includes(q) ||
-          c.displayName.toLowerCase().includes(q) ||
-          group.bcbaName.toLowerCase().includes(q),
-      ),
-    }))
-    .filter((g) => g.clients.length > 0)
+  const filteredClients = clients.filter(
+    (c) =>
+      c.code.toLowerCase().includes(q) ||
+      c.displayName.toLowerCase().includes(q),
+  )
 
   const filteredStaff = staffGroups
     .map((group) => ({
@@ -262,5 +202,5 @@ export function filterPanelBySearch(
     }))
     .filter((g) => g.members.length > 0)
 
-  return { clientGroups: filteredClients, staffGroups: filteredStaff }
+  return { clients: filteredClients, staffGroups: filteredStaff }
 }

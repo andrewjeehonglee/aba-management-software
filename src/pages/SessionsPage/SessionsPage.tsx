@@ -4,6 +4,7 @@ import { useOwnerShell } from "@/hooks/useOwnerShell"
 import {
   filterPanelBySearch,
   loadSessionsPagePanelData,
+  type SessionsClientEntry,
   type SessionsPerson,
 } from "@/lib/sessionsPageScope"
 import {
@@ -13,7 +14,6 @@ import {
   type SessionNoteRecord,
   type SessionRecord,
 } from "@/lib/supabase"
-import { cn } from "@/lib/utils"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
 import { PracticeSessionCalendar } from "@/pages/SessionsPage/PracticeSessionCalendar"
 import {
@@ -24,6 +24,32 @@ import {
   defaultColorMode,
   type CalendarColorMode,
 } from "@/pages/SessionsPage/sessionsCalendarUtils"
+
+const RECENT_CLIENTS_KEY = "pulse-sessions-recent-clients"
+const MAX_RECENT = 5
+
+function loadRecentClientIds(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_CLIENTS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecentClientIds(ids: string[]) {
+  try {
+    localStorage.setItem(RECENT_CLIENTS_KEY, JSON.stringify(ids.slice(0, MAX_RECENT)))
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function pushRecentClient(ids: string[], clientId: string): string[] {
+  return [clientId, ...ids.filter((id) => id !== clientId)].slice(0, MAX_RECENT)
+}
 
 export function SessionsPage({
   practiceId,
@@ -37,13 +63,12 @@ export function SessionsPage({
   const { ownerName, practiceName } = useOwnerShell(practiceId, userRole)
 
   const [panelLoading, setPanelLoading] = useState(true)
-  const [clientGroups, setClientGroups] = useState<
-    Awaited<ReturnType<typeof loadSessionsPagePanelData>>["clientGroups"]
-  >([])
+  const [clients, setClients] = useState<SessionsClientEntry[]>([])
   const [staffGroups, setStaffGroups] = useState<
     Awaited<ReturnType<typeof loadSessionsPagePanelData>>["staffGroups"]
   >([])
   const [hidePanel, setHidePanel] = useState(false)
+  const [recentClientIds, setRecentClientIds] = useState<string[]>(() => loadRecentClientIds())
 
   const [panelTab, setPanelTab] = useState<PanelTab>("clients")
   const [searchQuery, setSearchQuery] = useState("")
@@ -64,7 +89,7 @@ export function SessionsPage({
     loadSessionsPagePanelData(practiceId, userRole ?? "technician", currentStaffId ?? null)
       .then((data) => {
         if (cancelled) return
-        setClientGroups(data.clientGroups)
+        setClients(data.clients)
         setStaffGroups(data.staffGroups)
         setHidePanel(data.hidePanel)
         if (data.defaultPerson) {
@@ -83,8 +108,21 @@ export function SessionsPage({
   }, [practiceId, userRole, currentStaffId])
 
   const filtered = useMemo(
-    () => filterPanelBySearch(clientGroups, staffGroups, searchQuery),
-    [clientGroups, staffGroups, searchQuery],
+    () => filterPanelBySearch(clients, staffGroups, searchQuery),
+    [clients, staffGroups, searchQuery],
+  )
+
+  const clientById = useMemo(
+    () => new Map(clients.map((c) => [c.id, c])),
+    [clients],
+  )
+
+  const recentClients = useMemo(
+    () =>
+      recentClientIds
+        .map((id) => clientById.get(id))
+        .filter((c): c is SessionsClientEntry => c != null),
+    [recentClientIds, clientById],
   )
 
   const viewKind = selected?.kind ?? "client"
@@ -132,6 +170,14 @@ export function SessionsPage({
     setSelected(person)
     setColorModeOverride(null)
     setPanelTab(person.kind === "client" ? "clients" : "staff")
+
+    if (person.kind === "client") {
+      setRecentClientIds((prev) => {
+        const next = pushRecentClient(prev, person.id)
+        saveRecentClientIds(next)
+        return next
+      })
+    }
   }
 
   const selectedLabel = selected
@@ -151,7 +197,7 @@ export function SessionsPage({
           Sessions
         </h1>
         <p className="mt-1 text-[15px]" style={{ color: P.soft }}>
-          One person&apos;s schedule at a time — pick from the panel or search.
+          One person&apos;s schedule at a time.
         </p>
       </header>
 
@@ -163,7 +209,7 @@ export function SessionsPage({
               style={{ backgroundColor: P.card, borderRadius: P.radius }}
             >
               <p className="py-16 text-[15px] animate-pulse" style={{ color: P.faint }}>
-                Loading people…
+                Loading…
               </p>
             </aside>
           ) : (
@@ -172,7 +218,8 @@ export function SessionsPage({
               onTabChange={setPanelTab}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
-              clientGroups={filtered.clientGroups}
+              clients={filtered.clients}
+              recentClients={recentClients}
               staffGroups={filtered.staffGroups}
               selected={selected}
               onSelect={handleSelect}
@@ -180,60 +227,18 @@ export function SessionsPage({
           )
         )}
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          {selected && (
-            <div className="flex shrink-0 flex-wrap items-center gap-3">
-              <span
-                className="text-[12px] font-semibold uppercase tracking-[0.08em]"
-                style={{ color: P.faint }}
-              >
-                Color by
-              </span>
-              <div
-                className="inline-flex items-center gap-0.5 rounded-full p-1"
-                style={{ backgroundColor: P.inset }}
-              >
-                {(
-                  [
-                    { id: "status" as const, label: "Status" },
-                    { id: "type" as const, label: "Type" },
-                  ] as const
-                ).map(({ id, label }) => {
-                  const active = colorMode === id
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setColorModeOverride(id)}
-                      className={cn(
-                        "rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors",
-                        active ? "shadow-sm" : "hover:opacity-80",
-                      )}
-                      style={{
-                        backgroundColor: active ? P.card : "transparent",
-                        color: active ? P.sageInk : P.soft,
-                      }}
-                    >
-                      {label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          <PracticeSessionCalendar
-            sessions={sessions}
-            sessionNotes={sessionNotes}
-            viewKind={viewKind}
-            colorMode={colorMode}
-            anchorDate={anchorDate}
-            onAnchorDateChange={setAnchorDate}
-            loading={sessionsLoading}
-            empty={!selected}
-            selectedLabel={selectedLabel}
-          />
-        </div>
+        <PracticeSessionCalendar
+          sessions={sessions}
+          sessionNotes={sessionNotes}
+          viewKind={viewKind}
+          colorMode={colorMode}
+          onColorModeChange={setColorModeOverride}
+          anchorDate={anchorDate}
+          onAnchorDateChange={setAnchorDate}
+          loading={sessionsLoading}
+          empty={!selected}
+          selectedLabel={selectedLabel}
+        />
       </div>
     </OwnerAppShell>
   )

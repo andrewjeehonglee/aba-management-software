@@ -123,5 +123,3 @@ export function formatMonthYear(d: Date): string {
 }
 
 export const DOW_LABELS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
-
-export const MAX_VISIBLE_CHIPS = 2

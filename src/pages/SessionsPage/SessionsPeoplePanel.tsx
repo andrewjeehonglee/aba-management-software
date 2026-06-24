@@ -1,7 +1,7 @@
 import { Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type {
-  SessionsClientGroup,
+  SessionsClientEntry,
   SessionsPerson,
   SessionsStaffGroup,
 } from "@/lib/sessionsPageScope"
@@ -14,18 +14,58 @@ interface SessionsPeoplePanelProps {
   onTabChange: (tab: PanelTab) => void
   searchQuery: string
   onSearchChange: (query: string) => void
-  clientGroups: SessionsClientGroup[]
+  clients: SessionsClientEntry[]
+  recentClients: SessionsClientEntry[]
   staffGroups: SessionsStaffGroup[]
   selected: SessionsPerson | null
   onSelect: (person: SessionsPerson) => void
 }
 
-function personKey(person: SessionsPerson): string {
-  return `${person.kind}:${person.id}`
-}
-
 function isSelected(selected: SessionsPerson | null, kind: SessionsPerson["kind"], id: string) {
   return selected?.kind === kind && selected.id === id
+}
+
+function ClientRowButton({
+  client,
+  selected,
+  onSelect,
+}: {
+  client: SessionsClientEntry
+  selected: SessionsPerson | null
+  onSelect: (person: SessionsPerson) => void
+}) {
+  const active = isSelected(selected, "client", client.id)
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() =>
+          onSelect({
+            kind: "client",
+            id: client.id,
+            label: client.code,
+            code: client.code,
+          })
+        }
+        className={cn(
+          "w-full rounded-[10px] px-3 py-2 text-left transition-colors",
+          active ? "font-semibold" : "hover:opacity-90",
+        )}
+        style={{
+          backgroundColor: active ? P.sageBg : "transparent",
+          color: active ? P.sageInk : P.ink,
+          boxShadow: active ? `inset 0 0 0 1px ${P.sage}` : undefined,
+        }}
+      >
+        <span className="block text-[15px]">{client.code}</span>
+        {client.displayName.toLowerCase() !== client.code.toLowerCase() && (
+          <span className="block truncate text-[13px]" style={{ color: P.soft }}>
+            {client.displayName}
+          </span>
+        )}
+      </button>
+    </li>
+  )
 }
 
 export function SessionsPeoplePanel({
@@ -33,21 +73,22 @@ export function SessionsPeoplePanel({
   onTabChange,
   searchQuery,
   onSearchChange,
-  clientGroups,
+  clients,
+  recentClients,
   staffGroups,
   selected,
   onSelect,
 }: SessionsPeoplePanelProps) {
+  const showRecent = tab === "clients" && !searchQuery.trim() && recentClients.length > 0
+  const recentIds = new Set(recentClients.map((c) => c.id))
+  const alphabeticalClients = clients.filter((c) => !showRecent || !recentIds.has(c.id))
+
   return (
     <aside
       className="flex min-h-0 w-full shrink-0 flex-col lg:w-[300px]"
       style={{ backgroundColor: P.card, borderRadius: P.radius }}
     >
       <div className="shrink-0 space-y-3 border-b p-4" style={{ borderColor: P.rule }}>
-        <h2 className="text-[18px] font-bold" style={{ color: P.ink }}>
-          People
-        </h2>
-
         <label className="relative block">
           <Search
             className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
@@ -106,59 +147,59 @@ export function SessionsPeoplePanel({
 
       <div className="profile-scroll min-h-0 flex-1 overflow-y-auto p-3">
         {tab === "clients" ? (
-          clientGroups.length === 0 ? (
+          clients.length === 0 ? (
             <p className="px-2 py-6 text-center text-[15px]" style={{ color: P.soft }}>
               No clients in your scope.
             </p>
           ) : (
             <div className="space-y-4">
-              {clientGroups.map((group) => (
-                <section key={group.bcbaId}>
+              {showRecent && (
+                <section>
                   <p
                     className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-[0.07em]"
                     style={{ color: P.faint }}
                   >
-                    {group.bcbaName} — BCBA ({group.clients.length} client
-                    {group.clients.length === 1 ? "" : "s"})
+                    Recent
                   </p>
                   <ul className="space-y-0.5">
-                    {group.clients.map((client) => {
-                      const active = isSelected(selected, "client", client.id)
-                      return (
-                        <li key={client.id}>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onSelect({
-                                kind: "client",
-                                id: client.id,
-                                label: client.code,
-                                code: client.code,
-                              })
-                            }
-                            className={cn(
-                              "w-full rounded-[10px] px-3 py-2 text-left transition-colors",
-                              active ? "font-semibold" : "hover:opacity-90",
-                            )}
-                            style={{
-                              backgroundColor: active ? P.sageBg : "transparent",
-                              color: active ? P.sageInk : P.ink,
-                              boxShadow: active ? `inset 0 0 0 1px ${P.sage}` : undefined,
-                            }}
-                          >
-                            <span className="block text-[15px]">{client.code}</span>
-                            {client.displayName.toLowerCase() !== client.code.toLowerCase() && (
-                              <span className="block truncate text-[13px]" style={{ color: P.soft }}>
-                                {client.displayName}
-                              </span>
-                            )}
-                          </button>
-                        </li>
-                      )
-                    })}
+                    {recentClients.map((client) => (
+                      <ClientRowButton
+                        key={`recent-${client.id}`}
+                        client={client}
+                        selected={selected}
+                        onSelect={onSelect}
+                      />
+                    ))}
                   </ul>
                 </section>
-              ))}
+              )}
+
+              <section>
+                {!searchQuery.trim() && (
+                  <p
+                    className="mb-1.5 px-2 text-[12px] font-semibold uppercase tracking-[0.07em]"
+                    style={{ color: P.faint }}
+                  >
+                    A–Z
+                  </p>
+                )}
+                {searchQuery.trim() && alphabeticalClients.length === 0 && recentClients.length === 0 ? (
+                  <p className="px-2 py-4 text-center text-[15px]" style={{ color: P.soft }}>
+                    No clients match your search.
+                  </p>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {(searchQuery.trim() ? clients : alphabeticalClients).map((client) => (
+                      <ClientRowButton
+                        key={client.id}
+                        client={client}
+                        selected={selected}
+                        onSelect={onSelect}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </section>
             </div>
           )
         ) : staffGroups.length === 0 ? (
@@ -214,5 +255,3 @@ export function SessionsPeoplePanel({
     </aside>
   )
 }
-
-export { personKey }
