@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard, match: (path: string) => path === "/" },
   { label: "Clients", href: "/clients", icon: Users, match: (path: string) => path === "/clients" || path.startsWith("/clients/") },
   { label: "Staff", href: "/staff", icon: UserCircle, match: (path: string) => path === "/staff" || path.startsWith("/staff/") },
-  { label: "Sessions", href: "/roster", icon: CalendarDays, match: (path: string) => path.startsWith("/session/") },
+  { label: "Sessions", href: "/sessions", icon: CalendarDays, match: (path: string) => path === "/sessions" || path.startsWith("/session/") },
   { label: "Audit", href: "/audit", icon: ClipboardList, match: (path: string) => path === "/audit" },
 ] as const
 

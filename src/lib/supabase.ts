@@ -364,12 +364,30 @@ async function fetchSessionScheduledAtMap(sessionIds: string[]): Promise<Map<str
 export async function getSessionsByClientId(clientId: string): Promise<SessionRecord[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name), staff(full_name, team)')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
     .eq('client_id', clientId)
     .order('scheduled_at', { ascending: true })
   if (error) throw error
 
   return mapSessionRows(data as unknown as SessionRow[])
+}
+
+/** Sessions for one client within a calendar month (practice TZ). */
+export async function getSessionsByClientIdForMonth(
+  clientId: string,
+  monthDate: Date = new Date(),
+): Promise<{ label: string; sessions: SessionRecord[] }> {
+  const month = getCurrentCalendarMonth(monthDate)
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
+    .eq('client_id', clientId)
+    .gte('scheduled_at', month.start.toISOString())
+    .lte('scheduled_at', month.end.toISOString())
+    .order('scheduled_at', { ascending: true })
+  if (error) throw error
+
+  return { label: month.label, sessions: mapSessionRows(data as unknown as SessionRow[]) }
 }
 
 interface SessionByIdRow {

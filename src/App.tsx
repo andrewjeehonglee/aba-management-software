@@ -15,6 +15,7 @@ import { CreatePracticePage } from "@/pages/CreatePracticePage"
 import { SessionViewPage } from "@/pages/SessionViewPage"
 import { StaffOverviewPage } from "@/pages/StaffOverviewPage"
 import { StaffSessionNotesPage } from "@/pages/StaffSessionNotesPage"
+import { SessionsPage } from "@/pages/SessionsPage/SessionsPage"
 import { DemoContext } from "@/context/DemoContext"
 import { supabase, getUserPractice, getUserRole, getStaffByUserId } from "@/lib/supabase"
 import type { PracticeMembership } from "@/lib/supabase"
@@ -221,7 +222,17 @@ function App() {
               : <Navigate to="/" replace />
           }
         />
-        <Route path="/roster" element={<Navigate to="/clients" replace />} />
+        <Route
+          path="/sessions"
+          element={
+            <SessionsPage
+              practiceId={practice.practice_id}
+              userRole={userRole}
+              currentStaffId={currentStaffId}
+            />
+          }
+        />
+        <Route path="/roster" element={<Navigate to="/sessions" replace />} />
         <Route
           path="/audit"
           element={
