@@ -7,7 +7,7 @@ import {
   buildAuditTextBundle,
   downloadTextFile,
 } from "@/lib/auditExport"
-import { isCompleteSessionNote } from "@/lib/notesStatus"
+import { getNotesStatus, isCompleteSessionNote, type NotesStatusItem } from "@/lib/notesStatus"
 import { clientProfilePath, resolveClientByRouteKey } from "@/lib/rosterScope"
 import { formatEventStamp } from "@/lib/sessions"
 import { P, SECTION_LABEL } from "@/pages/ClientOverviewPage/profileTokens"
@@ -120,8 +120,10 @@ function CompletedNoteRow({ item }: { item: AuditNoteBundleItem }) {
   )
 }
 
-function DueNoteRow({ item }: { item: AuditNoteBundleItem }) {
-  const { date, time } = formatEventStamp(undefined, item.sessionAt)
+function DueNoteRow({ item }: { item: NotesStatusItem }) {
+  const { date, time } = formatEventStamp(undefined, item.scheduledAt)
+  const clientLabel = item.clientCode ?? item.clientName
+  const isOverdue = item.bucket === "overdue"
 
   return (
     <li
@@ -134,15 +136,18 @@ function DueNoteRow({ item }: { item: AuditNoteBundleItem }) {
           {time ? ` · ${time}` : ""}
         </p>
         <p className="mt-0.5 text-[13px]" style={{ color: P.soft }}>
-          {item.staffName} · {item.sessionType}
+          {clientLabel}
         </p>
       </div>
       <div className="flex items-center gap-3">
         <span
           className="inline-flex rounded-full px-2.5 py-0.5 text-[12px] font-medium"
-          style={{ backgroundColor: P.amberBg, color: P.amberInk }}
+          style={{
+            backgroundColor: isOverdue ? "#F5D5CE" : P.amberBg,
+            color: isOverdue ? P.cancel : P.amberInk,
+          }}
         >
-          Note due
+          {isOverdue ? "Overdue" : "Missing"}
         </span>
         <Link
           to={`/session/${item.sessionId}`}
@@ -168,7 +173,7 @@ export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
   const [startDate, setStartDate] = useState(defaults.startDate)
   const [endDate, setEndDate] = useState(defaults.endDate)
   const [items, setItems] = useState<AuditNoteBundleItem[]>([])
-  const [dueItems, setDueItems] = useState<AuditNoteBundleItem[]>([])
+  const [dueItems, setDueItems] = useState<NotesStatusItem[]>([])
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
 
@@ -229,20 +234,13 @@ export function ClientSessionNotesPage({ practiceId }: { practiceId: string }) {
   useEffect(() => {
     if (!clientUuid) return
 
-    const dueRange = defaultDateRange(60)
     let cancelled = false
-
-    getAuditNotesBundle(clientUuid, dueRange.startDate, dueRange.endDate)
-      .then((bundle) => {
+    getNotesStatus(undefined, { clientIds: [clientUuid] })
+      .then((summary) => {
         if (cancelled) return
+        const items = summary.byStaff.flatMap((row) => row.items)
         setDueItems(
-          bundle
-            .filter(
-              (item) =>
-                item.status === "completed" &&
-                !isCompleteSessionNote(item.note ?? undefined),
-            )
-            .sort((a, b) => b.sessionAt.localeCompare(a.sessionAt)),
+          items.sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt)),
         )
       })
       .catch(() => {

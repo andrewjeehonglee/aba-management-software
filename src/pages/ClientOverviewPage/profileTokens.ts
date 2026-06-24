@@ -18,10 +18,13 @@ export const P = {
   scheduledTint: "#F0EDE6",
   /** Calendar day-bar + legend hues (v6) */
   calComplete: "#3F8A53",
-  calNoteDue: "#E08A2B",
-  calCancelled: "#B5362A",
+  calMissing: "#E08A2B",
+  calOverdue: "#B5362A",
+  calCancelled: "#B6AE9E",
   calScheduled: "#3A6BA5",
   calScheduledTint: "#E3ECF4",
+  /** @deprecated use calMissing */
+  calNoteDue: "#E08A2B",
   goalInProgress: "#3E6B9C",
   goalHold: "#A9762A",
   goalMastered: "#4C6B52",

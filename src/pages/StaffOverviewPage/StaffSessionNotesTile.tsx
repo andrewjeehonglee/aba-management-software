@@ -33,9 +33,9 @@ function sessionBadge(
     }
     const bucket = bucketBySessionId.get(item.sessionId)
     if (bucket === "overdue") {
-      return { label: "Note overdue", bg: "#F5D5CE", ink: P.cancel }
+      return { label: "Overdue", bg: "#F5D5CE", ink: P.cancel }
     }
-    return { label: "Note due", bg: P.amberBg, ink: P.amberInk }
+    return { label: "Missing", bg: P.amberBg, ink: P.amberInk }
   }
   return { label: "Scheduled", bg: P.calScheduledTint, ink: P.calScheduled }
 }

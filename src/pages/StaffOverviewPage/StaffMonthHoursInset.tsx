@@ -1,12 +1,9 @@
-import type { RosterStaffRole } from "@/lib/staffRole"
-import { isTechnicianRole } from "@/lib/staffRole"
 import { P, SECTION_LABEL } from "@/pages/ClientOverviewPage/profileTokens"
 
 interface StaffMonthHoursInsetProps {
   directHours: number
   indirectHours: number
   monthLabel: string
-  role: RosterStaffRole
   loading?: boolean
 }
 
@@ -14,7 +11,6 @@ export function StaffMonthHoursInset({
   directHours,
   indirectHours,
   monthLabel,
-  role,
   loading,
 }: StaffMonthHoursInsetProps) {
   const totalHours = directHours + indirectHours
@@ -24,7 +20,6 @@ export function StaffMonthHoursInset({
   const pctDisplay = directPct === null ? "—" : `${directPct}%`
   const colorDirectPct = () => {
     if (directPct === null) return P.ink
-    if (!isTechnicianRole(role)) return P.ink
     return directPct < 50 ? P.amberInk : P.sageInk
   }
 

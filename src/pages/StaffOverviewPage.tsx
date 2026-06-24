@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 import { getStaffAuditNotesBundle, type AuditNoteBundleItem } from "@/lib/auditPull"
@@ -38,7 +38,7 @@ import { P, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 import { SessionCalendarMonth } from "@/pages/ClientOverviewPage/SessionCalendarMonth"
 import { StaffFactsList } from "@/pages/StaffOverviewPage/StaffFactsList"
 import { StaffMonthHoursInset } from "@/pages/StaffOverviewPage/StaffMonthHoursInset"
-import { StaffMyClientsTile } from "@/pages/StaffOverviewPage/StaffMyClientsTile"
+import { StaffCareTeamsTile } from "@/pages/StaffOverviewPage/StaffCareTeamsTile"
 import { StaffSessionNotesTile } from "@/pages/StaffOverviewPage/StaffSessionNotesTile"
 
 function formatDateInput(date: Date): string {
@@ -267,6 +267,11 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const roleBadgeLabel = resolvedRole ? staffRoleHeaderLabel(resolvedRole) : null
   const supervisionPanelMonth = supervisionMonthLabel || monthLabel
 
+  const noteBucketBySessionId = useMemo(
+    () => new Map(dueItems.map((item) => [item.sessionId, item.bucket])),
+    [dueItems],
+  )
+
   if (dataLoading) {
     return (
       <div
@@ -347,7 +352,6 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
                   directHours={directHours}
                   indirectHours={indirectHours}
                   monthLabel={hoursMonthLabel || monthLabel}
-                  role={resolvedRole}
                 />
               </div>
             </aside>
@@ -358,6 +362,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
                 narrowBars
                 sessions={monthSessions}
                 sessionNotes={sessionNotes}
+                noteBucketBySessionId={noteBucketBySessionId}
               />
             </div>
 
@@ -372,7 +377,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
             </div>
           </div>
 
-          <StaffMyClientsTile
+          <StaffCareTeamsTile
             role={resolvedRole}
             clientTable={clientTable}
             caseloadRecords={caseloadSupervision}

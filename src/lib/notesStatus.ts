@@ -59,6 +59,19 @@ export interface NotesStatusSummary {
   byStaff: StaffNotesStatus[]
 }
 
+/** Flat map of session ID → missing/overdue for calendar and list badges. */
+export function noteBucketMapFromSummary(
+  summary: NotesStatusSummary,
+): Map<string, "missing" | "overdue"> {
+  const map = new Map<string, "missing" | "overdue">()
+  for (const row of summary.byStaff) {
+    for (const item of row.items) {
+      map.set(item.sessionId, item.bucket)
+    }
+  }
+  return map
+}
+
 export function isCompleteSessionNote(note: SessionNoteRow | undefined): boolean {
   if (!note) return false
   return [note.subjective, note.objective, note.assessment, note.plan].every(
