@@ -8,6 +8,7 @@ import {
   type PayPeriodRoleTier,
 } from "@/lib/payPeriodHoursGap"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
+import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 import { OwnerDetailPopover } from "@/components/dashboard/OwnerDetailPopover"
 
 const TIER_FILTER_LABELS: Record<PayPeriodRoleTier, string> = {
@@ -16,10 +17,22 @@ const TIER_FILTER_LABELS: Record<PayPeriodRoleTier, string> = {
   bcba: "BCBAs",
 }
 
+type PayrollData = PayPeriodHoursGapSummary & {
+  daysUntilClose: number
+  totalOnHoldHours: number
+}
+
+function closeContextLabel(daysUntilClose: number): string {
+  if (daysUntilClose <= 0) return "closes today"
+  if (daysUntilClose === 1) return "closes in 1 day"
+  return `closes in ${daysUntilClose} days`
+}
+
 function PanelSkeleton() {
   return (
     <div className="animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
-      <div className="h-4 w-40 rounded bg-line-soft" />
+      <div className="h-5 w-48 rounded bg-line-soft" />
+      <div className="mt-2 h-4 w-full max-w-lg rounded bg-line-soft" />
       <div className="mt-3 h-8 w-full max-w-md rounded-full bg-line-soft" />
       <div className="mt-4 grid grid-cols-[1fr_auto_auto] gap-3">
         <div className="h-3 rounded bg-line-soft" />
@@ -41,7 +54,7 @@ export function PayrollPanel({
   payroll,
   loading,
 }: {
-  payroll: PayPeriodHoursGapSummary | null
+  payroll: PayrollData | null
   loading?: boolean
 }) {
   const [selectedTier, setSelectedTier] = useState<PayPeriodRoleTier>("technician")
@@ -54,13 +67,20 @@ export function PayrollPanel({
 
   return (
     <section
-      className="rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3"
+      id="owner-pillar-payroll"
+      className="scroll-mt-4 rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3"
       aria-label="Payroll"
     >
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <h2 className="text-[16px] font-semibold text-ink">Payroll</h2>
-        <span className="text-[14px] tabular-nums text-muted">{payroll.payPeriodTableLabel}</span>
+        <h2 className={cn(TILE_TITLE, "text-ink")}>Payroll</h2>
+        <span className="text-[15px] tabular-nums text-muted">· {payroll.payPeriodTableLabel}</span>
+        <span className="text-[14px] text-muted">({closeContextLabel(payroll.daysUntilClose)})</span>
       </div>
+
+      <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
+        On-hold hours are sessions completed without a finished note — hold pay until documentation
+        is in. Payable hours are ready to run.
+      </p>
 
       <div
         className="mt-3 inline-flex max-w-full rounded-full bg-surface-2 p-0.5"

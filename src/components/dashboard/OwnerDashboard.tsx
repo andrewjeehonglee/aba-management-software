@@ -6,6 +6,7 @@ import {
   type OwnerDashboardData,
 } from "@/lib/ownerDashboardConcerns"
 import { getRosterStaffManifest } from "@/lib/rosterScope"
+import { OwnerFocalSummaryStrip } from "@/components/dashboard/OwnerFocalSummaryStrip"
 import { OwnerMonitorTiles } from "@/components/dashboard/OwnerMonitorTiles"
 import { PayrollPanel } from "@/components/dashboard/PayrollPanel"
 import { PAY_PERIOD_TIER_ORDER } from "@/lib/payPeriodHoursGap"
@@ -13,6 +14,8 @@ import { PAY_PERIOD_TIER_ORDER } from "@/lib/payPeriodHoursGap"
 const EMPTY_PAYROLL: OwnerDashboardData["payroll"] = {
   payPeriodLabel: "",
   payPeriodTableLabel: "",
+  daysUntilClose: 0,
+  totalOnHoldHours: 0,
   byRole: PAY_PERIOD_TIER_ORDER.map((tier) => ({
     tier,
     label: tier === "technician" ? "Technicians" : tier === "supervisor" ? "Supervisors" : "BCBAs",
@@ -25,24 +28,45 @@ const EMPTY_TILES: OwnerDashboardData["monitorTiles"] = [
     id: "notes",
     title: "Session notes",
     state: "healthy",
-    situation: "All session notes are in for this pay period.",
+    headerLine: "All complete this pay period · billing and audit clear",
+    emptyLabel: "All clear — every note is in for this pay period",
     chips: [],
+    overflowCount: 0,
+    overflowChips: [],
   },
   {
     id: "auth",
     title: "Authorized hours",
     state: "healthy",
-    situation: "No clients are approaching their authorized hour cap.",
+    headerLine: "All clients within cap · billing clear",
+    emptyLabel: "All clear — every client within authorized hours",
     chips: [],
+    overflowCount: 0,
+    overflowChips: [],
   },
   {
     id: "directHours",
     title: "Direct hours",
     state: "healthy",
-    situation: "All clients meet the direct engagement minimum.",
+    headerLine: "Direct engagement on track · monitor (month in progress)",
+    emptyLabel: "All clear — direct engagement on track this month",
     chips: [],
+    overflowCount: 0,
+    overflowChips: [],
   },
 ]
+
+const EMPTY_FOCAL: OwnerDashboardData["focalSummary"] = {
+  allClear: true,
+  segments: [
+    {
+      id: "notes",
+      text: "All clear this morning — notes in, payroll ready, auth on track",
+      severity: "neutral",
+      scrollTargetId: "owner-pillar-notes",
+    },
+  ],
+}
 
 export function OwnerDashboard({
   practiceId,
@@ -65,6 +89,7 @@ export function OwnerDashboard({
 }) {
   const [data, setData] = useState<OwnerDashboardData>({
     monitorTiles: EMPTY_TILES,
+    focalSummary: EMPTY_FOCAL,
     payroll: EMPTY_PAYROLL,
     loading: true,
   })
@@ -130,26 +155,33 @@ export function OwnerDashboard({
   }
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col gap-4 animate-fade-rise animate-fade-rise-delay-1", className)}>
-      <header className="shrink-0 space-y-1">
+    <div
+      className={cn(
+        "owner-scroll flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1 animate-fade-rise animate-fade-rise-delay-1",
+        className,
+      )}
+    >
+      <header className="shrink-0">
         {showPlaceholder ? (
-          <>
-            <div className="h-7 w-56 animate-pulse rounded-[12px] bg-line-soft" aria-hidden />
-            <div className="h-5 w-40 animate-pulse rounded bg-line-soft" aria-hidden />
-          </>
+          <div className="h-7 w-56 animate-pulse rounded-[12px] bg-line-soft" aria-hidden />
         ) : (
-          <>
-            <p className="text-[22px] font-normal leading-snug text-ink-soft">
-              {greeting}, {name}.
-            </p>
-            <p className="text-[16px] font-semibold text-ink">Needs your attention.</p>
-          </>
+          <p className="text-[22px] font-normal leading-snug text-ink-soft">
+            {greeting}, {name}.
+          </p>
         )}
       </header>
 
+      <OwnerFocalSummaryStrip
+        summary={showPlaceholder ? null : data.focalSummary}
+        loading={showPlaceholder}
+      />
+
       <OwnerMonitorTiles tiles={data.monitorTiles} loading={showPlaceholder} />
 
-      <PayrollPanel payroll={showPlaceholder ? null : data.payroll} loading={showPlaceholder} />
+      <PayrollPanel
+        payroll={showPlaceholder ? null : data.payroll}
+        loading={showPlaceholder}
+      />
     </div>
   )
 }
