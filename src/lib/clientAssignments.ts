@@ -114,8 +114,14 @@ export interface RosterStaffLink {
 export interface StaffClientTableRow {
   clientId: string
   clientCode: string
+  bcba: RosterStaffLink | null
   technician: RosterStaffLink | null
   supervisor: RosterStaffLink | null
+}
+
+export interface SuperviseeClientsRow {
+  technician: RosterStaffLink
+  clients: BtClientAssignment[]
 }
 
 export interface StaffPeopleGroups {
@@ -213,6 +219,7 @@ async function buildClientTableRows(clientIds: string[]): Promise<StaffClientTab
     rowsByClient.set(clientId, {
       clientId,
       clientCode: clientCodes.get(clientId) ?? clientId,
+      bcba: null,
       technician: null,
       supervisor: null,
     })
@@ -226,6 +233,9 @@ async function buildClientTableRows(clientIds: string[]): Promise<StaffClientTab
     const entry = rowsByClient.get(row.client_id)
     const link = staffById.get(row.staff_id)
     if (!entry || !link) continue
+    if (row.assignment_role === "primary_bcba") {
+      entry.bcba = link
+    }
     if (row.assignment_role === "primary_bt" || row.assignment_role === "secondary_bt") {
       entry.technician = link
     }
@@ -249,6 +259,35 @@ export async function getStaffClientTableForSupervisor(
 ): Promise<StaffClientTableRow[]> {
   const clientIds = await getClientIdsForStaffByRoles(supervisorStaffId, ["clinical_supervisor"])
   return buildClientTableRows(clientIds)
+}
+
+/** Full client table for a technician (Client | BCBA | Supervisor). */
+export async function getStaffClientTableForTechnician(
+  technicianStaffId: string,
+): Promise<StaffClientTableRow[]> {
+  const clientIds = await getClientIdsForStaffByRoles(technicianStaffId, [
+    "primary_bt",
+    "secondary_bt",
+  ])
+  return buildClientTableRows(clientIds)
+}
+
+/** Technicians on a supervisor's caseload, each with assigned clients. */
+export async function getSuperviseesWithClients(
+  supervisorStaffId: string,
+): Promise<SuperviseeClientsRow[]> {
+  const btIds = await getCaseloadBtStaffIds(supervisorStaffId, "supervisor")
+  const staffById = await fetchStaffLinks(btIds)
+  const rows: SuperviseeClientsRow[] = []
+
+  for (const btId of btIds) {
+    const technician = staffById.get(btId)
+    if (!technician) continue
+    const clients = await getBtClientAssignments(btId)
+    rows.push({ technician, clients })
+  }
+
+  return rows.sort((a, b) => a.technician.fullName.localeCompare(b.technician.fullName))
 }
 
 /** BT primary assignments — client chips for technician pages. */

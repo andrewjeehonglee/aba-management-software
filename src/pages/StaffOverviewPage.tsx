@@ -1,43 +1,19 @@
 import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
-import { SessionStatusBadge } from "@/components/SessionStatusBadge"
-import { StaffMonthMetrics } from "@/components/staff/StaffMonthMetrics"
-import { StaffSupervisionPanel } from "@/components/staff/StaffSupervisionPanel"
-import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { formatTime } from "@/lib/sessions"
-import { unslug } from "@/lib/slug"
-import { resolveStaffByRouteKey, staffProfilePath } from "@/lib/rosterScope"
-import {
-  getSessionsByStaffIdForMonth,
-  getSupervisionByStaffId,
-  getSupervisionForStaffIds,
-  supabase,
-  type SessionRecord,
-  type StaffRecord,
-  type SupervisionRecord,
-} from "@/lib/supabase"
-import {
-  getBtClientAssignments,
   getCaseloadBtStaffIds,
   getStaffClientTableForBcba,
   getStaffClientTableForSupervisor,
-  type BtClientAssignment,
-  type RosterStaffLink,
+  getStaffClientTableForTechnician,
+  getSuperviseesWithClients,
   type StaffClientTableRow,
+  type SuperviseeClientsRow,
 } from "@/lib/clientAssignments"
 import { filterSupervisionRecordsForTile } from "@/lib/dashboardScope"
-import { getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
-import { parseCertification } from "@/lib/staff"
-import {
-  downloadStaffSessionsCsv,
-  getStaffSessionExportBundle,
-} from "@/lib/staffSessionExport"
+import { getNotesStatus } from "@/lib/notesStatus"
+import { resolveStaffByRouteKey } from "@/lib/rosterScope"
+import { getStaffHoursByMonth } from "@/lib/staffHours"
 import { demoStaffEmail, demoStaffPhone } from "@/lib/staffContact"
 import {
   isBcbaRole,
@@ -47,70 +23,31 @@ import {
   staffRoleHeaderLabel,
   type RosterStaffRole,
 } from "@/lib/staffRole"
-import type { SessionStatus } from "@/types/session"
-
-const PAGE_SHELL = "w-full max-w-[min(100%,1680px)] px-4 sm:px-6"
-
-function StaffBreadcrumb({ name }: { name: string }) {
-  return (
-    <nav
-      aria-label="Breadcrumb"
-      className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground"
-    >
-      <Link to="/" className="hover:text-foreground transition-colors">
-        Dashboard
-      </Link>
-      <span aria-hidden="true">·</span>
-      <Link to="/staff" className="hover:text-foreground transition-colors">
-        Staff
-      </Link>
-      <span aria-hidden="true">·</span>
-      <span className="text-foreground font-medium">{name}</span>
-    </nav>
-  )
-}
-
-function Chip({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-      {children}
-    </span>
-  )
-}
-
-function formatDate(iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function formatCertExpiryShort(cert: string): string | null {
-  const parsed = parseCertification(cert)
-  if (!parsed) return null
-  const formattedExpiry = parsed.expiryDate.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-  return `Cert expires ${formattedExpiry}`
-}
-
-function sessionClientLabel(session: SessionRecord): string {
-  return session.clientCode ?? session.clientName
-}
-
-function StaffLink({ link }: { link: RosterStaffLink }) {
-  return (
-    <Link
-      to={staffProfilePath(link.externalCode)}
-      className="font-medium hover:underline underline-offset-2"
-    >
-      {link.fullName}
-    </Link>
-  )
-}
+import {
+  downloadStaffSessionsCsv,
+  getStaffSessionExportBundle,
+} from "@/lib/staffSessionExport"
+import { getCurrentCalendarMonthDateBounds } from "@/lib/payPeriod"
+import { unslug } from "@/lib/slug"
+import {
+  getSessionNotesBySessionIds,
+  getSessionsByStaffIdForMonth,
+  getSupervisionByStaffId,
+  getSupervisionForStaffIds,
+  supabase,
+  type SessionNoteRecord,
+  type SessionRecord,
+  type StaffRecord,
+  type SupervisionRecord,
+} from "@/lib/supabase"
+import { P, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
+import { SessionCalendarMonth } from "@/pages/ClientOverviewPage/SessionCalendarMonth"
+import { StaffCompliancePanel } from "@/pages/StaffOverviewPage/StaffCompliancePanel"
+import { StaffFactsList } from "@/pages/StaffOverviewPage/StaffFactsList"
+import { StaffMonthHoursInset } from "@/pages/StaffOverviewPage/StaffMonthHoursInset"
+import { StaffPeoplePanel } from "@/pages/StaffOverviewPage/StaffPeoplePanel"
+import { StaffRecentSessionsPanel } from "@/pages/StaffOverviewPage/StaffRecentSessionsPanel"
+import { StaffRecordsBucket } from "@/pages/StaffOverviewPage/StaffRecordsBucket"
 
 async function enrichSupervisionForStaffIds(
   staffIds: string[],
@@ -148,7 +85,7 @@ async function enrichSupervisionForStaffIds(
 }
 
 export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
-  const { staffId } = useParams<{ staffId: string }>()
+  const { staffId: staffRouteKey } = useParams<{ staffId: string }>()
 
   const [staff, setStaff] = useState<StaffRecord | null>(null)
   const [resolvedRole, setResolvedRole] = useState<RosterStaffRole | null>(null)
@@ -156,20 +93,30 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
   const [caseloadSupervision, setCaseloadSupervision] = useState<SupervisionRecord[]>([])
   const [supervisionMonthLabel, setSupervisionMonthLabel] = useState("")
   const [monthSessions, setMonthSessions] = useState<SessionRecord[]>([])
+  const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
   const [monthLabel, setMonthLabel] = useState("")
-  const [btClients, setBtClients] = useState<BtClientAssignment[]>([])
   const [clientTable, setClientTable] = useState<StaffClientTableRow[]>([])
+  const [supervisees, setSupervisees] = useState<SuperviseeClientsRow[]>([])
+  const [directHours, setDirectHours] = useState(0)
+  const [indirectHours, setIndirectHours] = useState(0)
+  const [hoursMonthLabel, setHoursMonthLabel] = useState("")
+  const [missingCount, setMissingCount] = useState(0)
+  const [overdueCount, setOverdueCount] = useState(0)
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(false)
   const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
-    if (!staffId) { setDataLoading(false); return }
+    if (!staffRouteKey) {
+      setDataLoading(false)
+      return
+    }
+
     let cancelled = false
     setDataLoading(true)
     setDataError(false)
 
-    resolveStaffByRouteKey(practiceId, staffId)
+    resolveStaffByRouteKey(practiceId, staffRouteKey)
       .then(async (entry) => {
         if (cancelled) return
         if (!entry) {
@@ -180,7 +127,9 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
 
         const { data, error } = await supabase
           .from("staff")
-          .select("id, full_name, external_code, role, team, hire_date, certification, direct_hours, indirect_hours, cancellation_hours")
+          .select(
+            "id, full_name, external_code, role, team, hire_date, certification, direct_hours, indirect_hours, cancellation_hours",
+          )
           .eq("id", entry.id)
           .eq("practice_id", practiceId)
           .maybeSingle()
@@ -224,28 +173,53 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         setStaff(staffRecord)
         setResolvedRole(role)
 
-        const monthResult = await getSessionsByStaffIdForMonth(entry.id)
+        const [monthResult, hoursSummary, notesSummary] = await Promise.all([
+          getSessionsByStaffIdForMonth(entry.id),
+          getStaffHoursByMonth(undefined, { staffIds: [entry.id] }),
+          getNotesStatus(undefined, { staffIds: [entry.id] }),
+        ])
+
         if (cancelled) return
+
         setMonthLabel(monthResult.label)
         setMonthSessions(monthResult.sessions)
 
+        const hoursRow = hoursSummary.byStaff[0]
+        setDirectHours(Math.round(hoursRow?.directHours ?? 0))
+        setIndirectHours(Math.round(hoursRow?.indirectHours ?? 0))
+        setHoursMonthLabel(hoursSummary.monthLabel)
+
+        const notesRow = notesSummary.byStaff.find((s) => s.staffId === entry.id)
+        setMissingCount(notesRow?.missingCount ?? 0)
+        setOverdueCount(notesRow?.overdueCount ?? 0)
+
+        const sessionIds = monthResult.sessions.map((s) => s.id)
+        const notes = sessionIds.length
+          ? await getSessionNotesBySessionIds(sessionIds)
+          : []
+        if (cancelled) return
+        setSessionNotes(notes)
+
         if (isTechnicianRole(role)) {
-          const [supervisionRow, assignments] = await Promise.all([
+          const [supervisionRow, table] = await Promise.all([
             getSupervisionByStaffId(entry.id),
-            getBtClientAssignments(entry.id),
+            getStaffClientTableForTechnician(entry.id),
           ])
           if (cancelled) return
           setSupervision(supervisionRow)
-          setBtClients(assignments)
+          setClientTable(table)
           setCaseloadSupervision([])
-          setClientTable([])
+          setSupervisees([])
         } else if (isLeadershipRole(role)) {
           const viewerRole = isBcbaRole(role) ? "bcba" : "supervisor"
-          const [btIds, table] = await Promise.all([
+          const [btIds, table, superviseeRows] = await Promise.all([
             getCaseloadBtStaffIds(entry.id, viewerRole),
             isBcbaRole(role)
               ? getStaffClientTableForBcba(entry.id)
               : getStaffClientTableForSupervisor(entry.id),
+            isBcbaRole(role)
+              ? Promise.resolve([] as SuperviseeClientsRow[])
+              : getSuperviseesWithClients(entry.id),
           ])
           const rawSupervision = btIds.length
             ? await getSupervisionForStaffIds(btIds)
@@ -254,8 +228,8 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           const { records, displayMonthLabel } = filterSupervisionRecordsForTile(enriched)
           if (cancelled) return
           setSupervision(null)
-          setBtClients([])
           setClientTable(table)
+          setSupervisees(superviseeRows)
           setCaseloadSupervision(
             [...records].sort(
               (a, b) =>
@@ -266,25 +240,24 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
           setSupervisionMonthLabel(displayMonthLabel)
         }
       })
-      .catch(() => { if (!cancelled) setDataError(true) })
-      .finally(() => { if (!cancelled) setDataLoading(false) })
+      .catch(() => {
+        if (!cancelled) setDataError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setDataLoading(false)
+      })
 
-    return () => { cancelled = true }
-  }, [staffId, practiceId])
+    return () => {
+      cancelled = true
+    }
+  }, [staffRouteKey, practiceId])
 
   const displayName =
     staff?.name
     ?? monthSessions[0]?.staffName
-    ?? (staffId ? unslug(staffId) : "Unknown staff")
+    ?? (staffRouteKey ? unslug(staffRouteKey) : "Unknown staff")
 
-  const subtitle =
-    resolvedRole && monthLabel
-      ? `${staffRoleHeaderLabel(resolvedRole)} · ${monthLabel}`
-      : resolvedRole
-        ? staffRoleHeaderLabel(resolvedRole)
-        : null
-
-  const monthClientCount = new Set(monthSessions.map((s) => s.clientId)).size
+  const roleBadgeLabel = resolvedRole ? staffRoleHeaderLabel(resolvedRole) : null
 
   const recentSessions = useMemo(
     () =>
@@ -294,18 +267,7 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
     [monthSessions],
   )
 
-  const identityMeta = useMemo(() => {
-    if (!staff) return ""
-    const parsed = staff.certification ? parseCertification(staff.certification) : null
-    const parts = [
-      parsed?.type ?? null,
-      `Hired ${formatDate(staff.hireDate)}`,
-      staff.certification ? formatCertExpiryShort(staff.certification) : null,
-      demoStaffPhone(staff.externalCode),
-      demoStaffEmail(staff.externalCode),
-    ].filter(Boolean)
-    return parts.join(" · ")
-  }, [staff])
+  const supervisionPanelMonth = supervisionMonthLabel || monthLabel
 
   async function handleExportSessions() {
     if (!staff) return
@@ -328,73 +290,121 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
 
   if (dataLoading) {
     return (
-      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+      <div
+        className="flex min-h-svh items-center justify-center text-[15px]"
+        style={{ backgroundColor: P.bg, color: P.soft }}
+      >
         Loading staff…
       </div>
     )
   }
 
-  if (dataError || !staff || !resolvedRole) {
+  if (dataError || !staff || !resolvedRole || !staffRouteKey) {
     return (
-      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+      <div
+        className="flex min-h-svh items-center justify-center text-[15px]"
+        style={{ backgroundColor: P.bg, color: P.soft }}
+      >
         Staff member not found.
       </div>
     )
   }
 
-  const supervisionPanelMonth = supervisionMonthLabel || monthLabel
+  const phone = demoStaffPhone(staff.externalCode)
+  const email = demoStaffEmail(staff.externalCode)
 
   return (
-    <div className="min-h-svh bg-bg text-foreground">
-      <div className={`${PAGE_SHELL} py-4`}>
-        <StaffBreadcrumb name={displayName} />
-      </div>
+    <div
+      className="min-h-svh px-10 py-6"
+      style={{ backgroundColor: P.bg, color: P.ink }}
+    >
+      <div className="mx-auto w-full max-w-[1600px]">
+        <header>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
+            style={{ color: P.soft }}
+          >
+            <ArrowLeft className="size-4" />
+            Back to dashboard
+          </Link>
 
-      <section className="border-b bg-slate-50/80">
-        <div className={`${PAGE_SHELL} py-5`}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-1">
-              <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {displayName}
-              </h1>
-              {subtitle && (
-                <p className="text-sm text-muted-foreground">{subtitle}</p>
-              )}
-              {identityMeta && (
-                <p className="text-sm text-muted-foreground">{identityMeta}</p>
-              )}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <h1 className="text-[28px] font-semibold tracking-tight">
+              {displayName}
+            </h1>
+            {roleBadgeLabel && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium"
+                style={{
+                  backgroundColor: P.inset,
+                  color: P.soft,
+                  boxShadow: `inset 0 0 0 1px ${P.rule}`,
+                }}
+              >
+                {roleBadgeLabel}
+              </span>
+            )}
+          </div>
+        </header>
+
+        <div className="mt-6 flex flex-col gap-6">
+          <div className="grid items-stretch gap-6 max-xl:grid-cols-1 xl:grid-cols-[360px_minmax(0,1fr)_360px]">
+            <aside
+              className="h-full p-5"
+              style={{ backgroundColor: P.card, borderRadius: P.radius }}
+            >
+              <h2 className={TILE_TITLE} style={{ color: P.ink }}>
+                Staff details
+              </h2>
+              <div className="mt-4">
+                <StaffFactsList
+                  staff={staff}
+                  role={resolvedRole}
+                  phone={phone}
+                  email={email}
+                />
+                <StaffMonthHoursInset
+                  directHours={directHours}
+                  indirectHours={indirectHours}
+                  monthLabel={hoursMonthLabel || monthLabel}
+                />
+              </div>
+            </aside>
+
+            <div className="flex h-full min-w-0">
+              <SessionCalendarMonth
+                fillHeight
+                sessions={monthSessions}
+                sessionNotes={sessionNotes}
+              />
             </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Chip>
-                {monthSessions.length} session{monthSessions.length === 1 ? "" : "s"} this month
-              </Chip>
-              <Chip>
-                {monthClientCount} client{monthClientCount === 1 ? "" : "s"} served
-              </Chip>
+
+            <div className="self-start">
+              <StaffRecordsBucket
+                staffRouteKey={staffRouteKey}
+                missingCount={missingCount}
+                overdueCount={overdueCount}
+              />
             </div>
           </div>
-        </div>
-      </section>
 
-      <div className={`${PAGE_SHELL} space-y-4 py-4`}>
-        <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
-          <StaffMonthMetrics staffId={staff.id} />
-          <StaffSupervisionPanel
-            mode={isTechnicianRole(resolvedRole) ? "technician" : "leadership"}
-            monthLabel={supervisionPanelMonth}
-            supervision={supervision}
-            staff={staff}
-            caseloadRecords={caseloadSupervision}
-          />
-        </div>
+          <div className="grid items-start gap-6 max-xl:grid-cols-1 xl:grid-cols-2">
+            <StaffPeoplePanel
+              role={resolvedRole}
+              clientTable={clientTable}
+              supervisees={supervisees}
+            />
+            <StaffCompliancePanel
+              role={resolvedRole}
+              monthLabel={supervisionPanelMonth}
+              supervision={supervision}
+              staff={staff}
+              caseloadRecords={caseloadSupervision}
+            />
+          </div>
 
-        <div className="grid gap-4 lg:grid-cols-[11fr_9fr]">
-          <StaffClientsPanel
-            role={resolvedRole}
-            btClients={btClients}
-            clientTable={clientTable}
-          />
-          <StaffRecentSessions
+          <StaffRecentSessionsPanel
             monthLabel={monthLabel}
             sessions={recentSessions}
             exporting={exporting}
@@ -403,149 +413,5 @@ export function StaffOverviewPage({ practiceId }: { practiceId: string }) {
         </div>
       </div>
     </div>
-  )
-}
-
-function StaffClientsPanel({
-  role,
-  btClients,
-  clientTable,
-}: {
-  role: RosterStaffRole
-  btClients: BtClientAssignment[]
-  clientTable: StaffClientTableRow[]
-}) {
-  const isBt = isTechnicianRole(role)
-
-  return (
-    <Card size="sm" className="h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">
-          {isBt ? "Clients this person is working with" : "Clients"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {isBt ? (
-          btClients.length === 0 ? (
-            <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-              Not assigned to any clients yet
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {btClients.map((client) => (
-                <Link
-                  key={client.clientId}
-                  to={`/clients/${client.clientCode}`}
-                  className="inline-flex items-center rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80 hover:text-foreground transition-colors"
-                >
-                  {client.clientCode}
-                </Link>
-              ))}
-            </div>
-          )
-        ) : clientTable.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-            Not assigned to any client caseload yet
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="pb-2 pr-4 font-medium">Client</th>
-                  <th className="pb-2 pr-4 font-medium">Technician</th>
-                  <th className="pb-2 font-medium">Supervisor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clientTable.map((row) => (
-                  <tr key={row.clientId} className="border-b border-border/50 last:border-0">
-                    <td className="py-1.5 pr-4">
-                      <Link
-                        to={`/clients/${row.clientCode}`}
-                        className="font-medium hover:underline underline-offset-2"
-                      >
-                        {row.clientCode}
-                      </Link>
-                    </td>
-                    <td className="py-1.5 pr-4">
-                      {row.technician ? <StaffLink link={row.technician} /> : "—"}
-                    </td>
-                    <td className="py-1.5">
-                      {row.supervisor ? <StaffLink link={row.supervisor} /> : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function StaffRecentSessions({
-  monthLabel,
-  sessions,
-  exporting,
-  onExport,
-}: {
-  monthLabel: string
-  sessions: SessionRecord[]
-  exporting: boolean
-  onExport: () => void
-}) {
-  return (
-    <Card size="sm" className="h-full">
-      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 pb-2">
-        <CardTitle className="text-base">Recent sessions · {monthLabel}</CardTitle>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 shrink-0 px-2.5 text-xs"
-          onClick={onExport}
-          disabled={exporting}
-        >
-          {exporting ? "Exporting…" : "Export all"}
-        </Button>
-      </CardHeader>
-      <CardContent>
-        {sessions.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
-            No sessions logged this month.
-          </div>
-        ) : (
-          <div className="grid grid-cols-[3rem_minmax(0,1fr)_5.5rem_5rem] items-center gap-x-2 gap-y-0 text-xs">
-            <div className="text-muted-foreground pb-1.5 border-b">Time</div>
-            <div className="text-muted-foreground pb-1.5 border-b">Client</div>
-            <div className="text-muted-foreground pb-1.5 border-b">Type</div>
-            <div className="text-muted-foreground pb-1.5 border-b text-right">Status</div>
-
-            {sessions.map((s) => (
-              <div key={s.id} className="contents">
-                <div className="font-mono text-muted-foreground tabular-nums py-1">
-                  {formatTime(s.time)}
-                </div>
-                <div className="truncate min-w-0 py-1">
-                  <Link
-                    to={s.clientCode ? `/clients/${s.clientCode}` : `/clients/${s.clientId}`}
-                    className="hover:underline underline-offset-2"
-                  >
-                    {sessionClientLabel(s)}
-                  </Link>
-                </div>
-                <div className="truncate min-w-0 py-1 text-muted-foreground">
-                  {s.sessionType}
-                </div>
-                <div className="flex items-center justify-end py-1">
-                  <SessionStatusBadge status={s.status as SessionStatus} />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
   )
 }

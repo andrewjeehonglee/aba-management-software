@@ -870,6 +870,34 @@ export async function getSessionNotesByClientId(clientId: string): Promise<Sessi
   }))
 }
 
+/** Notes for a set of session IDs (staff calendar / profile). */
+export async function getSessionNotesBySessionIds(
+  sessionIds: string[],
+): Promise<SessionNoteRecord[]> {
+  if (sessionIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("session_notes")
+    .select("id, session_id, staff_id, subjective, objective, assessment, plan")
+    .in("session_id", sessionIds)
+    .order("id", { ascending: false })
+  if (error) throw error
+
+  const rows = (data ?? []) as unknown as NoteRow[]
+  const sessionAtById = await fetchSessionScheduledAtMap([...new Set(rows.map((r) => r.session_id))])
+  return rows.map((row) => ({
+    id: row.id,
+    session_id: row.session_id,
+    staff_id: row.staff_id,
+    subjective: row.subjective,
+    objective: row.objective,
+    assessment: row.assessment,
+    plan: row.plan,
+    created_at: row.created_at,
+    session_at: sessionAtById.get(row.session_id) ?? null,
+  }))
+}
+
 export interface NewSession {
   practiceId:  string
   clientId:    string

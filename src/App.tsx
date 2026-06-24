@@ -14,6 +14,7 @@ import { LandingPage } from "@/pages/LandingPage"
 import { CreatePracticePage } from "@/pages/CreatePracticePage"
 import { SessionViewPage } from "@/pages/SessionViewPage"
 import { StaffOverviewPage } from "@/pages/StaffOverviewPage"
+import { StaffSessionNotesPage } from "@/pages/StaffSessionNotesPage"
 import { DemoContext } from "@/context/DemoContext"
 import { supabase, getUserPractice, getUserRole, getStaffByUserId } from "@/lib/supabase"
 import type { PracticeMembership } from "@/lib/supabase"
@@ -246,6 +247,10 @@ function App() {
           }
         />
         <Route path="/clients/:clientId" element={<ClientOverviewPage practiceId={practice.practice_id} />} />
+        <Route
+          path="/staff/:staffId/notes"
+          element={<StaffSessionNotesPage practiceId={practice.practice_id} />}
+        />
         <Route path="/staff/:staffId" element={<StaffOverviewPage practiceId={practice.practice_id} />} />
         <Route path="/session/:sessionId" element={<SessionViewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

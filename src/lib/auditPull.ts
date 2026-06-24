@@ -65,6 +65,56 @@ function mapNoteRow(row: AuditNoteRow, sessionAt: string): SessionNoteRecord {
   }
 }
 
+export async function getStaffAuditNotesBundle(
+  staffId: string,
+  startDate: string,
+  endDate: string,
+): Promise<AuditNoteBundleItem[]> {
+  const { start, end } = localDateRangeToIso(startDate, endDate)
+
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team)")
+    .eq("staff_id", staffId)
+    .gte("scheduled_at", start)
+    .lte("scheduled_at", end)
+    .order("scheduled_at", { ascending: true })
+  if (error) throw error
+
+  const sessions = (data ?? []) as unknown as AuditSessionRow[]
+  if (sessions.length === 0) return []
+
+  const sessionIds = sessions.map((row) => row.id)
+  const scheduledAtBySessionId = new Map(sessions.map((row) => [row.id, row.scheduled_at]))
+
+  const { data: notesData, error: notesError } = await supabase
+    .from("session_notes")
+    .select("id, session_id, staff_id, subjective, objective, assessment, plan")
+    .in("session_id", sessionIds)
+    .order("id", { ascending: false })
+  if (notesError) throw notesError
+
+  const notesBySessionId = new Map<string, SessionNoteRecord>()
+  for (const row of (notesData ?? []) as AuditNoteRow[]) {
+    if (notesBySessionId.has(row.session_id)) continue
+    notesBySessionId.set(
+      row.session_id,
+      mapNoteRow(row, scheduledAtBySessionId.get(row.session_id) ?? ""),
+    )
+  }
+
+  return sessions.map((row) => ({
+    sessionId: row.id,
+    sessionAt: row.scheduled_at,
+    staffName: row.staff?.full_name ?? "Unknown",
+    sessionType: row.session_type,
+    status: row.status,
+    clientCode: row.clients.external_code ?? "",
+    clientName: clientDisplayName(row.clients),
+    note: notesBySessionId.get(row.id) ?? null,
+  }))
+}
+
 export async function getAuditNotesBundle(
   clientId: string,
   startDate: string,
