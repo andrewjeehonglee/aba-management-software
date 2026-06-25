@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { CalendarDays } from "lucide-react"
 import {
   Card,
@@ -13,7 +13,16 @@ import {
   type CalendarSessionScope,
 } from "@/components/dashboard/CalendarScopeToggle"
 import { loadDashboardCalendarSessions } from "@/lib/dashboardCalendar"
+import type { StaffSessionRow } from "@/lib/notesStatus"
+import {
+  getSessionNotesBySessionIds,
+  getStaffSessionsForNoteStatus,
+  type SessionNoteRecord,
+  type SessionRecord,
+} from "@/lib/supabase"
 import { cn } from "@/lib/utils"
+import { PracticeSessionCalendar } from "@/pages/SessionsPage/PracticeSessionCalendar"
+import { SessionDetailPanel } from "@/pages/SessionsPage/SessionDetailPanel"
 import type { Session } from "@/types/session"
 
 type CalendarViewRole = "Technician" | "Supervisor" | "BCBA"
@@ -51,6 +60,10 @@ export function DashboardCalendarTile({
   const [monthDate, setMonthDate] = useState(() => new Date())
   const [monthLabel, setMonthLabel] = useState<string>("")
   const [sessions, setSessions] = useState<Session[]>([])
+  const [sessionRecords, setSessionRecords] = useState<SessionRecord[]>([])
+  const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
+  const [staffSessions, setStaffSessions] = useState<StaffSessionRow[]>([])
+  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [resolvedStaff, setResolvedStaff] = useState(false)
@@ -62,6 +75,7 @@ export function DashboardCalendarTile({
   useEffect(() => {
     setLoading(true)
     setError(null)
+    setSelectedSession(null)
 
     loadDashboardCalendarSessions({
       staffId: currentStaffId,
@@ -72,10 +86,20 @@ export function DashboardCalendarTile({
       practiceId,
       previewStaffId,
     })
-      .then((result) => {
+      .then(async (result) => {
         setMonthLabel(result.monthLabel)
         setSessions(result.sessions)
+        setSessionRecords(result.sessionRecords)
         setResolvedStaff(isOwnerPreview || currentStaffId !== null)
+
+        const ids = result.sessionRecords.map((r) => r.id)
+        const staffIds = [...new Set(result.sessionRecords.map((r) => r.staffId))]
+        const [notes, timeline] = await Promise.all([
+          ids.length ? getSessionNotesBySessionIds(ids) : [],
+          getStaffSessionsForNoteStatus(staffIds),
+        ])
+        setSessionNotes(notes)
+        setStaffSessions(timeline)
       })
       .catch((err) => setError(err.message ?? "Failed to load schedule"))
       .finally(() => setLoading(false))
@@ -90,6 +114,15 @@ export function DashboardCalendarTile({
   ])
 
   const needsStaffLink = !loading && !error && !isOwnerPreview && !currentStaffId
+
+  const selectedSessionNote = useMemo(() => {
+    if (!selectedSession) return undefined
+    return sessionNotes.find((n) => n.session_id === selectedSession.id)
+  }, [selectedSession, sessionNotes])
+
+  function closeSessionPanel() {
+    setSelectedSession(null)
+  }
 
   const calendarBody = (
     <>
@@ -122,7 +155,42 @@ export function DashboardCalendarTile({
           <p className="text-sm text-muted">No sessions scheduled this month.</p>
         </div>
       )}
-      {!loading && !error && !needsStaffLink && (resolvedStaff || isOwnerPreview) && (
+      {!loading && !error && !needsStaffLink && (resolvedStaff || isOwnerPreview) && isV3 && (
+        <div className="relative min-h-[420px]">
+          <PracticeSessionCalendar
+            sessions={sessionRecords}
+            sessionNotes={sessionNotes}
+            viewKind="client"
+            colorMode="status"
+            onColorModeChange={() => {}}
+            anchorDate={monthDate}
+            onAnchorDateChange={setMonthDate}
+            selectedSessionId={selectedSession?.id ?? null}
+            onSessionSelect={setSelectedSession}
+            loading={false}
+            empty={false}
+            showColorBy={false}
+          />
+
+          {selectedSession && (
+            <>
+              <button
+                type="button"
+                className="absolute inset-0 z-10 cursor-default"
+                aria-label="Close session details"
+                onClick={closeSessionPanel}
+              />
+              <SessionDetailPanel
+                session={selectedSession}
+                note={selectedSessionNote}
+                staffSessions={staffSessions}
+                onClose={closeSessionPanel}
+              />
+            </>
+          )}
+        </div>
+      )}
+      {!loading && !error && !needsStaffLink && (resolvedStaff || isOwnerPreview) && !isV3 && (
         <SessionCalendar
           sessions={sessions}
           defaultView="month"
@@ -130,8 +198,8 @@ export function DashboardCalendarTile({
           showStaffLabel={includeSupervisees}
           embedded
           monthOnly
-          inlineDayContent={!isV3}
-          summaryMonthCells={isV3}
+          inlineDayContent
+          summaryMonthCells={false}
           onMonthChange={setMonthDate}
         />
       )}

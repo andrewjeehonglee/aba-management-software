@@ -87,7 +87,7 @@ export async function loadDashboardCalendarSessions(params: {
   monthDate: Date
   practiceId?: string
   previewStaffId?: string | null
-}): Promise<{ monthLabel: string; sessions: Session[] }> {
+}): Promise<{ monthLabel: string; sessions: Session[]; sessionRecords: SessionRecord[] }> {
   const effectiveStaffId = params.previewStaffId
     ?? await resolveEffectiveStaffId(
       params.staffId,
@@ -98,7 +98,7 @@ export async function loadDashboardCalendarSessions(params: {
 
   if (!effectiveStaffId) {
     const month = monthWindowForDate(params.monthDate)
-    return { monthLabel: month.label, sessions: [] }
+    return { monthLabel: month.label, sessions: [], sessionRecords: [] }
   }
 
   const isLeadRole = params.viewRole === "BCBA" || params.viewRole === "Supervisor"
@@ -120,5 +120,6 @@ export async function loadDashboardCalendarSessions(params: {
   return {
     monthLabel: month.label,
     sessions: records.map(sessionRecordToSession),
+    sessionRecords: records,
   }
 }
