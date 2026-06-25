@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import type { SessionNoteRecord, SessionRecord } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
@@ -17,6 +17,9 @@ import {
 import { sessionPanelStatusRingColor } from "@/pages/SessionsPage/sessionDetailUtils"
 
 const BAR_HEIGHT = "h-2"
+const VISIBLE_CHIP_CAP = 3
+const DAY_CELL_MIN_H = "min-h-[7rem]"
+const DAY_CELL_H = "h-[7rem]"
 
 interface PracticeSessionCalendarProps {
   sessions: SessionRecord[]
@@ -108,7 +111,7 @@ function SessionChip({
     <button
       type="button"
       onClick={() => onSelect?.(session)}
-      className="block w-full truncate rounded-md border-l-[3px] px-1.5 py-1 text-left text-[13px] leading-snug hover:opacity-90"
+      className="flex w-full min-w-0 items-center gap-1 truncate rounded-md border-l-[3px] px-1.5 py-1 text-left text-[13px] leading-snug hover:opacity-90"
       style={{
         backgroundColor: colors.bg,
         color: colors.ink,
@@ -118,7 +121,8 @@ function SessionChip({
       title={`${time} ${counterpart}`}
       aria-pressed={selected}
     >
-      <span className="tabular-nums">{time}</span> {counterpart}
+      <span className="shrink-0 font-bold tabular-nums">{time}</span>
+      <span className="min-w-0 truncate">{counterpart}</span>
     </button>
   )
 }
@@ -138,6 +142,7 @@ export function PracticeSessionCalendar({
   showColorBy = false,
 }: PracticeSessionCalendarProps) {
   const todayISO = localISO(new Date())
+  const [expandedDayIso, setExpandedDayIso] = useState<string | null>(null)
   const notesBySessionId = useMemo(
     () => new Map(sessionNotes.map((n) => [n.session_id, n])),
     [sessionNotes],
@@ -145,7 +150,12 @@ export function PracticeSessionCalendar({
   const grid = monthGrid(anchorDate)
 
   function navigate(delta: number) {
+    setExpandedDayIso(null)
     onAnchorDateChange(new Date(anchorDate.getFullYear(), anchorDate.getMonth() + delta, 1))
+  }
+
+  function toggleDayExpanded(iso: string) {
+    setExpandedDayIso((prev) => (prev === iso ? null : iso))
   }
 
   function sessionsOnDay(iso: string) {
@@ -158,28 +168,37 @@ export function PracticeSessionCalendar({
     const iso = localISO(day)
     const daySessions = sessionsOnDay(iso)
     const isToday = iso === todayISO
+    const isExpanded = expandedDayIso === iso
     const hasScheduled = daySessions.some(
       (s) => s.status === "scheduled" || s.status === "in-progress",
     )
+    const hiddenCount = Math.max(0, daySessions.length - VISIBLE_CHIP_CAP)
+    const displayedSessions = isExpanded
+      ? daySessions
+      : daySessions.slice(0, VISIBLE_CHIP_CAP)
 
     return (
       <div
         key={iso}
-        className="relative flex h-full min-h-[52px] items-center justify-center rounded-md"
+        className={cn(
+          "flex flex-col overflow-hidden rounded-md p-1.5",
+          DAY_CELL_MIN_H,
+          isExpanded ? "h-auto" : DAY_CELL_H,
+        )}
         style={{
           backgroundColor: hasScheduled ? P.calScheduledTint : undefined,
           boxShadow: isToday ? `inset 0 0 0 2px ${P.sage}` : undefined,
         }}
       >
         <span
-          className="text-[18px] font-semibold tabular-nums leading-none"
+          className="mb-1 shrink-0 text-[18px] font-semibold tabular-nums leading-none"
           style={{ color: isToday ? P.sageInk : daySessions.length ? P.ink : P.faint }}
         >
           {day.getDate()}
         </span>
         {daySessions.length > 0 && (
-          <div className="absolute inset-x-1 bottom-1 space-y-0.5">
-            {daySessions.map((session) => (
+          <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
+            {displayedSessions.map((session) => (
               <SessionChip
                 key={session.id}
                 session={session}
@@ -191,6 +210,17 @@ export function PracticeSessionCalendar({
                 onSelect={onSessionSelect}
               />
             ))}
+            {hiddenCount > 0 && (
+              <button
+                type="button"
+                onClick={() => toggleDayExpanded(iso)}
+                className="shrink-0 truncate px-0.5 py-0.5 text-left text-[12px] font-semibold leading-tight hover:opacity-80"
+                style={{ color: P.soft }}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? "Show less" : `+${hiddenCount} more`}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -266,7 +296,7 @@ export function PracticeSessionCalendar({
                     : (
                       <div
                         key={di}
-                        className="min-h-[52px] h-full"
+                        className={cn(DAY_CELL_H, DAY_CELL_MIN_H)}
                         aria-hidden="true"
                       />
                     ),
