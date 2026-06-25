@@ -23,6 +23,18 @@ const BAR_HEIGHT = "h-2"
 const VISIBLE_CHIP_CAP = 3
 const DAY_CELL_H = "h-[98px]"
 const DAY_CELL_MIN_H = "min-h-[98px]"
+/** Uniform dashboard chip width — cell inner width minus equal side inset. */
+const DASHBOARD_CHIP_BAR_CLASS = "w-[calc(100%-6px)] max-w-[calc(100%-6px)]"
+
+function ChipSegmentDivider() {
+  return (
+    <span
+      className="mx-1 inline-block h-[0.75em] w-px shrink-0 align-middle"
+      style={{ backgroundColor: P.faint }}
+      aria-hidden
+    />
+  )
+}
 
 interface PracticeSessionCalendarProps {
   sessions: SessionRecord[]
@@ -114,16 +126,19 @@ function SessionChip({
   const ringColor = sessionPanelStatusRingColor(session, todayISO, notesBySessionId)
   const clientShort = chipClientShortLabel(session)
   const typeLabel = chipTypeShortLabel(session)
-  const title =
-    chipLabelMode === "client-type"
-      ? `${time} · ${clientShort} · ${typeLabel}`
-      : `${time} ${counterpartLabel(session, viewKind)}`
+  const isDashboardChip = chipLabelMode === "client-type"
+  const title = isDashboardChip
+    ? `${time} | ${clientShort} | ${typeLabel}`
+    : `${time} ${counterpartLabel(session, viewKind)}`
 
   return (
     <button
       type="button"
       onClick={() => onSelect?.(session)}
-      className="inline-block max-w-full truncate rounded-md border-l-[3px] px-1 py-0.5 text-left text-[12px] leading-tight hover:opacity-90"
+      className={cn(
+        "block truncate rounded-md border-l-[3px] px-1 py-0.5 text-left text-[12px] leading-tight hover:opacity-90",
+        isDashboardChip ? DASHBOARD_CHIP_BAR_CLASS : "inline-block max-w-full",
+      )}
       style={{
         backgroundColor: colors.bg,
         color: colors.ink,
@@ -133,11 +148,15 @@ function SessionChip({
       title={title}
       aria-pressed={selected}
     >
-      {chipLabelMode === "client-type" ? (
-        <span className="truncate">
-          <span className="font-bold tabular-nums">{time}</span>
-          <span> · {clientShort} · </span>
-          <span style={{ color: P.faint }}>{typeLabel}</span>
+      {isDashboardChip ? (
+        <span className="flex min-w-0 items-center truncate">
+          <span className="shrink-0 font-bold tabular-nums">{time}</span>
+          <ChipSegmentDivider />
+          <span className="min-w-0 truncate">{clientShort}</span>
+          <ChipSegmentDivider />
+          <span className="shrink-0" style={{ color: P.faint }}>
+            {typeLabel}
+          </span>
         </span>
       ) : (
         <>
@@ -222,7 +241,12 @@ export function PracticeSessionCalendar({
           {day.getDate()}
         </span>
         {daySessions.length > 0 && (
-          <div className="flex min-h-0 flex-1 flex-col items-start gap-px overflow-hidden">
+          <div
+            className={cn(
+              "flex min-h-0 w-full flex-1 flex-col gap-px overflow-hidden",
+              chipLabelMode === "client-type" ? "items-center" : "items-start",
+            )}
+          >
             {displayedSessions.map((session) => (
               <SessionChip
                 key={session.id}
@@ -240,7 +264,12 @@ export function PracticeSessionCalendar({
               <button
                 type="button"
                 onClick={() => setPopupDayIso(iso)}
-                className="shrink-0 truncate px-0.5 py-px text-left text-[11px] font-semibold leading-tight hover:opacity-80"
+                className={cn(
+                  "shrink-0 truncate py-px text-[11px] font-semibold leading-tight hover:opacity-80",
+                  chipLabelMode === "client-type"
+                    ? cn(DASHBOARD_CHIP_BAR_CLASS, "text-center")
+                    : "px-0.5 text-left",
+                )}
                 style={{ color: P.soft }}
                 aria-haspopup="dialog"
               >

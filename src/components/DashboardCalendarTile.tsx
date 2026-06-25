@@ -217,7 +217,7 @@ export function DashboardCalendarTile({
         aria-label="Monthly calendar"
       >
         <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-[13px] font-semibold uppercase tracking-[0.10em] text-ink-soft">
+          <h2 className="text-[14px] font-semibold uppercase tracking-[0.10em] text-ink-soft">
             Monthly calendar
           </h2>
           {showScopeToggle && (
