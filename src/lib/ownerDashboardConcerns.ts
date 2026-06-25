@@ -43,6 +43,9 @@ export const OWNER_OVER_CAP_INK = "#B5362A"
 export const OWNER_NEAR_CAP_INK = "#B8860B"
 export const OWNER_ON_HOLD_INK = "#B8860B"
 
+/** Warm neutral left accent for owner dashboard tiles (not severity-colored). */
+export const OWNER_TILE_ACCENT_CLASS = "border-l-4 border-l-[#B6AE9E]"
+
 export interface OwnerSummaryLine {
   text: string
   /** Optional parenthetical definition in a lighter muted tone. */

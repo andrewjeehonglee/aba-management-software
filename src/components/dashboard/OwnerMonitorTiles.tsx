@@ -1,16 +1,17 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import type { OwnerMonitorTile, OwnerMonitorTileId } from "@/lib/ownerDashboardConcerns"
+import {
+  OWNER_TILE_ACCENT_CLASS,
+  type OwnerMonitorTile,
+  type OwnerMonitorTileId,
+} from "@/lib/ownerDashboardConcerns"
 import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
 import { OwnerDashboardListPopup } from "@/components/dashboard/OwnerDashboardListPopup"
 import { OwnerRankedRows, OwnerViewAllButton } from "@/components/dashboard/OwnerRankedRows"
 
-function tileAccentClass(state: OwnerMonitorTile["state"]): string {
-  if (state === "urgent") return "border-l-4 border-l-alert-strong"
-  if (state === "monitor") return "border-l-4 border-l-alert"
-  return "border-l-4 border-l-brand"
-}
+/** Reserve two summary lines so ranked rows align across all three tiles. */
+const SUMMARY_BLOCK_CLASS = "mt-1.5 min-h-[2.75rem] space-y-0.5"
 
 function TileSummary({ tile }: { tile: OwnerMonitorTile }) {
   const lines =
@@ -18,7 +19,7 @@ function TileSummary({ tile }: { tile: OwnerMonitorTile }) {
     (tile.headerLine ? [{ text: tile.headerLine }] : [])
 
   return (
-    <div className="mt-1.5 space-y-0.5">
+    <div className={SUMMARY_BLOCK_CLASS}>
       {lines.map((line) => (
         <p key={`${line.text}-${line.hint ?? ""}`} className="text-[14px] leading-snug text-muted">
           {line.text}
@@ -28,7 +29,7 @@ function TileSummary({ tile }: { tile: OwnerMonitorTile }) {
         </p>
       ))}
       {tile.subNote ? (
-        <p className="pt-0.5 text-[12px] leading-snug text-muted">{tile.subNote}</p>
+        <p className="text-[14px] leading-snug text-muted">{tile.subNote}</p>
       ) : null}
     </div>
   )
@@ -53,7 +54,7 @@ function MonitorTileCard({
       id={sectionId}
       className={cn(
         "flex h-full min-h-[168px] scroll-mt-4 flex-col rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3",
-        tileAccentClass(tile.state),
+        OWNER_TILE_ACCENT_CLASS,
       )}
     >
       <h3 className={cn(TILE_TITLE, "text-ink")}>{tile.title}</h3>
@@ -62,7 +63,7 @@ function MonitorTileCard({
       {isHealthy ? (
         <>
           {tile.calmNote ? (
-            <p className="mt-2 text-[12px] leading-snug text-muted">{tile.calmNote}</p>
+            <p className="mt-2 text-[14px] leading-snug text-muted">{tile.calmNote}</p>
           ) : null}
           <p className="mt-auto pt-4 text-[14px] font-medium text-brand">{tile.emptyLabel}</p>
         </>
