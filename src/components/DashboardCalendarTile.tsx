@@ -156,7 +156,7 @@ export function DashboardCalendarTile({
         </div>
       )}
       {!loading && !error && !needsStaffLink && (resolvedStaff || isOwnerPreview) && isV3 && (
-        <div className="relative min-h-[420px]">
+        <div className="relative">
           <PracticeSessionCalendar
             sessions={sessionRecords}
             sessionNotes={sessionNotes}
