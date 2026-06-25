@@ -1,4 +1,5 @@
 import { getCurrentPayPeriod, getPreviousPayPeriod, type PayPeriod } from "@/lib/payPeriod"
+import { daysUntil } from "@/lib/staff"
 import { DEFAULT_SESSION_HOURS } from "@/lib/staffHours"
 import { supabase } from "@/lib/supabase"
 
@@ -23,7 +24,7 @@ interface SessionNoteRow {
   plan: string | null
 }
 
-interface StaffSessionRow {
+export interface StaffSessionRow {
   staff_id: string
   scheduled_at: string
   status: string
@@ -79,13 +80,12 @@ export function isCompleteSessionNote(note: SessionNoteRow | undefined): boolean
   )
 }
 
-function classifyNoteBucket(
+export function getNoteDeadlineAt(
   sessionScheduledAt: string,
   staffId: string,
   staffSessions: StaffSessionRow[],
-  now: Date,
   payPeriodEnd: Date,
-): "missing" | "overdue" {
+): Date {
   const sessionTime = new Date(sessionScheduledAt).getTime()
 
   const nextSession = staffSessions
@@ -94,10 +94,58 @@ function classifyNoteBucket(
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())[0]
 
   if (nextSession) {
-    return new Date(nextSession.scheduled_at) <= now ? "overdue" : "missing"
+    return new Date(nextSession.scheduled_at)
   }
 
-  return now > payPeriodEnd ? "overdue" : "missing"
+  return payPeriodEnd
+}
+
+export function classifyNoteBucket(
+  sessionScheduledAt: string,
+  staffId: string,
+  staffSessions: StaffSessionRow[],
+  now: Date,
+  payPeriodEnd: Date,
+): "missing" | "overdue" {
+  const deadline = getNoteDeadlineAt(
+    sessionScheduledAt,
+    staffId,
+    staffSessions,
+    payPeriodEnd,
+  )
+  return deadline <= now ? "overdue" : "missing"
+}
+
+export function pendingNoteDaysUntilDeadline(
+  sessionScheduledAt: string,
+  staffId: string,
+  staffSessions: StaffSessionRow[],
+  now: Date = new Date(),
+): number {
+  const payPeriod = getCurrentPayPeriod(now)
+  const deadline = getNoteDeadlineAt(
+    sessionScheduledAt,
+    staffId,
+    staffSessions,
+    payPeriod.end,
+  )
+  return Math.max(0, daysUntil(deadline, now))
+}
+
+export function overdueNoteDaysPastDeadline(
+  sessionScheduledAt: string,
+  staffId: string,
+  staffSessions: StaffSessionRow[],
+  now: Date = new Date(),
+): number {
+  const payPeriod = getCurrentPayPeriod(now)
+  const deadline = getNoteDeadlineAt(
+    sessionScheduledAt,
+    staffId,
+    staffSessions,
+    payPeriod.end,
+  )
+  return Math.max(0, daysUntil(now, deadline))
 }
 
 async function countOverdueForPayPeriod(

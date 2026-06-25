@@ -9,7 +9,7 @@ export type SessionChipStatus = "complete" | "note-overdue" | "cancelled" | "sch
 
 export type SessionChipType = "direct" | "indirect" | "supervision"
 
-const STATUS_CHIP: Record<
+export const STATUS_CHIP: Record<
   SessionChipStatus,
   { bg: string; ink: string; border: string; label: string }
 > = {

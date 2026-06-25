@@ -1,6 +1,5 @@
 import { useMemo } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { Link } from "react-router-dom"
 import type { SessionNoteRecord, SessionRecord } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
@@ -15,6 +14,7 @@ import {
   monthGrid,
   type CalendarColorMode,
 } from "@/pages/SessionsPage/sessionsCalendarUtils"
+import { sessionPanelStatusRingColor } from "@/pages/SessionsPage/sessionDetailUtils"
 
 const BAR_HEIGHT = "h-2"
 
@@ -26,6 +26,8 @@ interface PracticeSessionCalendarProps {
   onColorModeChange: (mode: CalendarColorMode) => void
   anchorDate: Date
   onAnchorDateChange: (date: Date) => void
+  selectedSessionId?: string | null
+  onSessionSelect?: (session: SessionRecord) => void
   loading?: boolean
   empty?: boolean
   showColorBy?: boolean
@@ -86,30 +88,38 @@ function SessionChip({
   colorMode,
   todayISO,
   notesBySessionId,
+  selected,
+  onSelect,
 }: {
   session: SessionRecord
   viewKind: "client" | "staff"
   colorMode: CalendarColorMode
   todayISO: string
   notesBySessionId: Map<string, SessionNoteRecord>
+  selected: boolean
+  onSelect?: (session: SessionRecord) => void
 }) {
   const colors = chipColors(session, colorMode, todayISO, notesBySessionId)
   const time = chipTimeLabel(session)
   const counterpart = counterpartLabel(session, viewKind)
+  const ringColor = sessionPanelStatusRingColor(session, todayISO, notesBySessionId)
 
   return (
-    <Link
-      to={`/session/${session.id}`}
-      className="block w-full truncate rounded-md border-l-[3px] px-1.5 py-1 text-[13px] leading-snug hover:opacity-90"
+    <button
+      type="button"
+      onClick={() => onSelect?.(session)}
+      className="block w-full truncate rounded-md border-l-[3px] px-1.5 py-1 text-left text-[13px] leading-snug hover:opacity-90"
       style={{
         backgroundColor: colors.bg,
         color: colors.ink,
         borderLeftColor: colors.border,
+        ...(selected ? { boxShadow: `0 0 0 2px ${ringColor}` } : {}),
       }}
       title={`${time} ${counterpart}`}
+      aria-pressed={selected}
     >
       <span className="tabular-nums">{time}</span> {counterpart}
-    </Link>
+    </button>
   )
 }
 
@@ -121,6 +131,8 @@ export function PracticeSessionCalendar({
   onColorModeChange,
   anchorDate,
   onAnchorDateChange,
+  selectedSessionId = null,
+  onSessionSelect,
   loading = false,
   empty = false,
   showColorBy = false,
@@ -175,6 +187,8 @@ export function PracticeSessionCalendar({
                 colorMode={colorMode}
                 todayISO={todayISO}
                 notesBySessionId={notesBySessionId}
+                selected={session.id === selectedSessionId}
+                onSelect={onSessionSelect}
               />
             ))}
           </div>

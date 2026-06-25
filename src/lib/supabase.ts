@@ -221,9 +221,13 @@ interface SessionRow {
   session_type: string
   status: string
   client_id: string
+  staff_id: string
   clients: { first_name: string; last_name: string; external_code: string | null }
-  staff: { full_name: string; team: string; external_code: string | null }
+  staff: { full_name: string; team: string; external_code: string | null; role: string }
 }
+
+const SESSION_LIST_SELECT =
+  "id, scheduled_at, session_type, status, client_id, staff_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code, role)"
 
 export interface SessionRecord {
   id: string
@@ -231,8 +235,10 @@ export interface SessionRecord {
   clientId: string
   clientName: string
   clientCode: string | null
+  staffId: string
   staffName: string
   staffExternalCode: string | null
+  staffRole: string
   staffTeam: string
   sessionType: string
   status: string
@@ -255,8 +261,10 @@ function mapSessionRows(data: SessionRow[]): SessionRecord[] {
     clientId:    row.client_id,
     clientName:  `${row.clients.first_name} ${row.clients.last_name}`.trim() || (row.clients.external_code ?? "Unknown"),
     clientCode:  row.clients.external_code ?? null,
+    staffId:     row.staff_id,
     staffName:   row.staff?.full_name ?? 'Unknown',
     staffExternalCode: row.staff?.external_code ?? null,
+    staffRole:   row.staff?.role ?? "technician",
     staffTeam:   teamLabel(row.staff?.team),
     sessionType: row.session_type,
     status:      row.status,
@@ -266,7 +274,7 @@ function mapSessionRows(data: SessionRow[]): SessionRecord[] {
 async function querySessionsInRange(start: string, end: string, staffId?: string): Promise<SessionRecord[]> {
   let query = supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
+    .select(SESSION_LIST_SELECT)
     .gte('scheduled_at', start)
     .lte('scheduled_at', end)
     .order('scheduled_at', { ascending: true })
@@ -364,7 +372,7 @@ async function fetchSessionScheduledAtMap(sessionIds: string[]): Promise<Map<str
 export async function getSessionsByClientId(clientId: string): Promise<SessionRecord[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
+    .select(SESSION_LIST_SELECT)
     .eq('client_id', clientId)
     .order('scheduled_at', { ascending: true })
   if (error) throw error
@@ -380,7 +388,7 @@ export async function getSessionsByClientIdForMonth(
   const month = getCurrentCalendarMonth(monthDate)
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
+    .select(SESSION_LIST_SELECT)
     .eq('client_id', clientId)
     .gte('scheduled_at', month.start.toISOString())
     .lte('scheduled_at', month.end.toISOString())
@@ -618,7 +626,7 @@ export async function getSupervisionByStaffId(staffId: string): Promise<Supervis
 export async function getSessionsByStaffId(staffId: string): Promise<SessionRecord[]> {
   const { data, error } = await supabase
     .from('sessions')
-    .select('id, scheduled_at, session_type, status, client_id, clients(first_name, last_name, external_code), staff(full_name, team, external_code)')
+    .select(SESSION_LIST_SELECT)
     .eq('staff_id', staffId)
     .order('scheduled_at', { ascending: true })
   if (error) throw error
@@ -914,6 +922,23 @@ export async function getSessionNotesBySessionIds(
     created_at: row.created_at,
     session_at: sessionAtById.get(row.session_id) ?? null,
   }))
+}
+
+/** Non-cancelled session timeline for note-deadline classification (per staff). */
+export async function getStaffSessionsForNoteStatus(
+  staffIds: string[],
+): Promise<{ staff_id: string; scheduled_at: string; status: string }[]> {
+  if (staffIds.length === 0) return []
+
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("staff_id, scheduled_at, status")
+    .in("staff_id", staffIds)
+    .neq("status", "cancelled")
+    .order("scheduled_at", { ascending: true })
+  if (error) throw error
+
+  return (data ?? []) as { staff_id: string; scheduled_at: string; status: string }[]
 }
 
 export interface NewSession {

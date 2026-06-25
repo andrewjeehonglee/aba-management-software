@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
 import { AppPageHeader } from "@/components/dashboard/AppPageHeader"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
+import type { StaffSessionRow } from "@/lib/notesStatus"
 import {
   filterPanelBySearch,
   loadSessionsPagePanelData,
@@ -11,11 +12,13 @@ import {
   getSessionNotesBySessionIds,
   getSessionsByClientIdForMonth,
   getSessionsByStaffIdForMonth,
+  getStaffSessionsForNoteStatus,
   type SessionNoteRecord,
   type SessionRecord,
 } from "@/lib/supabase"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
 import { PracticeSessionCalendar } from "@/pages/SessionsPage/PracticeSessionCalendar"
+import { SessionDetailPanel } from "@/pages/SessionsPage/SessionDetailPanel"
 import {
   SessionsPeoplePanel,
   type PanelTab,
@@ -55,7 +58,9 @@ export function SessionsPage({
   )
   const [sessions, setSessions] = useState<SessionRecord[]>([])
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([])
+  const [staffSessions, setStaffSessions] = useState<StaffSessionRow[]>([])
   const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [selectedSession, setSelectedSession] = useState<SessionRecord | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -94,11 +99,14 @@ export function SessionsPage({
     if (!selected) {
       setSessions([])
       setSessionNotes([])
+      setStaffSessions([])
+      setSelectedSession(null)
       return
     }
 
     let cancelled = false
     setSessionsLoading(true)
+    setSelectedSession(null)
 
     const fetchSessions =
       selected.kind === "client"
@@ -110,13 +118,21 @@ export function SessionsPage({
         if (cancelled) return
         setSessions(rows)
         const ids = rows.map((r) => r.id)
-        const notes = ids.length ? await getSessionNotesBySessionIds(ids) : []
-        if (!cancelled) setSessionNotes(notes)
+        const staffIds = [...new Set(rows.map((r) => r.staffId))]
+        const [notes, timeline] = await Promise.all([
+          ids.length ? getSessionNotesBySessionIds(ids) : [],
+          getStaffSessionsForNoteStatus(staffIds),
+        ])
+        if (!cancelled) {
+          setSessionNotes(notes)
+          setStaffSessions(timeline)
+        }
       })
       .catch(() => {
         if (!cancelled) {
           setSessions([])
           setSessionNotes([])
+          setStaffSessions([])
         }
       })
       .finally(() => {
@@ -131,7 +147,17 @@ export function SessionsPage({
   function handleSelect(person: SessionsPerson) {
     setSelected(person)
     setColorModeOverride(null)
+    setSelectedSession(null)
     setPanelTab(person.kind === "client" ? "clients" : "staff")
+  }
+
+  const selectedSessionNote = useMemo(() => {
+    if (!selectedSession) return undefined
+    return sessionNotes.find((n) => n.session_id === selectedSession.id)
+  }, [selectedSession, sessionNotes])
+
+  function closeSessionPanel() {
+    setSelectedSession(null)
   }
 
   return (
@@ -170,18 +196,39 @@ export function SessionsPage({
           )
         )}
 
-        <PracticeSessionCalendar
-          sessions={sessions}
-          sessionNotes={sessionNotes}
-          viewKind={viewKind}
-          colorMode={colorMode}
-          onColorModeChange={setColorModeOverride}
-          anchorDate={anchorDate}
-          onAnchorDateChange={setAnchorDate}
-          loading={sessionsLoading}
-          empty={!selected}
-          showColorBy={Boolean(selected)}
-        />
+        <div className="relative min-h-0 min-w-0 flex-1">
+          <PracticeSessionCalendar
+            sessions={sessions}
+            sessionNotes={sessionNotes}
+            viewKind={viewKind}
+            colorMode={colorMode}
+            onColorModeChange={setColorModeOverride}
+            anchorDate={anchorDate}
+            onAnchorDateChange={setAnchorDate}
+            selectedSessionId={selectedSession?.id ?? null}
+            onSessionSelect={setSelectedSession}
+            loading={sessionsLoading}
+            empty={!selected}
+            showColorBy={Boolean(selected)}
+          />
+
+          {selectedSession && (
+            <>
+              <button
+                type="button"
+                className="absolute inset-0 z-10 cursor-default"
+                aria-label="Close session details"
+                onClick={closeSessionPanel}
+              />
+              <SessionDetailPanel
+                session={selectedSession}
+                note={selectedSessionNote}
+                staffSessions={staffSessions}
+                onClose={closeSessionPanel}
+              />
+            </>
+          )}
+        </div>
       </div>
     </OwnerAppShell>
   )
