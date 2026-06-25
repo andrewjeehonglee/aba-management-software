@@ -18,7 +18,7 @@ import {
   type SessionChipStatus,
 } from "@/pages/SessionsPage/sessionsCalendarUtils"
 
-export const PANEL_SURFACE = "#FCFAF5"
+export const PANEL_SURFACE = "#F5F1EA"
 
 const PILL_CONFIG: Record<
   SessionChipStatus,

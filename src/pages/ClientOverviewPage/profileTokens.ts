@@ -1,8 +1,8 @@
-/** Locked Pulse client-profile tokens — match mockup exactly. */
+/** Locked Pulse client-profile tokens — aligned with global --surface tokens. */
 export const P = {
   bg: "#EAE4D8",
-  card: "#FBF9F4",
-  inset: "#F3EEE4",
+  card: "#F2EDE4",
+  inset: "#EDE7DC",
   rule: "#E2DACB",
   ink: "#2C2924",
   soft: "#6B6459",
@@ -15,7 +15,7 @@ export const P = {
   amberInk: "#845A18",
   cancel: "#B0492F",
   scheduled: "#B6AE9E",
-  scheduledTint: "#F0EDE6",
+  scheduledTint: "#E8E3DA",
   /** Calendar day-bar + legend hues (v6) */
   calComplete: "#3F8A53",
   calNoteDue: "#E08A2B",

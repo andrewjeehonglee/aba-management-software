@@ -95,8 +95,8 @@
 :root {
     /* ── Pulse v2 warm-premium tokens ─────────────────────────────────────── */
     --bg: #EAE4D8;
-    --surface: #FCFBF8;
-    --surface-2: #F8F5EF;
+    --surface: #F2EDE4;
+    --surface-2: #EDE7DC;
     --border: #E6E0D5;
     --line: #E6E0D5;
     --line-soft: #EEE9DF;
@@ -124,7 +124,7 @@
     --radius-sm-token: 12px;
     --radius-card: var(--radius);
     --radius-control: var(--radius-sm-token);
-    --shadow-card: 0 1px 2px rgba(44, 40, 34, 0.04), 0 10px 30px -14px rgba(44, 40, 34, 0.12);
+    --shadow-card: 0 1px 2px rgba(44, 40, 34, 0.05), 0 10px 28px -12px rgba(44, 40, 34, 0.11);
     --shadow-card-flagged: var(--shadow-card);
 
     /* ── Legacy Pulse aliases ──────────────────────────────────────────────── */

@@ -4,9 +4,8 @@ import { X } from "lucide-react"
 import type { OwnerRankedRow } from "@/lib/ownerDashboardConcerns"
 import { cn } from "@/lib/utils"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
+import { PANEL_SURFACE } from "@/pages/SessionsPage/sessionDetailUtils"
 import { OWNER_RANKED_ROW_CLASS, OwnerRankedRowContent } from "@/components/dashboard/OwnerRankedRows"
-
-const POPUP_SURFACE = "#FFFFFF"
 
 interface OwnerDashboardListPopupProps {
   open: boolean
@@ -68,7 +67,7 @@ export function OwnerDashboardListPopup({
         role="dialog"
         aria-label={title}
         className="relative z-10 flex max-h-[min(32rem,85vh)] w-full max-w-md flex-col overflow-hidden rounded-[14px] border shadow-[0_12px_48px_rgba(44,41,36,0.18),0_2px_8px_rgba(44,41,36,0.08)]"
-        style={{ backgroundColor: POPUP_SURFACE, borderColor: P.rule }}
+        style={{ backgroundColor: PANEL_SURFACE, borderColor: P.rule }}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div
