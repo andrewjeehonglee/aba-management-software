@@ -2004,3 +2004,59 @@ All pushed to `main` → Vercel auto-deploy.
 ---
 
 *Last updated: Jun 24, 2026 (Session 36 — complete morning capture: Audit + shell + dashboard v2).*
+
+---
+
+## Session 37 — Dashboard calendar + owner dashboard rework + global surfaces (Jun 25, 2026)
+
+**What landed:** Two workstreams on `main` with Vercel auto-deploy. **(1) Non-owner dashboard calendar** — session detail panel on `/sessions` and dashboard; compact 98px cells; centered uniform chip bars with vertical dividers; day overflow popup; site-wide pointer cursor. **(2) Owner dashboard** — three-tile row + payroll; ranked rows without bars; View-all popups (no gray scrim); three refinement rounds from user feedback; neutral summaries; payroll role tabs + compact staff boxes; global tile surface tokens (warm cream `#FAF8F3`, not stark white). **Feature HEAD `2cebabe`.**
+
+**Detailed log:** `templates/SESSION_LOG_20260625.md`
+
+### Non-owner calendar (`39dc4cd` → `0d1b6b4`)
+
+- **NEW:** `SessionDetailPanel.tsx`, `sessionDetailUtils.ts`, `CalendarDaySessionsPopup.tsx`
+- Shared `PracticeSessionCalendar` on dashboard via `DashboardCalendarTile.tsx`
+- Chips: `client-type` mode (time | client | type), uniform width, centered, 3-cap + popup
+- `index.css` global cursor pass
+
+### Owner dashboard (`b52d338` → `d351c17`)
+
+- **NEW:** `OwnerDashboardListPopup.tsx`
+- Three equal tiles + full-width payroll; `OwnerRankedRows` simplified (no bars)
+- Popups: elevation-only (no scrim); neutral View-all links
+- Payroll: two headline figures; BCBAs / Clinical Supervisors / Technicians tabs top-right; content-fitted centered boxes
+- Left accent: neutral taupe `#B6AE9E` (not severity-colored)
+
+### Global surfaces (`77fdd9d`, `2cebabe`)
+
+- `--surface` / `P.card` → `#FAF8F3`; `--surface-2` → `#F3F0E8`; canvas unchanged `#EAE4D8`
+
+### Commits (chronological, Jun 25)
+
+| Hash | Message |
+|------|---------|
+| `39dc4cd` | Session detail panel on /sessions calendar chips |
+| `d4e5e59` | Wire detail panel into dashboard calendar |
+| `238e147` | Fix day cell layout and chip cap |
+| `105f012` | Compact cells + centered day popup |
+| `50a1e93` | Site-wide pointer cursor |
+| `5831edb` | Dashboard chip round 1 |
+| `8361903` | Dashboard chip round 2 (uniform width, dividers) |
+| `0d1b6b4` | Shorter chip bar inset |
+| `b52d338` | Owner dashboard rework |
+| `b6200df` | Owner dashboard refinements round 2 |
+| `e379f85` | Owner dashboard refinements round 3 |
+| `d351c17` | Owner accents, alignment, payroll polish |
+| `77fdd9d` | Soften tile surfaces site-wide |
+| `2cebabe` | Lift surfaces to lighter cream |
+
+**Scope:** 20 product files (`c699160` → `2cebabe`); +1,395 / −494 lines. See `templates/SESSION_LOG_20260625.md` for full manifest and triple-check audit.
+
+### Not done / deferred
+
+- Owner mockup HTML not in repo; dashboard-vision doc not updated; surface color may need final tuning after deploy
+
+---
+
+*Last updated: Jun 25, 2026 (Session 37 — complete end-of-day capture: calendar + owner dashboard + surfaces).*
