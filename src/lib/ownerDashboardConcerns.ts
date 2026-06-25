@@ -30,7 +30,26 @@ export interface OwnerPopoverLine {
   href?: string
 }
 
-export type OwnerRankedRowSeverity = "overdue" | "pending" | "over-cap" | "near-cap" | "monitor"
+export type OwnerRankedRowSeverity =
+  | "overdue"
+  | "pending"
+  | "over-cap"
+  | "near-cap"
+  | "monitor"
+  | "neutral"
+
+/** Severity ink for ranked row consequences (owner dashboard). */
+export const OWNER_OVER_CAP_INK = "#B5362A"
+export const OWNER_NEAR_CAP_INK = "#B8860B"
+export const OWNER_ON_HOLD_INK = "#B8860B"
+
+export const NOTES_STATUS_FOOTER_NOTE =
+  "Overdue: past the submission deadline. Pending: not yet due, still within the window."
+
+export interface OwnerSummaryLine {
+  text: string
+  tone?: "urgent" | "monitor" | "neutral"
+}
 
 export interface OwnerRankedRow {
   id: string
@@ -51,16 +70,20 @@ export interface OwnerMonitorTile {
   id: OwnerMonitorTileId
   title: string
   state: BcbaTileState
-  /** Plain-English summary under the title. */
+  /** Plain-English summary under the title (fallback when summaryLines omitted). */
   headerLine: string
+  summaryLines?: OwnerSummaryLine[]
+  /** Muted note directly under the summary (e.g. direct hours). */
+  subNote?: string
+  /** Muted explanatory note pinned to the tile bottom. */
+  footerNote?: string
   emptyLabel: string
   rows: OwnerRankedRow[]
   /** Full ranked list for the view-all popup. */
   viewAllRows: OwnerRankedRow[]
   totalRowCount: number
   popupMetaLine?: string
-  /** When true, show header + view-all only (direct hours monitor). */
-  summaryOnly?: boolean
+  /** Muted filler when the month is too early to flag direct ratios. */
   calmNote?: string
 }
 
@@ -110,33 +133,60 @@ function totalOnHoldHours(payroll: PayPeriodHoursGapSummary): number {
     .reduce((sum, row) => sum + row.onHoldHours, 0)
 }
 
-function notesSummaryLine(overdue: number, pending: number): string {
-  if (overdue > 0 && pending > 0) {
-    return `${overdue} notes overdue, ${pending} more pending this pay period.`
+function notesSummaryLines(overdue: number, pending: number): OwnerSummaryLine[] {
+  if (overdue === 0 && pending === 0) {
+    return [{ text: "Every note is in for this pay period.", tone: "neutral" }]
   }
+  const lines: OwnerSummaryLine[] = []
   if (overdue > 0) {
-    return `${overdue} note${overdue === 1 ? "" : "s"} overdue this pay period.`
+    lines.push({
+      text: `${overdue} note${overdue === 1 ? "" : "s"} overdue`,
+      tone: "urgent",
+    })
   }
   if (pending > 0) {
-    return `${pending} note${pending === 1 ? "" : "s"} pending this pay period.`
+    lines.push({
+      text: `${pending} note${pending === 1 ? "" : "s"} pending this pay period.`,
+      tone: "monitor",
+    })
   }
-  return "Every note is in for this pay period."
+  return lines
 }
 
-function authSummaryLine(overCap: number, nearCap: number, state: BcbaTileState): string {
-  if (state === "healthy") return "Every client is within authorized hours."
+function authSummaryLines(overCap: number, nearCap: number, state: BcbaTileState): OwnerSummaryLine[] {
+  if (state === "healthy") {
+    return [{ text: "Every client is within authorized hours.", tone: "neutral" }]
+  }
   if (overCap > 0) {
-    return `${overCap} client${overCap === 1 ? "" : "s"} ${overCap === 1 ? "has" : "have"} gone over their authorized hours.`
+    return [
+      {
+        text: `${overCap} client${overCap === 1 ? "" : "s"} ${overCap === 1 ? "has" : "have"} gone over their authorized hours.`,
+        tone: "urgent",
+      },
+    ]
   }
-  return `${nearCap} client${nearCap === 1 ? "" : "s"} ${nearCap === 1 ? "is" : "are"} nearing their authorized hour cap.`
+  return [
+    {
+      text: `${nearCap} client${nearCap === 1 ? "" : "s"} ${nearCap === 1 ? "is" : "are"} nearing their authorized hour cap.`,
+      tone: "monitor",
+    },
+  ]
 }
 
-function directSummaryLine(flagCount: number, flagging: boolean): string {
+function directSummaryLines(flagCount: number, flagging: boolean): OwnerSummaryLine[] {
   if (!flagging || flagCount === 0) {
-    return "Direct engagement is on track this month."
+    return [{ text: "Direct engagement is on track this month.", tone: "neutral" }]
   }
-  return `${flagCount} client${flagCount === 1 ? "" : "s"} ${flagCount === 1 ? "is" : "are"} below the 50% direct mark. The month is still in progress, so this is a monitor, not a miss.`
+  return [
+    {
+      text: `${flagCount} client${flagCount === 1 ? "" : "s"} ${flagCount === 1 ? "is" : "are"} below 50% direct.`,
+      tone: "monitor",
+    },
+  ]
 }
+
+const DIRECT_HOURS_SUB_NOTE =
+  "Direct = direct-observation hours. Month still in progress — a monitor, not a miss."
 
 export async function getOwnerDashboardData(options: {
   staffIds: string[]
@@ -229,7 +279,11 @@ export async function getOwnerDashboardData(options: {
     id: "notes",
     title: "Session notes",
     state: notesState,
-    headerLine: notesSummaryLine(notes.totalOverdue, notes.totalMissing),
+    headerLine: notesSummaryLines(notes.totalOverdue, notes.totalMissing)
+      .map((line) => line.text)
+      .join(" "),
+    summaryLines: notesSummaryLines(notes.totalOverdue, notes.totalMissing),
+    footerNote: NOTES_STATUS_FOOTER_NOTE,
     emptyLabel: "All clear — every note is in for this pay period",
     rows: notesCapped.rows,
     viewAllRows: noteRowCandidates,
@@ -292,7 +346,10 @@ export async function getOwnerDashboardData(options: {
     id: "auth",
     title: "Authorized hours",
     state: authState,
-    headerLine: authSummaryLine(authOverCap.length, authNearCap.length, authState),
+    headerLine: authSummaryLines(authOverCap.length, authNearCap.length, authState)
+      .map((line) => line.text)
+      .join(" "),
+    summaryLines: authSummaryLines(authOverCap.length, authNearCap.length, authState),
     emptyLabel: "All clear — every client within authorized hours",
     rows: authCapped.rows,
     viewAllRows: authRowCandidates,
@@ -312,23 +369,29 @@ export async function getOwnerDashboardData(options: {
       label: `${row.clientLabel} — ${consequence}`,
       nameLabel: row.clientLabel,
       consequenceLabel: consequence,
-      severity: "monitor",
+      severity: "neutral",
       magnitude: 1 - row.directRatio,
       href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
     }
   })
 
+  const directCapped = capRows(directRowCandidates)
+
   const directTile: OwnerMonitorTile = {
     id: "directHours",
     title: "Direct hours",
     state: directState,
-    headerLine: directSummaryLine(directFlagging ? directFlags.length : 0, directFlagging),
+    headerLine: directSummaryLines(directFlagging ? directFlags.length : 0, directFlagging)
+      .map((line) => line.text)
+      .join(" "),
+    summaryLines: directSummaryLines(directFlagging ? directFlags.length : 0, directFlagging),
+    subNote:
+      directFlagging && directFlags.length > 0 ? DIRECT_HOURS_SUB_NOTE : undefined,
     emptyLabel: "All clear — direct engagement on track this month",
-    rows: [],
+    rows: directCapped.rows,
     viewAllRows: directRowCandidates,
-    totalRowCount: directFlagging ? directFlags.length : 0,
+    totalRowCount: directCapped.totalRowCount,
     popupMetaLine: `${directRowCandidates.length} clients · ${calendarMonthLabel}`,
-    summaryOnly: true,
     calmNote: directFlagging
       ? undefined
       : "Direct ratios are monitored after the 21st of each month.",

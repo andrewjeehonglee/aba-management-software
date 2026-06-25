@@ -4,8 +4,9 @@ import { X } from "lucide-react"
 import type { OwnerRankedRow } from "@/lib/ownerDashboardConcerns"
 import { cn } from "@/lib/utils"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
-import { PANEL_SURFACE } from "@/pages/SessionsPage/sessionDetailUtils"
 import { rowInk, TILE_BODY } from "@/components/dashboard/OwnerRankedRows"
+
+const POPUP_SURFACE = "#FFFFFF"
 
 interface OwnerDashboardListPopupProps {
   open: boolean
@@ -13,6 +14,7 @@ interface OwnerDashboardListPopupProps {
   title: string
   metaLine?: string
   rows?: OwnerRankedRow[]
+  footerNote?: string
   children?: React.ReactNode
 }
 
@@ -62,6 +64,7 @@ export function OwnerDashboardListPopup({
   title,
   metaLine,
   rows,
+  footerNote,
   children,
 }: OwnerDashboardListPopupProps) {
   useEffect(() => {
@@ -79,15 +82,15 @@ export function OwnerDashboardListPopup({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
-        className="absolute inset-0 cursor-pointer bg-[rgba(44,41,36,0.28)]"
+        className="absolute inset-0 cursor-pointer bg-transparent"
         aria-label={`Close ${title}`}
         onClick={onClose}
       />
       <div
         role="dialog"
         aria-label={title}
-        className="relative z-10 flex max-h-[min(32rem,85vh)] w-full max-w-md flex-col overflow-hidden rounded-[14px] shadow-[0_8px_32px_rgba(44,41,36,0.16)]"
-        style={{ backgroundColor: PANEL_SURFACE }}
+        className="relative z-10 flex max-h-[min(32rem,85vh)] w-full max-w-md flex-col overflow-hidden rounded-[14px] border shadow-[0_12px_48px_rgba(44,41,36,0.18),0_2px_8px_rgba(44,41,36,0.08)]"
+        style={{ backgroundColor: POPUP_SURFACE, borderColor: P.rule }}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div
@@ -114,16 +117,26 @@ export function OwnerDashboardListPopup({
           </button>
         </div>
 
-        <div className="max-h-[min(24rem,60vh)] overflow-y-auto px-4 py-2">
-          {children ??
-            (rows ?? []).map((row, index) => (
-              <div
-                key={row.id}
-                style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
-              >
-                <RankedPopupRow row={row} onNavigate={onClose} />
-              </div>
-            ))}
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="max-h-[min(24rem,60vh)] overflow-y-auto px-4 py-2">
+            {children ??
+              (rows ?? []).map((row, index) => (
+                <div
+                  key={row.id}
+                  style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
+                >
+                  <RankedPopupRow row={row} onNavigate={onClose} />
+                </div>
+              ))}
+          </div>
+          {footerNote ? (
+            <p
+              className="shrink-0 border-t px-5 py-3 text-[12px] leading-snug text-muted"
+              style={{ borderColor: P.rule }}
+            >
+              {footerNote}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

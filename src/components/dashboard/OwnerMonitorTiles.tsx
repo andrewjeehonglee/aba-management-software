@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { cn } from "@/lib/utils"
-import type { OwnerMonitorTile, OwnerMonitorTileId } from "@/lib/ownerDashboardConcerns"
+import type { OwnerMonitorTile, OwnerMonitorTileId, OwnerSummaryLine } from "@/lib/ownerDashboardConcerns"
 import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 import { OwnerDashboardListPopup } from "@/components/dashboard/OwnerDashboardListPopup"
 import { OwnerRankedRows, OwnerViewAllButton } from "@/components/dashboard/OwnerRankedRows"
@@ -11,10 +11,32 @@ function tileAccentClass(state: OwnerMonitorTile["state"]): string {
   return "border-l-4 border-l-brand"
 }
 
-function headerClass(state: OwnerMonitorTile["state"]): string {
-  if (state === "urgent") return "text-alert-strong"
-  if (state === "monitor") return "text-alert"
+function summaryLineClass(tone: OwnerSummaryLine["tone"]): string {
+  if (tone === "urgent") return "text-alert-strong"
+  if (tone === "monitor") return "text-alert"
   return "text-ink-soft"
+}
+
+function TileSummary({ tile }: { tile: OwnerMonitorTile }) {
+  const lines =
+    tile.summaryLines ??
+    (tile.headerLine ? [{ text: tile.headerLine, tone: "neutral" as const }] : [])
+
+  return (
+    <div className="mt-1.5 space-y-0.5">
+      {lines.map((line) => (
+        <p
+          key={line.text}
+          className={cn("text-[14px] leading-snug tabular-nums", summaryLineClass(line.tone))}
+        >
+          {line.text}
+        </p>
+      ))}
+      {tile.subNote ? (
+        <p className="pt-0.5 text-[12px] leading-snug text-muted">{tile.subNote}</p>
+      ) : null}
+    </div>
+  )
 }
 
 function MonitorTileCard({
@@ -27,7 +49,9 @@ function MonitorTileCard({
   onViewAll: () => void
 }) {
   const isHealthy = tile.state === "healthy" && tile.totalRowCount === 0
-  const showViewAll = tile.totalRowCount > 0
+  const showViewAll =
+    tile.totalRowCount > 0 &&
+    (tile.totalRowCount > tile.rows.length || tile.id === "directHours")
 
   return (
     <article
@@ -38,29 +62,29 @@ function MonitorTileCard({
       )}
     >
       <h3 className={cn(TILE_TITLE, "text-ink")}>{tile.title}</h3>
-      <p className={cn("mt-1.5 text-[14px] leading-snug", headerClass(tile.state))}>
-        {tile.headerLine}
-      </p>
+      <TileSummary tile={tile} />
 
       {isHealthy ? (
-        <p className="mt-auto pt-4 text-[14px] font-medium text-brand">{tile.emptyLabel}</p>
-      ) : tile.summaryOnly ? (
-        <div className="mt-auto pt-3">
+        <>
           {tile.calmNote ? (
-            <p className="mb-2 text-[14px] text-muted">{tile.calmNote}</p>
+            <p className="mt-2 text-[12px] leading-snug text-muted">{tile.calmNote}</p>
           ) : null}
-          {showViewAll ? (
-            <OwnerViewAllButton count={tile.totalRowCount} onClick={onViewAll} />
+          <p className="mt-auto pt-4 text-[14px] font-medium text-brand">{tile.emptyLabel}</p>
+          {tile.footerNote ? (
+            <p className="mt-3 text-[12px] leading-snug text-muted">{tile.footerNote}</p>
           ) : null}
-        </div>
+        </>
       ) : tile.rows.length > 0 ? (
         <>
           <OwnerRankedRows rows={tile.rows} />
-          {showViewAll ? (
-            <div className="mt-auto pt-1">
+          <div className="mt-auto pt-1">
+            {showViewAll && tile.totalRowCount > 0 ? (
               <OwnerViewAllButton count={tile.totalRowCount} onClick={onViewAll} />
-            </div>
-          ) : null}
+            ) : null}
+            {tile.footerNote ? (
+              <p className="mt-3 text-[12px] leading-snug text-muted">{tile.footerNote}</p>
+            ) : null}
+          </div>
         </>
       ) : (
         <p className="mt-auto pt-4 text-[14px] text-muted">{tile.emptyLabel}</p>
@@ -122,6 +146,7 @@ export function OwnerMonitorTiles({
         title={popupTile?.title ?? ""}
         metaLine={popupTile?.popupMetaLine}
         rows={popupTile?.viewAllRows}
+        footerNote={popupTile?.footerNote}
       />
     </>
   )
