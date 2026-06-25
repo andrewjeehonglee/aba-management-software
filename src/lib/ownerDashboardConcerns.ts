@@ -9,7 +9,7 @@ import {
   getClientDirectEngagementFlags,
   shouldFlagClientDirectEngagement,
 } from "@/lib/clientDirectEngagement"
-import { getNotesStatus, type NotesStatusItem } from "@/lib/notesStatus"
+import { getNotesStatus } from "@/lib/notesStatus"
 import { firstName } from "@/lib/ownerDashboardStatus"
 import {
   getPayPeriodHoursGap,
@@ -17,8 +17,7 @@ import {
   type PayPeriodRoleTier,
   type RosterStaffForPayroll,
 } from "@/lib/payPeriodHoursGap"
-import { daysUntilPeriodEnd } from "@/lib/payPeriod"
-import { PRACTICE_TIMEZONE } from "@/lib/sessions"
+import { daysUntilPeriodEnd, getCurrentCalendarMonth } from "@/lib/payPeriod"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 
 export const OWNER_ROW_CAP = 5
@@ -35,7 +34,10 @@ export type OwnerRankedRowSeverity = "overdue" | "pending" | "over-cap" | "near-
 
 export interface OwnerRankedRow {
   id: string
+  /** Full label fallback for accessibility. */
   label: string
+  nameLabel: string
+  consequenceLabel: string
   severity: OwnerRankedRowSeverity
   magnitude: number
   usedHours?: number
@@ -49,14 +51,17 @@ export interface OwnerMonitorTile {
   id: OwnerMonitorTileId
   title: string
   state: BcbaTileState
-  /** Tight count line only — no editorial consequence copy. */
+  /** Plain-English summary under the title. */
   headerLine: string
   emptyLabel: string
   rows: OwnerRankedRow[]
+  /** Full ranked list for the view-all popup. */
+  viewAllRows: OwnerRankedRow[]
   totalRowCount: number
-  viewAllHref?: string
+  popupMetaLine?: string
   /** When true, show header + view-all only (direct hours monitor). */
   summaryOnly?: boolean
+  calmNote?: string
 }
 
 export interface OwnerDashboardData {
@@ -68,22 +73,11 @@ export interface OwnerDashboardData {
   loading?: boolean
 }
 
-function formatSessionDateLabel(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    timeZone: PRACTICE_TIMEZONE,
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function noteItemToPopoverLine(item: NotesStatusItem): OwnerPopoverLine {
-  const clientLabel = shortClientLabel(item.clientName)
-  const dateLabel = formatSessionDateLabel(item.scheduledAt)
-  return {
-    id: item.sessionId,
-    text: `${clientLabel}, ${dateLabel}`,
-    href: item.clientCode ? clientProfilePath(item.clientCode) : undefined,
-  }
+function formatMonthTableLabel(label: string): string {
+  return label
+    .replace(/,\s*\d{4}$/, "")
+    .replace(/\u2013/g, " to ")
+    .replace(/–/g, " to ")
 }
 
 function capRows(rows: OwnerRankedRow[]): { rows: OwnerRankedRow[]; totalRowCount: number } {
@@ -116,11 +110,32 @@ function totalOnHoldHours(payroll: PayPeriodHoursGapSummary): number {
     .reduce((sum, row) => sum + row.onHoldHours, 0)
 }
 
-function notesHeaderLine(overdue: number, pending: number): string {
-  const parts: string[] = []
-  if (overdue > 0) parts.push(`${overdue} overdue`)
-  if (pending > 0) parts.push(`${pending} pending`)
-  return parts.join(" · ")
+function notesSummaryLine(overdue: number, pending: number): string {
+  if (overdue > 0 && pending > 0) {
+    return `${overdue} notes overdue, ${pending} more pending this pay period.`
+  }
+  if (overdue > 0) {
+    return `${overdue} note${overdue === 1 ? "" : "s"} overdue this pay period.`
+  }
+  if (pending > 0) {
+    return `${pending} note${pending === 1 ? "" : "s"} pending this pay period.`
+  }
+  return "Every note is in for this pay period."
+}
+
+function authSummaryLine(overCap: number, nearCap: number, state: BcbaTileState): string {
+  if (state === "healthy") return "Every client is within authorized hours."
+  if (overCap > 0) {
+    return `${overCap} client${overCap === 1 ? "" : "s"} ${overCap === 1 ? "has" : "have"} gone over their authorized hours.`
+  }
+  return `${nearCap} client${nearCap === 1 ? "" : "s"} ${nearCap === 1 ? "is" : "are"} nearing their authorized hour cap.`
+}
+
+function directSummaryLine(flagCount: number, flagging: boolean): string {
+  if (!flagging || flagCount === 0) {
+    return "Direct engagement is on track this month."
+  }
+  return `${flagCount} client${flagCount === 1 ? "" : "s"} ${flagCount === 1 ? "is" : "are"} below the 50% direct mark. The month is still in progress, so this is a monitor, not a miss.`
 }
 
 export async function getOwnerDashboardData(options: {
@@ -154,6 +169,8 @@ export async function getOwnerDashboardData(options: {
     totalOnHoldHours: totalOnHoldHours(payrollBase),
   }
 
+  const calendarMonthLabel = formatMonthTableLabel(getCurrentCalendarMonth().label)
+
   const staffWithNoteIssues = [...notes.byStaff]
     .filter((row) => row.missingCount + row.overdueCount > 0)
     .sort(
@@ -169,34 +186,32 @@ export async function getOwnerDashboardData(options: {
   const noteRowCandidates: OwnerRankedRow[] = staffWithNoteIssues.flatMap((row) => {
     const rows: OwnerRankedRow[] = []
     const name = firstName(row.staffName)
-    const notesHref = row.staffExternalCode
-      ? `${staffProfilePath(row.staffExternalCode)}/notes`
-      : undefined
-    const popoverLines: OwnerPopoverLine[] = [
-      ...(notesHref ? [{ id: `${row.staffId}-notes`, text: "View all notes →", href: notesHref }] : []),
-      ...row.items.map(noteItemToPopoverLine),
-    ]
+    const staffHref = row.staffExternalCode
+      ? staffProfilePath(row.staffExternalCode)
+      : `/staff/${row.staffId}`
 
     if (row.overdueCount > 0) {
+      const consequence = `${row.overdueCount} overdue`
       rows.push({
         id: `${row.staffId}-overdue`,
-        label: `${name} — ${row.overdueCount} overdue`,
+        label: `${name} — ${consequence}`,
+        nameLabel: name,
+        consequenceLabel: consequence,
         severity: "overdue",
         magnitude: row.overdueCount,
-        href: notesHref,
-        popoverTitle: name,
-        popoverLines,
+        href: staffHref,
       })
     }
     if (row.missingCount > 0) {
+      const consequence = `${row.missingCount} pending`
       rows.push({
         id: `${row.staffId}-pending`,
-        label: `${name} — ${row.missingCount} pending`,
+        label: `${name} — ${consequence}`,
+        nameLabel: name,
+        consequenceLabel: consequence,
         severity: "pending",
         magnitude: row.missingCount,
-        href: notesHref,
-        popoverTitle: name,
-        popoverLines,
+        href: staffHref,
       })
     }
     return rows
@@ -214,14 +229,12 @@ export async function getOwnerDashboardData(options: {
     id: "notes",
     title: "Session notes",
     state: notesState,
-    headerLine:
-      notesState === "healthy"
-        ? "0 overdue · 0 pending"
-        : notesHeaderLine(notes.totalOverdue, notes.totalMissing),
+    headerLine: notesSummaryLine(notes.totalOverdue, notes.totalMissing),
     emptyLabel: "All clear — every note is in for this pay period",
     rows: notesCapped.rows,
+    viewAllRows: noteRowCandidates,
     totalRowCount: notesCapped.totalRowCount,
-    viewAllHref: "/audit",
+    popupMetaLine: `${notesCapped.totalRowCount} staff · ${payroll.payPeriodTableLabel}`,
   }
 
   const authFlagged = sortAuthRunwayRows(
@@ -235,40 +248,36 @@ export async function getOwnerDashboardData(options: {
   else if (authNearCap.length > 0) authState = "monitor"
 
   const authRowCandidates: OwnerRankedRow[] = [
-    ...authOverCap.map((row) => ({
-      id: row.authId,
-      label: `${shortClientLabel(row.clientName)} — ${row.overHours} hrs over`,
-      severity: "over-cap" as const,
-      magnitude: row.overHours,
-      usedHours: row.usedHours,
-      authorizedHours: row.authorizedHours,
-      href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-      popoverTitle: shortClientLabel(row.clientName),
-      popoverLines: [
-        {
-          id: row.authId,
-          text: `${row.usedHours} hrs used of ${row.authorizedHours} authorized`,
-          href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-        },
-      ],
-    })),
-    ...authNearCap.map((row) => ({
-      id: row.authId,
-      label: `${shortClientLabel(row.clientName)} — ${row.hoursRemaining} hrs left`,
-      severity: "near-cap" as const,
-      magnitude: row.hoursRemaining,
-      usedHours: row.usedHours,
-      authorizedHours: row.authorizedHours,
-      href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-      popoverTitle: shortClientLabel(row.clientName),
-      popoverLines: [
-        {
-          id: row.authId,
-          text: `${row.hoursRemaining} hrs left of ${row.authorizedHours} authorized`,
-          href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
-        },
-      ],
-    })),
+    ...authOverCap.map((row) => {
+      const name = shortClientLabel(row.clientName)
+      const consequence = `${row.overHours} hrs over`
+      return {
+        id: row.authId,
+        label: `${name} — ${consequence}`,
+        nameLabel: name,
+        consequenceLabel: consequence,
+        severity: "over-cap" as const,
+        magnitude: row.overHours,
+        usedHours: row.usedHours,
+        authorizedHours: row.authorizedHours,
+        href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+      }
+    }),
+    ...authNearCap.map((row) => {
+      const name = shortClientLabel(row.clientName)
+      const consequence = `${row.hoursRemaining} hrs left`
+      return {
+        id: row.authId,
+        label: `${name} — ${consequence}`,
+        nameLabel: name,
+        consequenceLabel: consequence,
+        severity: "near-cap" as const,
+        magnitude: row.hoursRemaining,
+        usedHours: row.usedHours,
+        authorizedHours: row.authorizedHours,
+        href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+      }
+    }),
   ]
 
   authRowCandidates.sort((a, b) => {
@@ -283,35 +292,46 @@ export async function getOwnerDashboardData(options: {
     id: "auth",
     title: "Authorized hours",
     state: authState,
-    headerLine:
-      authState === "healthy"
-        ? "0 clients over cap"
-        : authOverCap.length > 0
-          ? `${authOverCap.length} client${authOverCap.length === 1 ? "" : "s"} over cap`
-          : `${authNearCap.length} client${authNearCap.length === 1 ? "" : "s"} near cap`,
+    headerLine: authSummaryLine(authOverCap.length, authNearCap.length, authState),
     emptyLabel: "All clear — every client within authorized hours",
     rows: authCapped.rows,
+    viewAllRows: authRowCandidates,
     totalRowCount: authCapped.totalRowCount,
-    viewAllHref: "/clients",
+    popupMetaLine: `${authCapped.totalRowCount} clients · ${calendarMonthLabel}`,
   }
 
   const directFlagging = shouldFlagClientDirectEngagement()
   const directState: BcbaTileState =
     directFlagging && directFlags.length > 0 ? "monitor" : "healthy"
 
+  const directRowCandidates: OwnerRankedRow[] = directFlags.map((row) => {
+    const pct = Math.round(row.directRatio * 100)
+    const consequence = `${pct}% direct`
+    return {
+      id: row.clientId,
+      label: `${row.clientLabel} — ${consequence}`,
+      nameLabel: row.clientLabel,
+      consequenceLabel: consequence,
+      severity: "monitor",
+      magnitude: 1 - row.directRatio,
+      href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+    }
+  })
+
   const directTile: OwnerMonitorTile = {
     id: "directHours",
     title: "Direct hours",
     state: directState,
-    headerLine:
-      directState === "healthy"
-        ? "Direct engagement on track · monitor (month in progress)"
-        : `${directFlags.length} client${directFlags.length === 1 ? "" : "s"} under 50% · monitor (month in progress)`,
+    headerLine: directSummaryLine(directFlagging ? directFlags.length : 0, directFlagging),
     emptyLabel: "All clear — direct engagement on track this month",
     rows: [],
+    viewAllRows: directRowCandidates,
     totalRowCount: directFlagging ? directFlags.length : 0,
-    viewAllHref: "/clients",
+    popupMetaLine: `${directRowCandidates.length} clients · ${calendarMonthLabel}`,
     summaryOnly: true,
+    calmNote: directFlagging
+      ? undefined
+      : "Direct ratios are monitored after the 21st of each month.",
   }
 
   return {

@@ -1,16 +1,14 @@
+import { useState } from "react"
 import { cn } from "@/lib/utils"
-import type { OwnerMonitorTile } from "@/lib/ownerDashboardConcerns"
+import type { OwnerMonitorTile, OwnerMonitorTileId } from "@/lib/ownerDashboardConcerns"
 import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
-import { OwnerRankedRows, OwnerViewAllLink } from "@/components/dashboard/OwnerRankedRows"
+import { OwnerDashboardListPopup } from "@/components/dashboard/OwnerDashboardListPopup"
+import { OwnerRankedRows, OwnerViewAllButton } from "@/components/dashboard/OwnerRankedRows"
 
-function tileAccentClass(state: OwnerMonitorTile["state"], primary?: boolean): string {
-  if (state === "urgent") {
-    return primary ? "border-l-4 border-l-alert-strong" : "ring-1 ring-alert-strong/20"
-  }
-  if (state === "monitor") {
-    return primary ? "border-l-4 border-l-alert" : ""
-  }
-  return primary ? "border-l-4 border-l-brand" : ""
+function tileAccentClass(state: OwnerMonitorTile["state"]): string {
+  if (state === "urgent") return "border-l-4 border-l-alert-strong"
+  if (state === "monitor") return "border-l-4 border-l-alert"
+  return "border-l-4 border-l-brand"
 }
 
 function headerClass(state: OwnerMonitorTile["state"]): string {
@@ -19,35 +17,28 @@ function headerClass(state: OwnerMonitorTile["state"]): string {
   return "text-ink-soft"
 }
 
-function maxMagnitude(rows: OwnerMonitorTile["rows"]): number {
-  return rows.reduce((max, row) => Math.max(max, row.magnitude), 0) || 1
-}
-
 function MonitorTileCard({
   tile,
-  primary = false,
   sectionId,
+  onViewAll,
 }: {
   tile: OwnerMonitorTile
-  primary?: boolean
   sectionId?: string
+  onViewAll: () => void
 }) {
   const isHealthy = tile.state === "healthy" && tile.totalRowCount === 0
-  const barKind = tile.id === "auth" ? "utilization" : "magnitude"
-  const showViewAll =
-    tile.viewAllHref && tile.totalRowCount > tile.rows.length
+  const showViewAll = tile.totalRowCount > 0
 
   return (
     <article
       id={sectionId}
       className={cn(
-        "flex scroll-mt-4 flex-col rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3",
-        tileAccentClass(tile.state, primary),
-        primary ? "min-h-[168px]" : "min-h-[132px]",
+        "flex h-full min-h-[168px] scroll-mt-4 flex-col rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3",
+        tileAccentClass(tile.state),
       )}
     >
       <h3 className={cn(TILE_TITLE, "text-ink")}>{tile.title}</h3>
-      <p className={cn("mt-1.5 text-[14px] leading-snug tabular-nums", headerClass(tile.state))}>
+      <p className={cn("mt-1.5 text-[14px] leading-snug", headerClass(tile.state))}>
         {tile.headerLine}
       </p>
 
@@ -55,24 +46,21 @@ function MonitorTileCard({
         <p className="mt-auto pt-4 text-[14px] font-medium text-brand">{tile.emptyLabel}</p>
       ) : tile.summaryOnly ? (
         <div className="mt-auto pt-3">
-          {showViewAll && tile.viewAllHref && (
-            <OwnerViewAllLink
-              count={tile.totalRowCount}
-              href={tile.viewAllHref}
-              label={`View all (${tile.totalRowCount})`}
-            />
-          )}
+          {tile.calmNote ? (
+            <p className="mb-2 text-[14px] text-muted">{tile.calmNote}</p>
+          ) : null}
+          {showViewAll ? (
+            <OwnerViewAllButton count={tile.totalRowCount} onClick={onViewAll} />
+          ) : null}
         </div>
       ) : tile.rows.length > 0 ? (
         <>
-          <OwnerRankedRows
-            rows={tile.rows}
-            maxMagnitude={maxMagnitude(tile.rows)}
-            barKind={barKind}
-          />
-          {showViewAll && tile.viewAllHref && (
-            <OwnerViewAllLink count={tile.totalRowCount} href={tile.viewAllHref} />
-          )}
+          <OwnerRankedRows rows={tile.rows} />
+          {showViewAll ? (
+            <div className="mt-auto pt-1">
+              <OwnerViewAllButton count={tile.totalRowCount} onClick={onViewAll} />
+            </div>
+          ) : null}
         </>
       ) : (
         <p className="mt-auto pt-4 text-[14px] text-muted">{tile.emptyLabel}</p>
@@ -81,16 +69,11 @@ function MonitorTileCard({
   )
 }
 
-function TileSkeleton({ primary }: { primary?: boolean }) {
+function TileSkeleton() {
   return (
-    <div
-      className={cn(
-        "animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card",
-        primary ? "min-h-[168px]" : "min-h-[132px]",
-      )}
-    >
+    <div className="flex min-h-[168px] animate-pulse flex-col rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
       <div className="h-5 w-36 rounded bg-line-soft" />
-      <div className="mt-2 h-4 w-48 rounded bg-line-soft" />
+      <div className="mt-2 h-4 w-full rounded bg-line-soft" />
       <div className="mt-4 space-y-3">
         <div className="h-4 w-full rounded bg-line-soft" />
         <div className="h-4 w-5/6 rounded bg-line-soft" />
@@ -107,32 +90,39 @@ export function OwnerMonitorTiles({
   tiles: OwnerMonitorTile[]
   loading?: boolean
 }) {
-  const notesTile = tiles.find((tile) => tile.id === "notes")
-  const authTile = tiles.find((tile) => tile.id === "auth")
-  const directTile = tiles.find((tile) => tile.id === "directHours")
+  const [popupTileId, setPopupTileId] = useState<OwnerMonitorTileId | null>(null)
+  const popupTile = tiles.find((tile) => tile.id === popupTileId)
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-4">
-        <TileSkeleton primary />
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <TileSkeleton />
-          <TileSkeleton />
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <TileSkeleton />
+        <TileSkeleton />
+        <TileSkeleton />
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {notesTile && (
-        <MonitorTileCard tile={notesTile} primary sectionId="owner-pillar-notes" />
-      )}
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {authTile && <MonitorTileCard tile={authTile} sectionId="owner-pillar-auth" />}
-        {directTile && <MonitorTileCard tile={directTile} sectionId="owner-pillar-direct" />}
+    <>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:items-stretch">
+        {tiles.map((tile) => (
+          <MonitorTileCard
+            key={tile.id}
+            tile={tile}
+            sectionId={`owner-pillar-${tile.id}`}
+            onViewAll={() => setPopupTileId(tile.id)}
+          />
+        ))}
       </div>
-    </div>
+
+      <OwnerDashboardListPopup
+        open={popupTile != null}
+        onClose={() => setPopupTileId(null)}
+        title={popupTile?.title ?? ""}
+        metaLine={popupTile?.popupMetaLine}
+        rows={popupTile?.viewAllRows}
+      />
+    </>
   )
 }
