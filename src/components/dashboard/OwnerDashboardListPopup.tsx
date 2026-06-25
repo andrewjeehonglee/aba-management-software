@@ -4,7 +4,7 @@ import { X } from "lucide-react"
 import type { OwnerRankedRow } from "@/lib/ownerDashboardConcerns"
 import { cn } from "@/lib/utils"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
-import { rowInk, TILE_BODY } from "@/components/dashboard/OwnerRankedRows"
+import { OWNER_RANKED_ROW_CLASS, OwnerRankedRowContent } from "@/components/dashboard/OwnerRankedRows"
 
 const POPUP_SURFACE = "#FFFFFF"
 
@@ -14,46 +14,25 @@ interface OwnerDashboardListPopupProps {
   title: string
   metaLine?: string
   rows?: OwnerRankedRow[]
-  footerNote?: string
   children?: React.ReactNode
 }
 
 function RankedPopupRow({ row, onNavigate }: { row: OwnerRankedRow; onNavigate?: () => void }) {
-  const name = row.nameLabel ?? row.label
-  const consequence = row.consequenceLabel
-  const ink = rowInk(row.severity)
-
-  const content = (
-    <>
-      <span className={cn(TILE_BODY, "truncate font-medium")} style={{ color: P.ink }}>
-        {name}
-      </span>
-      {consequence ? (
-        <span
-          className={cn(TILE_BODY, "shrink-0 font-medium tabular-nums")}
-          style={{ color: ink }}
-        >
-          {consequence}
-        </span>
-      ) : null}
-    </>
-  )
-
   if (row.href) {
     return (
       <Link
         to={row.href}
         onClick={onNavigate}
-        className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md px-1 py-2.5 transition-opacity hover:opacity-85"
+        className={cn(OWNER_RANKED_ROW_CLASS, "cursor-pointer rounded-md py-2.5")}
       >
-        {content}
+        <OwnerRankedRowContent row={row} />
       </Link>
     )
   }
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-1 py-2.5">
-      {content}
+    <div className={cn(OWNER_RANKED_ROW_CLASS, "py-2.5")}>
+      <OwnerRankedRowContent row={row} />
     </div>
   )
 }
@@ -64,7 +43,6 @@ export function OwnerDashboardListPopup({
   title,
   metaLine,
   rows,
-  footerNote,
   children,
 }: OwnerDashboardListPopupProps) {
   useEffect(() => {
@@ -117,26 +95,16 @@ export function OwnerDashboardListPopup({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="max-h-[min(24rem,60vh)] overflow-y-auto px-4 py-2">
-            {children ??
-              (rows ?? []).map((row, index) => (
-                <div
-                  key={row.id}
-                  style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
-                >
-                  <RankedPopupRow row={row} onNavigate={onClose} />
-                </div>
-              ))}
-          </div>
-          {footerNote ? (
-            <p
-              className="shrink-0 border-t px-5 py-3 text-[12px] leading-snug text-muted"
-              style={{ borderColor: P.rule }}
-            >
-              {footerNote}
-            </p>
-          ) : null}
+        <div className="max-h-[min(24rem,60vh)] overflow-y-auto px-2 py-2">
+          {children ??
+            (rows ?? []).map((row, index) => (
+              <div
+                key={row.id}
+                style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
+              >
+                <RankedPopupRow row={row} onNavigate={onClose} />
+              </div>
+            ))}
         </div>
       </div>
     </div>

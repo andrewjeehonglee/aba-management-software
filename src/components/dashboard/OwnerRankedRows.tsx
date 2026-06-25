@@ -10,6 +10,10 @@ import { P } from "@/pages/ClientOverviewPage/profileTokens"
 
 export const TILE_BODY = "text-[15px]"
 
+/** Shared padded name–value row layout for owner monitor tiles and popups. */
+export const OWNER_RANKED_ROW_CLASS =
+  "flex items-center gap-3 px-2.5 py-0.5 hover:opacity-85"
+
 export function rowInk(severity: OwnerRankedRow["severity"]): string {
   if (severity === "overdue" || severity === "over-cap") return OWNER_OVER_CAP_INK
   if (severity === "pending") return P.amberInk
@@ -18,14 +22,14 @@ export function rowInk(severity: OwnerRankedRow["severity"]): string {
   return P.soft
 }
 
-function RankedRowItem({ row }: { row: OwnerRankedRow }) {
+function RankedRowContent({ row }: { row: OwnerRankedRow }) {
   const name = row.nameLabel ?? row.label
   const consequence = row.consequenceLabel
   const ink = rowInk(row.severity)
 
-  const content = (
+  return (
     <>
-      <span className={cn(TILE_BODY, "truncate font-medium")} style={{ color: P.ink }}>
+      <span className={cn(TILE_BODY, "min-w-0 truncate font-medium")} style={{ color: P.ink }}>
         {name}
       </span>
       {consequence ? (
@@ -38,21 +42,20 @@ function RankedRowItem({ row }: { row: OwnerRankedRow }) {
       ) : null}
     </>
   )
+}
 
+function RankedRowItem({ row }: { row: OwnerRankedRow }) {
   if (row.href) {
     return (
-      <Link
-        to={row.href}
-        className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 hover:opacity-85"
-      >
-        {content}
+      <Link to={row.href} className={cn(OWNER_RANKED_ROW_CLASS, "cursor-pointer")}>
+        <RankedRowContent row={row} />
       </Link>
     )
   }
 
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-      {content}
+    <div className={OWNER_RANKED_ROW_CLASS}>
+      <RankedRowContent row={row} />
     </div>
   )
 }
@@ -65,7 +68,7 @@ export function OwnerRankedRows({ rows }: { rows: OwnerRankedRow[] }) {
       {rows.map((row, index) => (
         <li
           key={row.id}
-          className="py-2.5 first:pt-0"
+          className="py-2 first:pt-0"
           style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
         >
           <RankedRowItem row={row} />
@@ -98,4 +101,8 @@ export function OwnerViewAllButton({
       />
     </button>
   )
+}
+
+export function OwnerRankedRowContent({ row }: { row: OwnerRankedRow }) {
+  return <RankedRowContent row={row} />
 }

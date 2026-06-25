@@ -43,12 +43,10 @@ export const OWNER_OVER_CAP_INK = "#B5362A"
 export const OWNER_NEAR_CAP_INK = "#B8860B"
 export const OWNER_ON_HOLD_INK = "#B8860B"
 
-export const NOTES_STATUS_FOOTER_NOTE =
-  "Overdue: past the submission deadline. Pending: not yet due, still within the window."
-
 export interface OwnerSummaryLine {
   text: string
-  tone?: "urgent" | "monitor" | "neutral"
+  /** Optional parenthetical definition in a lighter muted tone. */
+  hint?: string
 }
 
 export interface OwnerRankedRow {
@@ -73,10 +71,8 @@ export interface OwnerMonitorTile {
   /** Plain-English summary under the title (fallback when summaryLines omitted). */
   headerLine: string
   summaryLines?: OwnerSummaryLine[]
-  /** Muted note directly under the summary (e.g. direct hours). */
+  /** Muted note directly under the summary (e.g. direct observation hours). */
   subNote?: string
-  /** Muted explanatory note pinned to the tile bottom. */
-  footerNote?: string
   emptyLabel: string
   rows: OwnerRankedRow[]
   /** Full ranked list for the view-all popup. */
@@ -135,19 +131,19 @@ function totalOnHoldHours(payroll: PayPeriodHoursGapSummary): number {
 
 function notesSummaryLines(overdue: number, pending: number): OwnerSummaryLine[] {
   if (overdue === 0 && pending === 0) {
-    return [{ text: "Every note is in for this pay period.", tone: "neutral" }]
+    return [{ text: "Every note is in for this pay period." }]
   }
   const lines: OwnerSummaryLine[] = []
   if (overdue > 0) {
     lines.push({
       text: `${overdue} note${overdue === 1 ? "" : "s"} overdue`,
-      tone: "urgent",
+      hint: "past the submission deadline",
     })
   }
   if (pending > 0) {
     lines.push({
-      text: `${pending} note${pending === 1 ? "" : "s"} pending this pay period.`,
-      tone: "monitor",
+      text: `${pending} note${pending === 1 ? "" : "s"} pending`,
+      hint: "not yet due, still within the window",
     })
   }
   return lines
@@ -155,38 +151,34 @@ function notesSummaryLines(overdue: number, pending: number): OwnerSummaryLine[]
 
 function authSummaryLines(overCap: number, nearCap: number, state: BcbaTileState): OwnerSummaryLine[] {
   if (state === "healthy") {
-    return [{ text: "Every client is within authorized hours.", tone: "neutral" }]
+    return [{ text: "Every client is within authorized hours." }]
   }
   if (overCap > 0) {
     return [
       {
         text: `${overCap} client${overCap === 1 ? "" : "s"} ${overCap === 1 ? "has" : "have"} gone over their authorized hours.`,
-        tone: "urgent",
       },
     ]
   }
   return [
     {
       text: `${nearCap} client${nearCap === 1 ? "" : "s"} ${nearCap === 1 ? "is" : "are"} nearing their authorized hour cap.`,
-      tone: "monitor",
     },
   ]
 }
 
 function directSummaryLines(flagCount: number, flagging: boolean): OwnerSummaryLine[] {
   if (!flagging || flagCount === 0) {
-    return [{ text: "Direct engagement is on track this month.", tone: "neutral" }]
+    return [{ text: "Direct engagement is on track this month." }]
   }
   return [
     {
       text: `${flagCount} client${flagCount === 1 ? "" : "s"} ${flagCount === 1 ? "is" : "are"} below 50% direct.`,
-      tone: "monitor",
     },
   ]
 }
 
-const DIRECT_HOURS_SUB_NOTE =
-  "Direct = direct-observation hours. Month still in progress — a monitor, not a miss."
+const DIRECT_HOURS_SUB_NOTE = "Month still in progress — a monitor, not a miss."
 
 export async function getOwnerDashboardData(options: {
   staffIds: string[]
@@ -283,7 +275,6 @@ export async function getOwnerDashboardData(options: {
       .map((line) => line.text)
       .join(" "),
     summaryLines: notesSummaryLines(notes.totalOverdue, notes.totalMissing),
-    footerNote: NOTES_STATUS_FOOTER_NOTE,
     emptyLabel: "All clear — every note is in for this pay period",
     rows: notesCapped.rows,
     viewAllRows: noteRowCandidates,
@@ -379,7 +370,7 @@ export async function getOwnerDashboardData(options: {
 
   const directTile: OwnerMonitorTile = {
     id: "directHours",
-    title: "Direct hours",
+    title: "Direct observation hours",
     state: directState,
     headerLine: directSummaryLines(directFlagging ? directFlags.length : 0, directFlagging)
       .map((line) => line.text)

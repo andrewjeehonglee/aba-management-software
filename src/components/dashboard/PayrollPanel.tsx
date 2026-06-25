@@ -1,15 +1,16 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { firstName } from "@/lib/ownerDashboardStatus"
 import { OWNER_ON_HOLD_INK } from "@/lib/ownerDashboardConcerns"
 import {
+  PAY_PERIOD_TIER_ORDER,
   type PayPeriodHoursGapSummary,
   type PayPeriodRoleTier,
   type PayPeriodStaffHoursRow,
 } from "@/lib/payPeriodHoursGap"
 import { staffProfilePath } from "@/lib/rosterScope"
 import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
-import { TILE_BODY } from "@/components/dashboard/OwnerRankedRows"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
 
 type PayrollData = PayPeriodHoursGapSummary & {
@@ -17,12 +18,10 @@ type PayrollData = PayPeriodHoursGapSummary & {
   totalOnHoldHours: number
 }
 
-const PAYROLL_ROLE_ORDER: PayPeriodRoleTier[] = ["bcba", "supervisor", "technician"]
-
-const PAYROLL_ROLE_HEADINGS: Record<PayPeriodRoleTier, string> = {
-  bcba: "BCBAs",
-  supervisor: "Clinical Supervisors",
+const TAB_LABELS: Record<PayPeriodRoleTier, string> = {
   technician: "Technicians",
+  supervisor: "Clinical Supervisors",
+  bcba: "BCBAs",
 }
 
 function closeContextLabel(daysUntilClose: number): string {
@@ -43,9 +42,10 @@ function PanelSkeleton() {
       <div className="h-5 w-48 rounded bg-line-soft" />
       <div className="mt-2 h-4 w-64 rounded bg-line-soft" />
       <div className="mt-4 h-10 w-full max-w-sm rounded bg-line-soft" />
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="mt-4 h-9 w-72 rounded-full bg-line-soft" />
+      <div className="mt-4 flex flex-wrap gap-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-20 rounded-[12px] bg-line-soft" />
+          <div key={i} className="h-[4.5rem] w-36 rounded-[12px] bg-line-soft" />
         ))}
       </div>
     </div>
@@ -56,20 +56,20 @@ function StaffPayrollBox({ row }: { row: PayPeriodStaffHoursRow }) {
   return (
     <Link
       to={staffHref(row)}
-      className="flex cursor-pointer flex-col rounded-[12px] border px-3 py-2.5 transition-opacity hover:opacity-90"
+      className="inline-flex w-fit min-w-[8.75rem] cursor-pointer flex-col rounded-[12px] border px-3 py-2.5 transition-opacity hover:opacity-90"
       style={{
         backgroundColor: P.inset,
         borderColor: P.rule,
       }}
     >
-      <span className={cn(TILE_BODY, "truncate font-bold")} style={{ color: P.ink }}>
+      <span className="truncate text-[15px] font-bold leading-snug" style={{ color: P.ink }}>
         {firstName(row.staffName)}
       </span>
-      <span className="mt-1.5 text-[13px] tabular-nums" style={{ color: P.sageInk }}>
+      <span className="mt-1.5 text-[14px] tabular-nums leading-snug" style={{ color: P.sageInk }}>
         {row.payableHours} payable
       </span>
       <span
-        className="text-[13px] tabular-nums"
+        className="text-[14px] tabular-nums leading-snug"
         style={{ color: row.onHoldHours > 0 ? OWNER_ON_HOLD_INK : P.faint }}
       >
         {row.onHoldHours} on hold
@@ -85,17 +85,21 @@ export function PayrollPanel({
   payroll: PayrollData | null
   loading?: boolean
 }) {
+  const [selectedTier, setSelectedTier] = useState<PayPeriodRoleTier>("technician")
+
   if (loading || !payroll) {
     return <PanelSkeleton />
   }
 
-  const allStaff = PAYROLL_ROLE_ORDER.flatMap((tier) => {
+  const allStaff = PAY_PERIOD_TIER_ORDER.flatMap((tier) => {
     const group = payroll.byRole.find((row) => row.tier === tier)
     return group?.staff ?? []
   })
   const totalPayableHours = allStaff.reduce((sum, row) => sum + row.payableHours, 0)
   const totalOnHoldHours = payroll.totalOnHoldHours
   const staffOnHoldCount = allStaff.filter((row) => row.onHoldHours > 0).length
+  const tierDetail = payroll.byRole.find((row) => row.tier === selectedTier) ?? payroll.byRole[0]!
+  const tierStaff = tierDetail?.staff ?? []
 
   return (
     <section
@@ -110,11 +114,11 @@ export function PayrollPanel({
       </div>
 
       {staffOnHoldCount > 0 ? (
-        <p className="mt-1.5 text-[14px] leading-snug" style={{ color: OWNER_ON_HOLD_INK }}>
-          {totalOnHoldHours} hours are on hold until {staffOnHoldCount} staff complete their notes.
+        <p className="mt-1.5 text-[14px] leading-snug text-muted">
+          {staffOnHoldCount} staff have unfinished notes, holding {totalOnHoldHours} hours of pay.
         </p>
       ) : (
-        <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
+        <p className="mt-1.5 text-[14px] leading-snug text-muted">
           All completed session hours are payable for this pay period.
         </p>
       )}
@@ -141,27 +145,43 @@ export function PayrollPanel({
         </div>
       </div>
 
-      <div className="mt-6 space-y-5">
-        {PAYROLL_ROLE_ORDER.map((tier) => {
-          const group = payroll.byRole.find((row) => row.tier === tier)
-          const staff = group?.staff ?? []
-          if (staff.length === 0) return null
-
+      <div
+        className="mt-5 inline-flex max-w-full flex-wrap rounded-full bg-surface-2 p-0.5"
+        role="tablist"
+        aria-label="Staff group"
+      >
+        {PAY_PERIOD_TIER_ORDER.map((tier) => {
+          const active = selectedTier === tier
           return (
-            <div key={tier}>
-              <h3 className="text-[13px] font-semibold uppercase tracking-[0.06em] text-muted">
-                {PAYROLL_ROLE_HEADINGS[tier]}
-              </h3>
-              <ul className="mt-2.5 grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-2.5">
-                {staff.map((row) => (
-                  <li key={row.staffId}>
-                    <StaffPayrollBox row={row} />
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <button
+              key={tier}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setSelectedTier(tier)}
+              className={cn(
+                "cursor-pointer rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                active ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink-soft",
+              )}
+            >
+              {TAB_LABELS[tier]}
+            </button>
           )
         })}
+      </div>
+
+      <div className="mt-4">
+        {tierStaff.length === 0 ? (
+          <p className="py-2 text-[14px] text-muted">No staff in this group.</p>
+        ) : (
+          <ul className="flex flex-wrap gap-2">
+            {tierStaff.map((row) => (
+              <li key={row.staffId}>
+                <StaffPayrollBox row={row} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   )
