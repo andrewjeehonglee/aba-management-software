@@ -176,7 +176,7 @@ export function DashboardCalendarTile({
             <>
               <button
                 type="button"
-                className="absolute inset-0 z-10 cursor-default"
+                className="absolute inset-0 z-10 cursor-pointer"
                 aria-label="Close session details"
                 onClick={closeSessionPanel}
               />
