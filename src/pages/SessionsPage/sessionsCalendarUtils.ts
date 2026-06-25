@@ -79,6 +79,20 @@ export function chipTimeLabel(session: SessionRecord): string {
   return formatTime(session.time)
 }
 
+const CHIP_TYPE_LABEL: Record<SessionChipType, string> = {
+  direct: "Direct",
+  indirect: "Indirect",
+  supervision: "Supervision",
+}
+
+export function chipClientShortLabel(session: SessionRecord): string {
+  return session.clientCode ?? session.clientName.split(/\s+/)[0] ?? session.clientName
+}
+
+export function chipTypeShortLabel(session: SessionRecord): string {
+  return CHIP_TYPE_LABEL[normalizeSessionType(session.sessionType)]
+}
+
 export function defaultColorMode(viewKind: "client" | "staff"): CalendarColorMode {
   return viewKind === "client" ? "status" : "type"
 }

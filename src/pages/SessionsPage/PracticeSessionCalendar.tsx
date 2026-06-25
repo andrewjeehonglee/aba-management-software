@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
 import {
   chipColors,
+  chipClientShortLabel,
   chipTimeLabel,
+  chipTypeShortLabel,
   counterpartLabel,
   DOW_LABELS,
   formatMonthYear,
@@ -35,6 +37,8 @@ interface PracticeSessionCalendarProps {
   loading?: boolean
   empty?: boolean
   showColorBy?: boolean
+  /** Dashboard chips: time · client · type. Default shows counterpart by viewKind. */
+  chipLabelMode?: "counterpart" | "client-type"
 }
 
 function ColorByToggle({
@@ -90,6 +94,7 @@ function SessionChip({
   session,
   viewKind,
   colorMode,
+  chipLabelMode,
   todayISO,
   notesBySessionId,
   selected,
@@ -98,6 +103,7 @@ function SessionChip({
   session: SessionRecord
   viewKind: "client" | "staff"
   colorMode: CalendarColorMode
+  chipLabelMode: "counterpart" | "client-type"
   todayISO: string
   notesBySessionId: Map<string, SessionNoteRecord>
   selected: boolean
@@ -105,25 +111,40 @@ function SessionChip({
 }) {
   const colors = chipColors(session, colorMode, todayISO, notesBySessionId)
   const time = chipTimeLabel(session)
-  const counterpart = counterpartLabel(session, viewKind)
   const ringColor = sessionPanelStatusRingColor(session, todayISO, notesBySessionId)
+  const clientShort = chipClientShortLabel(session)
+  const typeLabel = chipTypeShortLabel(session)
+  const title =
+    chipLabelMode === "client-type"
+      ? `${time} · ${clientShort} · ${typeLabel}`
+      : `${time} ${counterpartLabel(session, viewKind)}`
 
   return (
     <button
       type="button"
       onClick={() => onSelect?.(session)}
-      className="flex w-full min-w-0 items-center gap-0.5 truncate rounded-md border-l-[3px] px-1 py-0.5 text-left text-[12px] leading-tight hover:opacity-90"
+      className="inline-block max-w-full truncate rounded-md border-l-[3px] px-1 py-0.5 text-left text-[12px] leading-tight hover:opacity-90"
       style={{
         backgroundColor: colors.bg,
         color: colors.ink,
         borderLeftColor: colors.border,
         ...(selected ? { boxShadow: `0 0 0 2px ${ringColor}` } : {}),
       }}
-      title={`${time} ${counterpart}`}
+      title={title}
       aria-pressed={selected}
     >
-      <span className="shrink-0 font-bold tabular-nums">{time}</span>
-      <span className="min-w-0 truncate">{counterpart}</span>
+      {chipLabelMode === "client-type" ? (
+        <span className="truncate">
+          <span className="font-bold tabular-nums">{time}</span>
+          <span> · {clientShort} · </span>
+          <span style={{ color: P.faint }}>{typeLabel}</span>
+        </span>
+      ) : (
+        <>
+          <span className="font-bold tabular-nums">{time}</span>{" "}
+          <span>{counterpartLabel(session, viewKind)}</span>
+        </>
+      )}
     </button>
   )
 }
@@ -141,6 +162,7 @@ export function PracticeSessionCalendar({
   loading = false,
   empty = false,
   showColorBy = false,
+  chipLabelMode = "counterpart",
 }: PracticeSessionCalendarProps) {
   const todayISO = localISO(new Date())
   const [popupDayIso, setPopupDayIso] = useState<string | null>(null)
@@ -194,19 +216,20 @@ export function PracticeSessionCalendar({
         }}
       >
         <span
-          className="mb-0.5 shrink-0 text-[16px] font-semibold tabular-nums leading-none"
+          className="mb-0.5 w-full shrink-0 text-center text-[16px] font-semibold tabular-nums leading-none"
           style={{ color: isToday ? P.sageInk : daySessions.length ? P.ink : P.faint }}
         >
           {day.getDate()}
         </span>
         {daySessions.length > 0 && (
-          <div className="flex min-h-0 flex-1 flex-col gap-px overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col items-start gap-px overflow-hidden">
             {displayedSessions.map((session) => (
               <SessionChip
                 key={session.id}
                 session={session}
                 viewKind={viewKind}
                 colorMode={colorMode}
+                chipLabelMode={chipLabelMode}
                 todayISO={todayISO}
                 notesBySessionId={notesBySessionId}
                 selected={session.id === selectedSessionId}
