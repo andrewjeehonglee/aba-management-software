@@ -23,8 +23,8 @@ const BAR_HEIGHT = "h-2"
 const VISIBLE_CHIP_CAP = 3
 const DAY_CELL_H = "h-[98px]"
 const DAY_CELL_MIN_H = "min-h-[98px]"
-/** Uniform dashboard chip width — cell inner width minus equal side inset. */
-const DASHBOARD_CHIP_BAR_CLASS = "w-[calc(100%-6px)] max-w-[calc(100%-6px)]"
+/** Uniform dashboard chip width — fixed width with equal side inset (text truncates inside). */
+const DASHBOARD_CHIP_BAR_CLASS = "w-[calc(100%-20px)] max-w-[calc(100%-20px)] shrink-0"
 
 function ChipSegmentDivider() {
   return (
