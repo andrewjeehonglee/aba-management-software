@@ -42,17 +42,19 @@ function DualMetricColumn({
   )
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 text-center">
       {hasPopover ? (
-        <MetricPopover
-          metric={valueEl}
-          metricClassName=""
-          items={side.popoverItems}
-          groups={side.popoverGroups}
-          emptyLabel={popoverEmptyLabel}
-          ariaLabel={`${title}: ${side.unit}`}
-          title={dashboardPopupTitle(title, side.unit)}
-        />
+        <div className="flex justify-center">
+          <MetricPopover
+            metric={valueEl}
+            metricClassName=""
+            items={side.popoverItems}
+            groups={side.popoverGroups}
+            emptyLabel={popoverEmptyLabel}
+            ariaLabel={`${title}: ${side.unit}`}
+            title={dashboardPopupTitle(title, side.unit)}
+          />
+        </div>
       ) : (
         valueEl
       )}
@@ -147,7 +149,7 @@ export function BcbaDashboardTile({
           />
         </div>
       ) : (
-        <div className="mt-4 flex flex-col gap-0.5">
+        <div className="mt-4 flex flex-col items-center gap-0.5 text-center">
           <MetricPopover
             metric={metric}
             metricClassName={cn(BIG_METRIC_CLASS, metricClass)}
