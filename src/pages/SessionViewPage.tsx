@@ -9,8 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { completeSession, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, getUserPractice, isNewSessionRoute, isValidSessionId, buildNewSessionDetail, buildSessionDetailFromBootstrap, saveBehaviorIncident, saveTrialResult, submitSessionNote, supabase, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail, type SessionPageBootstrap } from "@/lib/supabase"
 import type { GoalStatus } from "@/types/goal"
+import { P, TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+const PAGE_MAX = "mx-auto w-full max-w-[1600px]"
+const META_LABEL = "text-[14px] font-semibold shrink-0"
+const BODY_TEXT = "text-[15px]"
 
 const ATTENDEE_OPTIONS = ["Mom", "Dad", "Grandparents", "Supervisor", "BCBA"] as const
 
@@ -101,15 +104,6 @@ type SessionOutcome = "occurred" | "shortened" | "cancelled" | "no-show"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatTimer(s: number): string {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  const mm = String(m).padStart(2, "0")
-  const ss = String(sec).padStart(2, "0")
-  return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`
-}
-
 function calcPct(ts: TrialOutcome[]): number {
   if (ts.length === 0) return 0
   return Math.round((ts.filter(t => t.result === "correct").length / ts.length) * 100)
@@ -128,7 +122,8 @@ function Textarea({ value, onChange, placeholder, rows = 3 }: {
       onChange={onChange}
       placeholder={placeholder}
       rows={rows}
-      className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+      className="flex w-full rounded-md border px-3 py-2 text-[15px] shadow-xs resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      style={{ borderColor: P.rule, backgroundColor: P.inset, color: P.ink }}
     />
   )
 }
@@ -152,11 +147,10 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
   const canSave = !!draft.intensity && !!draft.duration
 
   return (
-    <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-      {/* Step indicator */}
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+    <div className="rounded-xl border p-4 space-y-3" style={{ backgroundColor: P.inset, borderColor: P.rule }}>
+      <div className="flex items-center gap-1.5 text-[13px]" style={{ color: P.soft }}>
         {["Antecedent", "Consequence", "Details"].map((label, i) => (
-          <span key={label} className={`${i + 1 === step ? "text-foreground font-semibold" : ""}`}>
+          <span key={label} className={i + 1 === step ? "font-semibold" : ""} style={i + 1 === step ? { color: P.ink } : undefined}>
             {i > 0 && <span className="mx-1">›</span>}
             {i + 1}. {label}
           </span>
@@ -165,10 +159,10 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
 
       {step === 1 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium">What happened before the behavior?</p>
+          <p className="text-[14px] font-semibold" style={{ color: P.ink }}>What happened before the behavior?</p>
           <div className="grid grid-cols-2 gap-1.5">
             {ANTECEDENTS.map(item => (
-              <label key={item} className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2 cursor-pointer hover:bg-muted transition-colors min-h-[44px] text-xs">
+              <label key={item} className="flex items-center gap-2 rounded-lg border px-2.5 py-2 cursor-pointer hover:opacity-85 transition-opacity min-h-[44px] text-[14px]" style={{ backgroundColor: P.card, borderColor: P.rule, color: P.ink }}>
                 <input type="checkbox" checked={draft.antecedents.includes(item)} onChange={() => onToggleA(item)} className="size-3.5 shrink-0" />
                 {item}
               </label>
@@ -179,10 +173,10 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
 
       {step === 2 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium">What happened after the behavior?</p>
+          <p className="text-[14px] font-semibold" style={{ color: P.ink }}>What happened after the behavior?</p>
           <div className="grid grid-cols-2 gap-1.5">
             {CONSEQUENCES.map(item => (
-              <label key={item} className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-2 cursor-pointer hover:bg-muted transition-colors min-h-[44px] text-xs">
+              <label key={item} className="flex items-center gap-2 rounded-lg border px-2.5 py-2 cursor-pointer hover:opacity-85 transition-opacity min-h-[44px] text-[14px]" style={{ backgroundColor: P.card, borderColor: P.rule, color: P.ink }}>
                 <input type="checkbox" checked={draft.consequences.includes(item)} onChange={() => onToggleC(item)} className="size-3.5 shrink-0" />
                 {item}
               </label>
@@ -194,13 +188,14 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
       {step === 3 && (
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <p className="text-xs font-medium">Intensity</p>
+            <p className="text-[14px] font-semibold" style={{ color: P.ink }}>Intensity</p>
             <div className="flex gap-2">
               {INTENSITIES.map(v => (
                 <button
                   key={v}
+                  type="button"
                   onClick={() => onIntensity(v)}
-                  className={`flex-1 rounded-lg border-2 py-3 text-xs font-semibold transition-colors min-h-[44px] ${
+                  className={`flex-1 rounded-lg border-2 py-3 text-[14px] font-semibold transition-colors min-h-[44px] ${
                     draft.intensity === v
                       ? v === "High"   ? "border-red-500 bg-red-50 text-red-800"
                       : v === "Medium" ? "border-amber-500 bg-amber-50 text-amber-800"
@@ -214,13 +209,14 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
             </div>
           </div>
           <div className="space-y-1.5">
-            <p className="text-xs font-medium">Duration</p>
+            <p className="text-[14px] font-semibold" style={{ color: P.ink }}>Duration</p>
             <div className="grid grid-cols-3 gap-1.5">
               {DURATIONS.map(v => (
                 <button
                   key={v}
+                  type="button"
                   onClick={() => onDuration(v)}
-                  className={`rounded-lg border-2 py-2.5 text-xs font-semibold transition-colors min-h-[44px] ${
+                  className={`rounded-lg border-2 py-2.5 text-[14px] font-semibold transition-colors min-h-[44px] ${
                     draft.duration === v
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border hover:border-muted-foreground/50"
@@ -236,7 +232,7 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-1">
-        <button onClick={onCancel} className="text-xs text-muted-foreground hover:underline underline-offset-2">
+        <button type="button" onClick={onCancel} className="text-[14px] hover:underline underline-offset-2" style={{ color: P.soft }}>
           Cancel
         </button>
         <div className="flex gap-2">
@@ -402,30 +398,18 @@ export function SessionViewPage() {
 
   const clientProfilePath = clientDetail?.external_code ?? sessionDetail?.clientId ?? ""
   const displayName = sessionDetail?.clientName ?? "Session"
-  const billingCode = clientDetail?.cpt_codes?.[0] ?? "—"
   const isEphemeralSession = isNewSessionRoute(sessionId)
 
   // ── Mode ───────────────────────────────────────────────────────────────────
   const [mode, setMode] = useState<"active" | "post">("active")
 
-  // ── Timer — auto-starts, survives navigation, clears on submit ────────────
+  // ── Timer key — cleared on submit (no on-screen clock) ───────────────────
   const timerKey = sessionId ? `session_timer_${sessionId}` : null
-
-  const [seconds, setSeconds] = useState(() => {
-    if (!timerKey) return 0
-    const stored = sessionStorage.getItem(timerKey)
-    if (!stored) return 0
-    const startTime = parseInt(stored, 10)
-    if (isNaN(startTime)) return 0
-    return Math.max(0, Math.floor((Date.now() - startTime) / 1000))
-  })
 
   useEffect(() => {
     if (timerKey && !sessionStorage.getItem(timerKey)) {
       sessionStorage.setItem(timerKey, String(Date.now()))
     }
-    const id = setInterval(() => setSeconds(s => s + 1), 1000)
-    return () => clearInterval(id)
   }, [timerKey])
 
   // ── Session metadata ───────────────────────────────────────────────────────
@@ -562,7 +546,10 @@ export function SessionViewPage() {
   // ─────────────────────────────────────────────────────────────────────────
   if (dataLoading) {
     return (
-      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
+      <div
+        className="min-h-svh flex items-center justify-center text-[15px]"
+        style={{ backgroundColor: P.bg, color: P.soft }}
+      >
         Loading session…
       </div>
     )
@@ -570,9 +557,12 @@ export function SessionViewPage() {
 
   if (dataError || !sessionDetail) {
     return (
-      <div className="min-h-svh bg-background flex flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground text-sm">
-        <p>Could not open this session.</p>
-        <Link to="/" className="text-brand font-medium hover:underline">
+      <div
+        className="min-h-svh flex flex-col items-center justify-center gap-3 px-6 text-center text-[15px]"
+        style={{ backgroundColor: P.bg, color: P.soft }}
+      >
+        <p style={{ color: P.ink }}>Could not open this session.</p>
+        <Link to="/" className="font-semibold hover:underline" style={{ color: P.sageInk }}>
           Back to dashboard
         </Link>
       </div>
@@ -580,78 +570,79 @@ export function SessionViewPage() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground flex flex-col">
-
-      {/* Session timer — fixed so it stays visible when scrolling */}
-      <div
-        className="fixed right-4 top-3 z-[60] flex items-center gap-2 rounded-full border border-border bg-background/95 px-4 py-2 shadow-lg backdrop-blur"
-        aria-live="polite"
-      >
-        <span className="font-mono text-xl font-bold tabular-nums text-primary">
-          {formatTimer(seconds)}
-        </span>
-        <span className="hidden sm:inline text-xs font-medium text-muted-foreground border-l border-border pl-2">
-          {billingCode}
-        </span>
-      </div>
+    <div
+      className="min-h-svh flex flex-col px-6 py-6 sm:px-10"
+      style={{ backgroundColor: P.bg, color: P.ink }}
+    >
 
       {/* ══ STICKY HEADER ══════════════════════════════════════════════════ */}
-      <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
-        <div className="mx-auto max-w-6xl px-4 pt-3 pb-2 flex items-center gap-3">
+      <header
+        className="sticky top-0 z-20 -mx-6 border-b px-6 py-5 sm:-mx-10 sm:px-10"
+        style={{ backgroundColor: P.card, borderColor: P.rule }}
+      >
+        <div className={PAGE_MAX}>
           <Link
             to={clientProfilePath ? `/clients/${clientProfilePath}` : "/"}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="inline-flex items-center gap-1.5 text-[15px] transition-opacity hover:opacity-80"
+            style={{ color: P.soft }}
           >
             <ArrowLeft className="size-4" />
             Back
           </Link>
 
-          {/* Client name — tappable */}
           <Link
             to={clientProfilePath ? `/clients/${clientProfilePath}` : "/"}
-            className="font-semibold text-lg leading-tight hover:underline underline-offset-2 flex-1 truncate pr-28 sm:pr-36"
+            className="mt-4 block text-[28px] font-semibold leading-tight tracking-tight hover:opacity-85"
+            style={{ color: P.ink }}
           >
             {displayName}
           </Link>
-        </div>
 
-        {/* Location + attendees strip */}
-        <div className="mx-auto max-w-6xl px-4 pb-3 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-muted-foreground shrink-0">
-              Location <span className="text-red-500">*</span>
-            </label>
-            <div className="space-y-0.5">
-              <Input
-                value={location}
-                onChange={e => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false) }}
-                placeholder="Home / Clinic / School…"
-                className={`h-7 w-40 text-xs ${locationError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-              />
-              {locationError && (
-                <p className="text-[11px] text-red-600 w-40">Location is required before ending the session.</p>
-              )}
+          <div className="mt-5 flex flex-wrap items-start gap-x-8 gap-y-4">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+              <label className={META_LABEL} style={{ color: P.ink }}>
+                Location <span style={{ color: P.cancel }}>*</span>
+              </label>
+              <div className="space-y-1">
+                <Input
+                  value={location}
+                  onChange={e => { setLocation(e.target.value); if (e.target.value.trim()) setLocationError(false) }}
+                  placeholder="Home / Clinic / School…"
+                  className={`h-10 w-full min-w-[12rem] sm:w-52 text-[15px] ${locationError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                  style={{ backgroundColor: P.inset, borderColor: P.rule, color: P.ink }}
+                />
+                {locationError && (
+                  <p className="text-[13px]" style={{ color: P.cancel }}>
+                    Location is required before ending the session.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">Attendees:</span>
-            {/* Client — always checked, non-interactive */}
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/30 px-2.5 py-0.5 text-xs font-medium text-primary">
-              ✓ Client
-            </span>
-            {ATTENDEE_OPTIONS.map(a => (
-              <button
-                key={a}
-                onClick={() => toggleAttendee(a)}
-                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors min-h-[28px] ${
-                  attendees.has(a)
-                    ? "bg-primary/10 border-primary/30 text-primary"
-                    : "border-border text-muted-foreground hover:border-foreground"
-                }`}
+
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={META_LABEL} style={{ color: P.ink }}>Attendees</span>
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[14px] font-semibold"
+                style={{ backgroundColor: P.sageBg, color: P.sageInk, border: `1px solid ${P.sage}` }}
               >
-                {attendees.has(a) ? "✓" : "+"} {a}
-              </button>
-            ))}
+                ✓ Client
+              </span>
+              {ATTENDEE_OPTIONS.map(a => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => toggleAttendee(a)}
+                  className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[14px] font-semibold transition-opacity hover:opacity-85 min-h-[36px]"
+                  style={
+                    attendees.has(a)
+                      ? { backgroundColor: P.sageBg, color: P.sageInk, border: `1px solid ${P.sage}` }
+                      : { backgroundColor: P.inset, color: P.ink, border: `1px solid ${P.rule}` }
+                  }
+                >
+                  {attendees.has(a) ? "✓" : "+"} {a}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </header>
@@ -659,25 +650,23 @@ export function SessionViewPage() {
       {/* ══ ACTIVE SESSION ══════════════════════════════════════════════════ */}
       {mode === "active" && (
         <>
-          <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-6">
+          <main className={`flex-1 ${PAGE_MAX} py-6`}>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
               {/* ── LEFT: Behaviors ── */}
               <section className="space-y-4">
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Behaviors
-                </h2>
+                <h2 className={TILE_TITLE} style={{ color: P.ink }}>Behaviors</h2>
 
                 {behaviors.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-10 text-center text-sm text-muted-foreground">
+                  <Card className="border-0 shadow-card" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
+                    <CardContent className={`py-10 text-center ${BODY_TEXT}`} style={{ color: P.soft }}>
                       No behaviors configured for this client.
                     </CardContent>
                   </Card>
                 ) : behaviors.map(behavior => (
-                  <Card key={behavior.id}>
+                  <Card key={behavior.id} className="border-0 shadow-card" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-base">{behavior.name}</CardTitle>
+                      <CardTitle className={TILE_TITLE} style={{ color: P.ink }}>{behavior.name}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
 
@@ -706,7 +695,7 @@ export function SessionViewPage() {
                       {(abcEntries[behavior.id] ?? []).length > 0 && (
                         <div className="space-y-1.5">
                           {(abcEntries[behavior.id]).map(entry => (
-                            <div key={entry.id} className="rounded-lg bg-muted/60 px-3 py-2 text-xs space-y-0.5">
+                            <div key={entry.id} className="rounded-lg px-3 py-2.5 text-[14px] space-y-0.5" style={{ backgroundColor: P.inset }}>
                               <p className={`font-semibold ${
                                 entry.intensity === "High"   ? "text-red-700" :
                                 entry.intensity === "Medium" ? "text-amber-700" : "text-slate-700"
@@ -739,8 +728,10 @@ export function SessionViewPage() {
                         />
                       ) : (
                         <button
+                          type="button"
                           onClick={() => openABC(behavior.id)}
-                          className="text-xs text-primary hover:underline underline-offset-2"
+                          className="text-[14px] font-semibold hover:underline underline-offset-2"
+                          style={{ color: P.sageInk }}
                         >
                           + Add ABC context
                         </button>
@@ -752,24 +743,24 @@ export function SessionViewPage() {
 
               {/* ── RIGHT: Programs ── */}
               <section className="space-y-4">
-                <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Today's Programs
-                </h2>
+                <h2 className={TILE_TITLE} style={{ color: P.ink }}>Today&apos;s programs</h2>
 
                 {/* Selector */}
-                <Card>
+                <Card className="border-0 shadow-card" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Select programs to run today</CardTitle>
+                    <CardTitle className="text-[16px] font-semibold" style={{ color: P.ink }}>
+                      Select programs to run today
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {goals.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No goals on file for this client.</p>
+                      <p className={BODY_TEXT} style={{ color: P.soft }}>No goals on file for this client.</p>
                     ) : (
                       <div className="space-y-1">
                         {goals.map(goal => (
                           <label
                             key={goal.id}
-                            className="flex items-center gap-3 rounded-lg px-1 py-2 cursor-pointer hover:bg-muted/50 transition-colors min-h-[44px]"
+                            className="flex items-center gap-3 rounded-lg px-1 py-2.5 cursor-pointer transition-opacity hover:opacity-85 min-h-[44px]"
                           >
                             <input
                               type="checkbox"
@@ -777,8 +768,8 @@ export function SessionViewPage() {
                               onChange={() => toggleProgram(goal.id)}
                               className="size-4 rounded shrink-0"
                             />
-                            <span className="text-sm flex-1">{goal.name}</span>
-                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${GOAL_STATUS_CONFIG[goal.status as GoalStatus].className}`}>
+                            <span className="text-[16px] flex-1" style={{ color: P.ink }}>{goal.name}</span>
+                            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold shrink-0 ${GOAL_STATUS_CONFIG[goal.status as GoalStatus].className}`}>
                               {GOAL_STATUS_CONFIG[goal.status as GoalStatus].label}
                             </span>
                           </label>
@@ -797,17 +788,17 @@ export function SessionViewPage() {
                   const p = calcPct(ts)
 
                   return (
-                    <Card key={goalId}>
+                    <Card key={goalId} className="border-0 shadow-card" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
                       <CardHeader className="pb-1">
-                        <CardTitle className="text-base">{goal.name}</CardTitle>
-                        <p className="text-xs text-muted-foreground mt-0.5">{goal.masteryTarget}</p>
+                        <CardTitle className={TILE_TITLE} style={{ color: P.ink }}>{goal.name}</CardTitle>
+                        <p className="text-[14px] mt-1" style={{ color: P.soft }}>{goal.masteryTarget}</p>
                       </CardHeader>
                       <CardContent className="space-y-3">
 
                         {/* Count + live % */}
                         <div className="flex items-baseline gap-2">
                           <span className="text-2xl font-bold tabular-nums">{correct}/{ts.length}</span>
-                          <span className="text-sm text-muted-foreground">correct</span>
+                          <span className="text-[15px]" style={{ color: P.soft }}>correct</span>
                           <span className={`ml-auto text-2xl font-bold tabular-nums ${
                             p >= 80 ? "text-emerald-600" : p >= 60 ? "text-amber-600" : "text-red-600"
                           }`}>
@@ -818,14 +809,16 @@ export function SessionViewPage() {
                         {/* Trial buttons */}
                         <div className="grid grid-cols-2 gap-3">
                           <button
+                            type="button"
                             onClick={() => addTrial(goalId, "correct")}
-                            className="flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-400 bg-emerald-50 py-3.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all min-h-[56px]"
+                            className="flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-400 bg-emerald-50 py-3.5 text-[15px] font-semibold text-emerald-800 hover:bg-emerald-100 active:scale-95 transition-all min-h-[56px]"
                           >
                             <Check className="size-4" /> Correct
                           </button>
                           <button
+                            type="button"
                             onClick={() => setWhyXGoal(g => g === goalId ? null : goalId)}
-                            className="flex items-center justify-center gap-2 rounded-xl border-2 border-red-400 bg-red-50 py-3.5 text-sm font-semibold text-red-800 hover:bg-red-100 active:scale-95 transition-all min-h-[56px]"
+                            className="flex items-center justify-center gap-2 rounded-xl border-2 border-red-400 bg-red-50 py-3.5 text-[15px] font-semibold text-red-800 hover:bg-red-100 active:scale-95 transition-all min-h-[56px]"
                           >
                             <X className="size-4" /> Incorrect
                           </button>
@@ -833,20 +826,27 @@ export function SessionViewPage() {
 
                         {/* Why X? inline picker */}
                         {whyXGoal === goalId && (
-                          <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
-                            <p className="text-xs font-semibold text-muted-foreground">Why incorrect?</p>
+                          <div className="rounded-xl border p-3 space-y-2" style={{ backgroundColor: P.inset, borderColor: P.rule }}>
+                            <p className="text-[14px] font-semibold" style={{ color: P.ink }}>Why incorrect?</p>
                             <div className="grid grid-cols-2 gap-1.5">
                               {WHY_X_REASONS.map(reason => (
                                 <button
                                   key={reason}
+                                  type="button"
                                   onClick={() => addTrial(goalId, "incorrect", reason)}
-                                  className="text-xs text-left rounded-lg border border-border bg-background px-3 py-2 hover:bg-muted transition-colors min-h-[44px]"
+                                  className="text-[14px] text-left rounded-lg border px-3 py-2 hover:opacity-85 transition-opacity min-h-[44px]"
+                                  style={{ backgroundColor: P.card, borderColor: P.rule, color: P.ink }}
                                 >
                                   {reason}
                                 </button>
                               ))}
                             </div>
-                            <button onClick={() => setWhyXGoal(null)} className="text-xs text-muted-foreground hover:underline underline-offset-2">
+                            <button
+                              type="button"
+                              onClick={() => setWhyXGoal(null)}
+                              className="text-[14px] hover:underline underline-offset-2"
+                              style={{ color: P.soft }}
+                            >
                               Cancel
                             </button>
                           </div>
@@ -877,12 +877,15 @@ export function SessionViewPage() {
           </main>
 
           {/* End Session — sticky footer */}
-          <div className="sticky bottom-0 z-10 border-t border-border bg-background p-4">
-            <div className="mx-auto max-w-6xl">
+          <div
+            className="sticky bottom-0 z-10 border-t -mx-6 px-6 py-4 sm:-mx-10 sm:px-10"
+            style={{ backgroundColor: P.card, borderColor: P.rule }}
+          >
+            <div className={PAGE_MAX}>
               <Button
                 size="lg"
                 variant="destructive"
-                className="w-full text-base font-semibold py-6"
+                className="w-full text-[16px] font-semibold py-6"
                 onClick={() => {
                   if (!location.trim()) { setLocationError(true); return }
                   setMode("post")
@@ -897,12 +900,12 @@ export function SessionViewPage() {
 
       {/* ══ POST-SESSION ════════════════════════════════════════════════════ */}
       {mode === "post" && (
-        <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-6 space-y-6">
+        <main className={`flex-1 ${PAGE_MAX} py-6 space-y-6`}>
 
           {/* Step 1 — Outcome selector */}
-          <Card>
+          <Card className="border-0 shadow-card max-w-3xl" style={{ backgroundColor: P.card, borderRadius: P.radius }}>
             <CardHeader>
-              <CardTitle>How did the session go?</CardTitle>
+              <CardTitle className={TILE_TITLE} style={{ color: P.ink }}>How did the session go?</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-3">
@@ -918,8 +921,8 @@ export function SessionViewPage() {
                       outcome === o.key ? o.ring : "border-border hover:border-muted-foreground/40"
                     }`}
                   >
-                    <p className="font-semibold text-sm">{o.label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{o.description}</p>
+                    <p className="font-semibold text-[15px]" style={{ color: P.ink }}>{o.label}</p>
+                    <p className="text-[14px] mt-0.5" style={{ color: P.soft }}>{o.description}</p>
                   </button>
                 ))}
               </div>
