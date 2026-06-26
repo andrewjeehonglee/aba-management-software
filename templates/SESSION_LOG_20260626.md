@@ -5,9 +5,9 @@
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
 **Branch:** `main`  
-**Feature HEAD:** `3c5173a`  
+**Feature HEAD:** `35f591f`  
 **Prior session terminal:** `2cebabe` (Session 37 — Jun 25)  
-**User sign-off:** End-of-morning close-out — save, log, capture everything
+**User sign-off:** End-of-day close-out — save, log, capture everything (morning + Start Session wiring + Session View polish)
 
 ---
 
@@ -19,21 +19,25 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 2. **Owner + non-owner polish (Batch 2)** — Airier owner ranked rows; payroll rebalance; KPI tile restructure; Start Session attempt #2.
 3. **Final dashboard polish (Batch 3)** — Payroll 6-across; calendar chip fixes; KPI tile strip; **Start Session definitive fix** via demo “new session” mode.
 4. **BCBA dashboard UX pass** — Shorter calendar; centered box-grid KPI popups; owner popups aligned; centered tile metrics.
+5. **Start Session wiring fix (Part 2)** — Bootstrap client via router state; resilient `getClientById()`.
+6. **Session View page polish** — Profile tokens, wider layout, larger type, no timer, canvas header (no white bar).
 
-**Totals (`2cebabe` → `3c5173a`):** 8 commits · ~25 unique product files touched · Start Session P0 closed for demo path.
+**Totals (`2cebabe` → `35f591f`):** **12 commits** · ~28 unique product files · Session View now renders end-to-end for demo + real users.
 
 **Supabase SQL (optional, no longer required for demo Start Session):** `seed_demo_open_sessions.sql` — Andrew ran manually; Batch 3 demo path no longer depends on seeded rows.
 
 ---
 
-## Triple-check audit (Jun 26, 11:37 PT)
+## Triple-check audit (Jun 26, end of day PT)
 
 | Check | Status |
 |-------|--------|
 | Working tree clean | ✅ `nothing to commit, working tree clean` |
 | Branch synced | ✅ `main` up to date with `origin/main` |
-| Latest commit | ✅ `3c5173a` — Center KPI numbers and labels in bottom dashboard tiles |
-| Production build | ✅ `npm run build` passed on all batches |
+| Latest commit | ✅ `35f591f` — Remove white header bar on Session View |
+| Production build | ✅ `npm run build` passed on all batches + Session View polish |
+| Session capture doc | ✅ `templates/SESSION_LOG_20260626.md` (this file) |
+| Session index | ✅ `SESSIONS.md` Session 38 updated |
 | Chat transcript | ✅ [Session 38 transcript](aa6cc4e0-5beb-4247-9c0e-232ac9bcbb93) |
 
 ---
@@ -49,7 +53,10 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 | `81f223b` | 11:28 | Use box-grid KPI popups with staff headers and session dates |
 | `3fc47b9` | 11:31 | Center and enlarge KPI popup boxes; simplify session notes titles |
 | `e6ea624` | 11:34 | Remove session notes View all, add owner box popups, widen title gap |
-| `3c5173a` | 11:37 | Center KPI numbers and labels in bottom dashboard tiles |
+| `01ea850` | — | Session 38 capture (morning batches) |
+| `f429c82` | ~11:48 | Fix Start Session: bootstrap client to SessionViewPage, resilient getClientById |
+| `6946528` | ~11:53 | Polish Session View layout: profile tokens, wider page, larger type, no timer |
+| `35f591f` | ~11:55 | Remove white header bar on Session View; use canvas background |
 
 ---
 
@@ -198,7 +205,50 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 
 ---
 
-## Prod QA checklist (morning work)
+---
+
+## Part E — Start Session wiring fix Part 2 (`f429c82`)
+
+**Problem:** Start session button navigated but Session View showed nothing / "Session not found" even though client profile loaded fine.
+
+**Root cause (confirmed):**
+| Hypothesis | Verdict |
+|------------|---------|
+| Route param mismatch | ❌ Not the cause |
+| Slug not resolved | ❌ Not the cause (overview resolves UUID first) |
+| Batch 3 demo new-session route alone insufficient | ✅ **Partial** — route worked but page re-fetch failed |
+| **`getClientById()` fragile staff embed join** | ✅ **Primary cause** — `staff!assigned_staff_id(full_name)` join failed or returned null; overview uses `resolveClientByRouteKey()` without that join |
+| No bootstrap when DB session unreadable | ✅ **Secondary** — real users: `createSession` OK but `getSessionById` could still fail |
+
+**Fix:**
+- **`SessionPageBootstrap`** — `ClientOverviewPage` passes `{ client: liveClient, staffId }` via `navigate(..., { state })`.
+- **`SessionViewPage`** — uses bootstrap client first; falls back to practice-scoped `getClientById(id, { practiceId })`.
+- **`getClientById` rewritten** — no embed join; optional `practiceId`; `home_address` column fallback.
+- **`buildSessionDetailFromBootstrap()`** — renders template when session row missing but bootstrap present.
+
+**Files:** `supabase.ts`, `ClientOverviewPage.tsx`, `SessionViewPage.tsx`
+
+---
+
+## Part F — Session View page polish (`6946528`, `35f591f`)
+
+Andrew confirmed Session View **renders correctly** after Part E; requested visual polish to match client profile pages.
+
+| Change | Detail |
+|--------|--------|
+| Design tokens | `P`, `TILE_TITLE` from `profileTokens.ts`; canvas `#EAE4D8`, cards `#FAF8F3` |
+| Layout width | `max-w-[1600px]`, `px-10` — matches client overview |
+| Header structure | Back on own line → client name 28px below → location + attendees |
+| Timer | **Removed** from UI (session start timestamp still stored in sessionStorage for submit) |
+| Typography | Section titles 18px bold; labels 14px; body 15–16px; **counter numbers stay large** |
+| Location / attendees | Sage pills when selected; inset background; higher contrast ink |
+| Header background | **No white tile bar** — header uses canvas `#EAE4D8` (not `P.card`) per Andrew feedback |
+
+**Acceptance:** Demo `/clients/EzHe` → Start session → full template (behaviors, programs, End Session) with profile-consistent styling.
+
+---
+
+## Prod QA checklist (full day)
 
 ### Owner dashboard
 - [ ] Payroll: 6 boxes per row, centered; tab spacing; "Payable now" / "On hold"; pay period below title
@@ -210,19 +260,21 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 - [ ] Session notes: clickable overdue/pending → box popups; **no View all**
 - [ ] Other tiles: clickable big number → box popup
 
-### Start Session (P0)
-- [ ] Demo `/clients/EzHe` → Start session → full Session View template
+### Start Session + Session View (P0 + polish)
+- [x] Demo `/clients/EzHe` → Start session → full Session View template (Andrew confirmed "looks great")
 - [ ] Real owner Start session → creates row + full template
-- [ ] No "Session not found" on happy path
+- [ ] Session View: no white header bar; canvas background throughout header
+- [ ] Session View: no timer; client name below back; readable location/attendees
 
 ---
 
 ## Not done / deferred
 
-- Prod smoke-test confirmation from Andrew on Batch 3 Start Session gate (code shipped; awaiting deploy verify).
-- Owner monitor tiles still show inline ranked rows + View all (not big clickable numbers like BCBA tiles).
+- Prod smoke-test on **real (non-demo) owner** Start session path.
+- Owner monitor tiles still show inline ranked rows + View all (not BCBA-style big clickable numbers).
 - `seed_demo_open_sessions.sql` optional — demo Start Session no longer requires it.
 - Dashboard design doc not updated for Jun 26 popup pattern.
+- Session View post-session SOAP flow not re-polished in this pass (active mode only).
 
 ---
 
@@ -235,4 +287,4 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 
 ---
 
-*Capture written: Jun 26, 2026 — Session 38 complete (morning close-out).*
+*Capture written: Jun 26, 2026 — Session 38 complete (full day: dashboards + KPI popups + Start Session + Session View polish).*

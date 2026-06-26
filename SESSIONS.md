@@ -2065,7 +2065,7 @@ All pushed to `main` → Vercel auto-deploy.
 
 ## Session 38 — Cross-surface polish batches 1–3 + KPI popup system (Jun 26, 2026)
 
-**What landed:** Eight commits on `main` (`40f6d46` → `3c5173a`). Three formal polish batches (owner payroll, non-owner calendar + KPI tiles, clients/staff layout) plus BCBA popup UX pass. **Start Session P0 fixed** on attempt #3 via demo `/session/new?clientId=<uuid>` ephemeral mode — root cause was demo write-gate + dependency on DB session row, not route-param or slug bugs. **New shared KPI popup system:** `MetricPopupBoxes.tsx` + centered `OwnerDashboardListPopup` (wide); owner monitor tiles aligned to same box-grid. **Feature HEAD `3c5173a`.**
+**What landed:** Twelve commits on `main` (`40f6d46` → `35f591f`). Three formal polish batches + BCBA KPI popup system + **Start Session fully wired** (bootstrap client state + resilient `getClientById`) + **Session View visual polish** (profile tokens, wider layout, no timer, canvas header). **Feature HEAD `35f591f`.**
 
 **Detailed log:** `templates/SESSION_LOG_20260626.md`
 
@@ -2079,11 +2079,15 @@ All pushed to `main` → Vercel auto-deploy.
 
 ### Batch 3 (`96e5f74`)
 - Payroll 6-across, subtitle, short labels; calendar chip client-name fix; KPI tiles stripped
-- Start Session attempt #3 — `newSessionPath()`, `buildNewSessionDetail()`, `SessionViewPage` ephemeral mode
+- Start Session attempt #3 — `newSessionPath()`, `buildNewSessionDetail()`, ephemeral mode
 
 ### Follow-ups (`0bda487` → `3c5173a`)
-- Calendar shortened (`h-[82px]`, 13px chips); centered box-grid popups; session notes titles simplified
-- Removed session notes View all; owner popups → box grid; title→number `mt-4`; centered tile metrics
+- Calendar shortened; centered box-grid popups; session notes titles; centered tile metrics; owner box popups
+
+### Start Session + Session View (`f429c82` → `35f591f`)
+- Bootstrap client via router state; fix `getClientById` staff-join failure
+- Session View: `max-w-[1600px]`, profile tokens, larger type, no timer, canvas header (no white bar)
+- Andrew confirmed Session View **"looks great"**
 
 ### Commits (chronological, Jun 26)
 
@@ -2097,13 +2101,17 @@ All pushed to `main` → Vercel auto-deploy.
 | `3fc47b9` | Center/enlarge popup boxes; simplify session notes titles |
 | `e6ea624` | Remove session notes View all; owner box popups; widen title gap |
 | `3c5173a` | Center KPI numbers in bottom dashboard tiles |
+| `01ea850` | Session 38 capture (morning) |
+| `f429c82` | Fix Start Session: bootstrap client, resilient getClientById |
+| `6946528` | Polish Session View layout |
+| `35f591f` | Remove white header bar on Session View |
 
-**Scope:** ~25 product files; 8 commits. See `templates/SESSION_LOG_20260626.md` for root-cause analysis, file index, and prod QA checklist.
+**Scope:** ~28 product files; 12 commits. See `templates/SESSION_LOG_20260626.md`.
 
 ### Not done / deferred
-- Andrew prod verify on demo `/clients/EzHe` → Start session after deploy
-- Owner monitor tiles still use inline rows + View all (not BCBA-style big clickable numbers)
+- Real (non-demo) owner Start session prod verify
+- Owner monitor tiles still use inline rows + View all
 
 ---
 
-*Last updated: Jun 26, 2026 (Session 38 — complete morning capture: polish batches 1–3 + KPI popups + Start Session fix).*
+*Last updated: Jun 26, 2026 (Session 38 — complete full-day capture).*
