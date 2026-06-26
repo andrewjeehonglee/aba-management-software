@@ -2105,8 +2105,9 @@ All pushed to `main` → Vercel auto-deploy.
 | `f429c82` | Fix Start Session: bootstrap client, resilient getClientById |
 | `6946528` | Polish Session View layout |
 | `35f591f` | Remove white header bar on Session View |
+| `f4923f6` | Full-day capture doc (Parts E–F, user request trace) |
 
-**Scope:** ~28 product files; 12 commits. See `templates/SESSION_LOG_20260626.md`.
+**Scope:** ~28 product files; 12 product commits + 2 capture commits. See `templates/SESSION_LOG_20260626.md`.
 
 ### Not done / deferred
 - Real (non-demo) owner Start session prod verify

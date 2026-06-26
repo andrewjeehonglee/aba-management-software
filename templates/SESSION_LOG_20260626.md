@@ -5,9 +5,10 @@
 **Live app:** https://aba-management-software.vercel.app  
 **Repo:** https://github.com/andrewjeehonglee/aba-management-software  
 **Branch:** `main`  
-**Feature HEAD:** `35f591f`  
+**Product HEAD:** `35f591f` (Session View canvas header)  
+**Capture HEAD:** `f4923f6` (this log + `SESSIONS.md`)  
 **Prior session terminal:** `2cebabe` (Session 37 — Jun 25)  
-**User sign-off:** End-of-day close-out — save, log, capture everything (morning + Start Session wiring + Session View polish)
+**User sign-off:** End-of-day close-out — save, log, capture everything (morning + Start Session wiring + Session View polish); re-verified per Andrew request
 
 ---
 
@@ -34,7 +35,8 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 |-------|--------|
 | Working tree clean | ✅ `nothing to commit, working tree clean` |
 | Branch synced | ✅ `main` up to date with `origin/main` |
-| Latest commit | ✅ `35f591f` — Remove white header bar on Session View |
+| Product code HEAD | ✅ `35f591f` — Remove white header bar on Session View |
+| Capture doc HEAD | ✅ `f4923f6` — Full-day session log (this commit) |
 | Production build | ✅ `npm run build` passed on all batches + Session View polish |
 | Session capture doc | ✅ `templates/SESSION_LOG_20260626.md` (this file) |
 | Session index | ✅ `SESSIONS.md` Session 38 updated |
@@ -57,6 +59,28 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 | `f429c82` | ~11:48 | Fix Start Session: bootstrap client to SessionViewPage, resilient getClientById |
 | `6946528` | ~11:53 | Polish Session View layout: profile tokens, wider page, larger type, no timer |
 | `35f591f` | ~11:55 | Remove white header bar on Session View; use canvas background |
+| `f4923f6` | ~12:00 | Full-day capture doc update (Parts E–F, commit manifest, QA) |
+
+---
+
+## User request trace (every ask → outcome)
+
+| # | Andrew asked | Shipped in |
+|---|--------------|------------|
+| 1 | Cross-surface polish Batch 1 (5 surfaces + Start Session bug) | `40f6d46` |
+| 2 | Run seed SQL in Supabase (manual step) | Andrew ran `seed_demo_open_sessions.sql`; logged above |
+| 3 | Polish Batch 2 (owner rows, payroll, KPI tiles, Start Session again) | `76916a4` |
+| 4 | Polish Batch 3 (payroll 6-across, calendar, KPI strip, Start Session v3) | `96e5f74` |
+| 5 | Shorten calendar; bigger chip fonts; center all popups | `0bda487` |
+| 6 | Box-grid popups; staff headers; client boxes with session dates | `81f223b` |
+| 7 | Bigger centered box text; titles "Session notes overdue/pending" | `3fc47b9` |
+| 8 | Remove session notes View all; owner same popups; title→number spacing | `e6ea624` |
+| 9 | Center the four bottom tile numbers | `3c5173a` |
+| 10 | Morning save/log/capture | `01ea850` |
+| 11 | Start Session still blank — root cause + link to full session note page | `f429c82` |
+| 12 | Session View: client name on own line; no timer; distinct location/attendees; bigger fonts; match profile pages | `6946528` |
+| 13 | Remove white header band at top (not a tile) | `35f591f` |
+| 14 | "Looks great" + save/log/capture everything | `f4923f6` (this update) |
 
 ---
 
@@ -129,7 +153,7 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 - Uniform structure: **title → number(s) → unit**.
 - Tight title-to-number gap (`mt-2`, later `mt-4`).
 
-### C4 — Start Session P0 (attempt #3 — DEFINITIVE FIX)
+### C4 — Start Session P0 (attempt #3 — partial fix; superseded by Part E)
 
 **Repro path:** Demo → `/clients/EzHe` → Start session → must render full Session View.
 
@@ -195,15 +219,16 @@ Friday shipped **four polish batches + six follow-up refinements** across Pulse 
 | `src/components/dashboard/PayrollPanel.tsx` | 6-across, subtitle, tab spacing, short labels |
 | `src/lib/dashboardTileMetrics.ts` | Notes popover data, `dashboardPopupTitle()`, `formatNoteSessionDate()` |
 | `src/lib/ownerDashboardConcerns.ts` | Owner popover groups/items for box popups |
-| `src/lib/supabase.ts` | New session route helpers, split `getSessionById` |
-| `src/pages/ClientOverviewPage.tsx` | Demo → `newSessionPath()`; real → `createSession()` |
-| `src/pages/SessionViewPage.tsx` | Ephemeral "new session" mode by client UUID |
+| `src/lib/supabase.ts` | Session route helpers, `getClientById` rewrite, `SessionPageBootstrap`, `buildSessionDetailFromBootstrap` |
+| `src/pages/ClientOverviewPage.tsx` | Start session + navigate with bootstrap state (`client`, `staffId`) |
+| `src/pages/SessionViewPage.tsx` | Bootstrap load, ephemeral mode, profile-token UI polish, canvas header |
+| `src/pages/ClientsPage.tsx` | Sort toggle beside search (Batch 1) |
+| `src/pages/StaffPage.tsx` | Denser card grid, section spacing (Batch 1) |
+| `src/components/DashboardCalendarTile.tsx` | Calendar integration tweaks (Batch 1) |
 | `src/pages/SessionsPage/PracticeSessionCalendar.tsx` | Compact height, chip typography, overflow cap |
 | `src/pages/SessionsPage/sessionsCalendarUtils.ts` | `chipClientShortLabel` empty-string fix |
 | `src/lib/dashboardCalendar.ts` | Null-safe client mapping for chips |
-| `seed_demo_open_sessions.sql` | Optional demo seed (superseded for Start Session by new-session mode) |
-
----
+| `seed_demo_open_sessions.sql` | Optional demo seed; Andrew ran manually in Supabase; no longer required for Start Session |
 
 ---
 
