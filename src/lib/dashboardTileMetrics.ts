@@ -82,6 +82,17 @@ export interface DashboardTileViewModel {
   popoverEmptyLabel: string
 }
 
+export function dashboardPopupTitle(tileTitle: string, unit?: string): string {
+  if (!unit) return tileTitle
+  const unitParts = unit.trim().split(/\s+/)
+  const titleWords = tileTitle.trim().split(/\s+/)
+  const lastTitleWord = titleWords[titleWords.length - 1]?.toLowerCase() ?? ""
+  if (unitParts[0]?.toLowerCase() === lastTitleWord) {
+    return `${tileTitle} ${unitParts.slice(1).join(" ")}`
+  }
+  return `${tileTitle} ${unit}`
+}
+
 export const BIG_METRIC_CLASS =
   "text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums"
 

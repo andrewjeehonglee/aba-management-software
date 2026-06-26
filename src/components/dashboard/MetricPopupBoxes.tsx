@@ -7,7 +7,7 @@ const BOX_GRID_CLASS =
   "grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
 
 const BOX_CLASS =
-  "flex min-h-[3.25rem] min-w-0 flex-col justify-center rounded-[10px] border border-line bg-surface px-2.5 py-2 shadow-card transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+  "flex min-h-[3.75rem] min-w-0 flex-col items-center justify-center rounded-[10px] border border-line bg-surface px-2.5 py-2.5 text-center shadow-card transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
 
 function MetricPopupBox({
   item,
@@ -18,11 +18,11 @@ function MetricPopupBox({
 }) {
   const inner = (
     <>
-      <span className="truncate text-[14px] font-semibold leading-snug text-ink">
+      <span className="w-full truncate text-[15px] font-semibold leading-snug text-ink">
         {item.name}
       </span>
       {item.detail ? (
-        <span className="mt-0.5 truncate text-[12px] font-medium tabular-nums text-muted">
+        <span className="mt-1 w-full truncate text-[14px] font-medium tabular-nums text-muted">
           {item.detail}
         </span>
       ) : null}

@@ -12,6 +12,7 @@ import {
 } from "@/components/dashboard/MetricPopover"
 import {
   BIG_METRIC_CLASS,
+  dashboardPopupTitle,
   metricToneInk,
   type DashboardDualMetricSide,
 } from "@/lib/dashboardTileMetrics"
@@ -50,7 +51,7 @@ function DualMetricColumn({
           groups={side.popoverGroups}
           emptyLabel={popoverEmptyLabel}
           ariaLabel={`${title}: ${side.unit}`}
-          title={`${title} · ${side.unit}`}
+          title={dashboardPopupTitle(title, side.unit)}
         />
       ) : (
         valueEl
