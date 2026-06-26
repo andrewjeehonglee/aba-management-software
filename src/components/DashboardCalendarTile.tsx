@@ -171,6 +171,7 @@ export function DashboardCalendarTile({
             empty={false}
             showColorBy={false}
             chipLabelMode="client-type"
+            compact
           />
 
           {selectedSession && (
@@ -211,7 +212,7 @@ export function DashboardCalendarTile({
     return (
       <section
         className={cn(
-          "rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card sm:px-5 sm:py-5",
+          "rounded-[var(--radius)] bg-surface px-3 py-3 shadow-card sm:px-4 sm:py-4",
           className,
         )}
         aria-label="Monthly calendar"

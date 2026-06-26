@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { resolveClientByRouteKey } from "@/lib/rosterScope"
-import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
+import { createAuthorization, createBehavior, createGoal, createSession, findOpenSessionForClient, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getRecentSessionStaffId, getSessionById, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
 import type { Goal } from "@/types/goal"
 import { AuthSummary } from "@/pages/ClientOverviewPage/AuthSummary"
@@ -621,16 +621,38 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
       if (!user) throw new Error("Not signed in")
       const membership = await getUserPractice(user.id)
       if (!membership) throw new Error("No practice found for this account")
-      const staffRowId = await getStaffByUserId(user.id)
-      if (!staffRowId) throw new Error("Your account isn't linked to a staff profile yet. Ask your practice owner to set one up for you.")
-      // Use the real UUID from liveClient if loaded; fall back to URL param only if it's already a UUID
-      const resolvedClientIdForSession = resolvedClientId
+
+      if (isDemo) {
+        const openSessionId = await findOpenSessionForClient(
+          resolvedClientId,
+          membership.practice_id,
+        )
+        if (openSessionId) {
+          navigate(`/session/${openSessionId}`)
+          return
+        }
+      }
+
+      let staffRowId = await getStaffByUserId(user.id)
+      if (!staffRowId) {
+        staffRowId = await getRecentSessionStaffId(resolvedClientId)
+      }
+      if (!staffRowId) {
+        throw new Error("Your account isn't linked to a staff profile yet. Ask your practice owner to set one up for you.")
+      }
+
       const newSessionId = await createSession({
         practiceId:  membership.practice_id,
-        clientId:    resolvedClientIdForSession,
+        clientId:    resolvedClientId,
         staffId:     staffRowId,
         sessionType: "direct",
       })
+
+      const verified = await getSessionById(newSessionId)
+      if (!verified) {
+        throw new Error("Session could not be loaded. Please try again.")
+      }
+
       navigate(`/session/${newSessionId}`)
     } catch (err) {
       setStartSessionError(err instanceof Error ? err.message : "Failed to start session")

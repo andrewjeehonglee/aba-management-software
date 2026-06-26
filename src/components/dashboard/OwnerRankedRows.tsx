@@ -10,9 +10,9 @@ import { P } from "@/pages/ClientOverviewPage/profileTokens"
 
 export const TILE_BODY = "text-[15px]"
 
-/** Shared padded name–value row layout for owner monitor tiles and popups. */
+/** Shared two-column row: widest name sets column 1; values stack on one line. */
 export const OWNER_RANKED_ROW_CLASS =
-  "flex items-center gap-3 px-2.5 py-0.5 hover:opacity-85"
+  "col-span-2 grid grid-cols-subgrid items-center gap-x-3 px-2.5 py-0.5 hover:opacity-85"
 
 export function rowInk(severity: OwnerRankedRow["severity"]): string {
   if (severity === "overdue" || severity === "over-cap") return OWNER_OVER_CAP_INK
@@ -34,7 +34,7 @@ function RankedRowContent({ row }: { row: OwnerRankedRow }) {
       </span>
       {consequence ? (
         <span
-          className={cn(TILE_BODY, "shrink-0 font-medium tabular-nums")}
+          className={cn(TILE_BODY, "font-medium tabular-nums")}
           style={{ color: ink }}
         >
           {consequence}
@@ -44,17 +44,29 @@ function RankedRowContent({ row }: { row: OwnerRankedRow }) {
   )
 }
 
-function RankedRowItem({ row }: { row: OwnerRankedRow }) {
+function RankedRowItem({
+  row,
+  showBorder,
+}: {
+  row: OwnerRankedRow
+  showBorder: boolean
+}) {
+  const rowClass = cn(
+    OWNER_RANKED_ROW_CLASS,
+    row.href && "cursor-pointer",
+  )
+  const borderStyle = showBorder ? { borderTop: `1px solid ${P.rule}` } : undefined
+
   if (row.href) {
     return (
-      <Link to={row.href} className={cn(OWNER_RANKED_ROW_CLASS, "cursor-pointer")}>
+      <Link to={row.href} className={rowClass} style={borderStyle}>
         <RankedRowContent row={row} />
       </Link>
     )
   }
 
   return (
-    <div className={OWNER_RANKED_ROW_CLASS}>
+    <div className={rowClass} style={borderStyle}>
       <RankedRowContent row={row} />
     </div>
   )
@@ -64,14 +76,13 @@ export function OwnerRankedRows({ rows }: { rows: OwnerRankedRow[] }) {
   if (rows.length === 0) return null
 
   return (
-    <ul className="mt-3 space-y-0">
+    <ul
+      className="mt-3 grid gap-x-3"
+      style={{ gridTemplateColumns: "max-content auto" }}
+    >
       {rows.map((row, index) => (
-        <li
-          key={row.id}
-          className="py-2 first:pt-0"
-          style={{ borderTop: index > 0 ? `1px solid ${P.rule}` : undefined }}
-        >
-          <RankedRowItem row={row} />
+        <li key={row.id} className="contents">
+          <RankedRowItem row={row} showBorder={index > 0} />
         </li>
       ))}
     </ul>

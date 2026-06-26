@@ -10,8 +10,33 @@ import {
   type MetricPopoverGroup,
   type MetricPopoverItem,
 } from "@/components/dashboard/MetricPopover"
+import {
+  summaryLineInk,
+  type DashboardTileSummaryLine,
+} from "@/lib/dashboardTileMetrics"
+import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
+import { P } from "@/pages/ClientOverviewPage/profileTokens"
 
 export type BcbaBubbleItem = MetricPopoverItem
+
+function TileSummaryLines({ lines }: { lines: DashboardTileSummaryLine[] }) {
+  return (
+    <div className="mt-2 space-y-0.5">
+      {lines.map((line) => (
+        <p
+          key={`${line.text}-${line.hint ?? ""}`}
+          className="text-[14px] leading-snug"
+          style={{ color: summaryLineInk(line.tone) }}
+        >
+          {line.text}
+          {line.hint ? (
+            <span style={{ color: P.faint }}> ({line.hint})</span>
+          ) : null}
+        </p>
+      ))}
+    </div>
+  )
+}
 
 export function BcbaDashboardTile({
   id,
@@ -21,6 +46,8 @@ export function BcbaDashboardTile({
   period,
   metric,
   descriptor,
+  summaryLines,
+  hideMetric,
   popoverItems = [],
   popoverGroups = [],
   popoverEmptyLabel = "All caught up",
@@ -33,6 +60,8 @@ export function BcbaDashboardTile({
   period: ReactNode
   metric: ReactNode
   descriptor: string
+  summaryLines?: DashboardTileSummaryLine[]
+  hideMetric?: boolean
   popoverItems?: MetricPopoverItem[]
   popoverGroups?: MetricPopoverGroup[]
   popoverEmptyLabel?: string
@@ -40,6 +69,7 @@ export function BcbaDashboardTile({
 }) {
   const stateLabel = BCBA_STATE_LABEL[state]
   const metricClass = BCBA_STATE_METRIC_CLASS[state]
+  const showMetric = !hideMetric
 
   return (
     <div
@@ -50,27 +80,44 @@ export function BcbaDashboardTile({
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <h3 className="text-lg font-semibold text-ink">{title}</h3>
+        <h3 className={cn(TILE_TITLE, "text-ink")}>{title}</h3>
         <span className={cn("shrink-0 text-sm font-semibold", metricClass)}>
           {stateLabel}
         </span>
       </div>
 
-      <p className="mt-2 text-[14px] leading-snug text-muted">{requirement}</p>
+      {summaryLines && summaryLines.length > 0 ? (
+        <TileSummaryLines lines={summaryLines} />
+      ) : requirement ? (
+        <p className="mt-2 text-[14px] leading-snug text-muted">{requirement}</p>
+      ) : null}
 
-      <div className="mt-3 flex flex-col gap-0.5">
-        <MetricPopover
-          metric={metric}
-          metricClassName={cn(
-            "text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
-            metricClass,
-          )}
-          items={popoverItems}
-          groups={popoverGroups}
-          emptyLabel={popoverEmptyLabel}
-          ariaLabel={`${title} details`}
-        />
-        <span className="text-sm font-medium text-ink-soft">{descriptor}</span>
+      <div className={cn("flex flex-col gap-0.5", showMetric ? "mt-3" : summaryLines?.length ? "mt-2" : "")}>
+        {showMetric ? (
+          <MetricPopover
+            metric={metric}
+            metricClassName={cn(
+              "text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
+              metricClass,
+            )}
+            items={popoverItems}
+            groups={popoverGroups}
+            emptyLabel={popoverEmptyLabel}
+            ariaLabel={`${title} details`}
+          />
+        ) : popoverGroups.length > 0 || popoverItems.length > 0 ? (
+          <MetricPopover
+            metric={<span className="text-[14px] font-semibold text-brand">View breakdown</span>}
+            metricClassName=""
+            items={popoverItems}
+            groups={popoverGroups}
+            emptyLabel={popoverEmptyLabel}
+            ariaLabel={`${title} details`}
+          />
+        ) : null}
+        {descriptor ? (
+          <span className="text-sm font-medium text-ink-soft">{descriptor}</span>
+        ) : null}
       </div>
 
       <div className="mt-auto pt-3 text-right text-[13px] font-medium leading-snug text-subtle">
@@ -118,7 +165,7 @@ export function BcbaDashboardTileError({
         className,
       )}
     >
-      <h3 className="text-base font-semibold text-ink">{title}</h3>
+      <h3 className={cn(TILE_TITLE, "text-ink")}>{title}</h3>
       <p className="mt-3 text-sm text-muted">{message}</p>
       <button
         type="button"

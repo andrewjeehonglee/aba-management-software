@@ -39,6 +39,8 @@ function MetricTile({
       period={period}
       metric={view.metric}
       descriptor={view.descriptor}
+      summaryLines={view.summaryLines}
+      hideMetric={view.hideMetric}
       popoverItems={view.popoverItems}
       popoverGroups={view.popoverGroups}
       popoverEmptyLabel={view.popoverEmptyLabel}

@@ -21,10 +21,9 @@ import { CalendarDaySessionsPopup } from "@/pages/SessionsPage/CalendarDaySessio
 
 const BAR_HEIGHT = "h-2"
 const VISIBLE_CHIP_CAP = 3
-const DAY_CELL_H = "h-[98px]"
-const DAY_CELL_MIN_H = "min-h-[98px]"
-/** Uniform dashboard chip width — fixed width with equal side inset (text truncates inside). */
-const DASHBOARD_CHIP_BAR_CLASS = "w-[calc(100%-20px)] max-w-[calc(100%-20px)] shrink-0"
+const DAY_CELL_MIN_H = "min-h-[52px]"
+/** Uniform dashboard chip width — fixed, centered, ellipsis inside. */
+const DASHBOARD_CHIP_BAR_CLASS = "mx-auto block w-[112px] max-w-[112px] shrink-0"
 
 function ChipSegmentDivider() {
   return (
@@ -51,6 +50,8 @@ interface PracticeSessionCalendarProps {
   showColorBy?: boolean
   /** Dashboard chips: time · client · type. Default shows counterpart by viewKind. */
   chipLabelMode?: "counterpart" | "client-type"
+  /** Tighter padding and cell height for dashboard v3 calendar. */
+  compact?: boolean
 }
 
 function ColorByToggle({
@@ -136,7 +137,7 @@ function SessionChip({
       type="button"
       onClick={() => onSelect?.(session)}
       className={cn(
-        "block truncate rounded-md border-l-[3px] px-1 py-0.5 text-left text-[12px] leading-tight hover:opacity-90",
+        "block truncate rounded-md border-l-[3px] px-1 py-0.5 text-left text-[13px] leading-tight hover:opacity-90",
         isDashboardChip ? DASHBOARD_CHIP_BAR_CLASS : "inline-block max-w-full",
       )}
       style={{
@@ -182,6 +183,7 @@ export function PracticeSessionCalendar({
   empty = false,
   showColorBy = false,
   chipLabelMode = "counterpart",
+  compact = false,
 }: PracticeSessionCalendarProps) {
   const todayISO = localISO(new Date())
   const [popupDayIso, setPopupDayIso] = useState<string | null>(null)
@@ -225,8 +227,8 @@ export function PracticeSessionCalendar({
       <div
         key={iso}
         className={cn(
-          "flex flex-col overflow-hidden rounded-md p-1",
-          DAY_CELL_H,
+          "flex flex-col overflow-hidden rounded-md",
+          compact ? "px-0.5 py-0.5" : "p-1",
           DAY_CELL_MIN_H,
         )}
         style={{
@@ -235,7 +237,10 @@ export function PracticeSessionCalendar({
         }}
       >
         <span
-          className="mb-0.5 w-full shrink-0 text-center text-[16px] font-semibold tabular-nums leading-none"
+          className={cn(
+            "mb-0.5 w-full shrink-0 text-center font-semibold tabular-nums leading-none",
+            compact ? "text-[18px]" : "text-[16px]",
+          )}
           style={{ color: isToday ? P.sageInk : daySessions.length ? P.ink : P.faint }}
         >
           {day.getDate()}
@@ -284,7 +289,10 @@ export function PracticeSessionCalendar({
 
   return (
     <section
-      className="flex h-full min-h-0 min-w-0 flex-1 flex-col p-5"
+      className={cn(
+        "flex h-full min-h-0 min-w-0 flex-1 flex-col",
+        compact ? "p-2" : "p-5",
+      )}
       style={{ backgroundColor: P.card, borderRadius: P.radius, boxShadow: "0 1px 2px rgba(44,41,36,0.04)" }}
     >
       {showColorBy && (
@@ -308,7 +316,7 @@ export function PracticeSessionCalendar({
         </p>
       ) : (
         <>
-          <div className="mt-4 flex shrink-0 items-center justify-between gap-2">
+          <div className={cn("flex shrink-0 items-center justify-between gap-2", compact ? "mt-1" : "mt-4")}>
             <button
               type="button"
               onClick={() => navigate(-1)}
@@ -317,7 +325,10 @@ export function PracticeSessionCalendar({
             >
               <ChevronLeft className="size-4" style={{ color: P.soft }} />
             </button>
-            <span className="text-[18px] font-semibold" style={{ color: P.ink }}>
+            <span
+              className={cn("font-semibold", compact ? "text-[22px]" : "text-[18px]")}
+              style={{ color: P.ink }}
+            >
               {formatMonthYear(anchorDate)}
             </span>
             <button
@@ -330,11 +341,14 @@ export function PracticeSessionCalendar({
             </button>
           </div>
 
-          <div className="mt-3 grid shrink-0 grid-cols-7">
+          <div className={cn("grid shrink-0 grid-cols-7", compact ? "mt-1.5" : "mt-3")}>
             {DOW_LABELS.map((d) => (
               <div
                 key={d}
-                className="py-1.5 text-center text-[15px] font-semibold uppercase tracking-[0.06em]"
+                className={cn(
+                  "py-1 text-center font-semibold uppercase tracking-[0.06em]",
+                  compact ? "text-[16px]" : "text-[15px]",
+                )}
                 style={{ color: P.faint }}
               >
                 {d}
@@ -342,16 +356,16 @@ export function PracticeSessionCalendar({
             ))}
           </div>
 
-          <div className="mt-1 flex min-h-0 flex-1 flex-col space-y-1 overflow-hidden">
+          <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", compact ? "mt-0.5 space-y-0.5" : "mt-1 space-y-1")}>
             {grid.map((week, wi) => (
-              <div key={wi} className="grid min-h-0 flex-1 grid-cols-7 gap-1">
+              <div key={wi} className={cn("grid min-h-0 flex-1 grid-cols-7", compact ? "gap-0.5" : "gap-1")}>
                 {week.map((day, di) =>
                   day
                     ? renderDayCell(day)
                     : (
                       <div
                         key={di}
-                        className={cn(DAY_CELL_H, DAY_CELL_MIN_H)}
+                        className={DAY_CELL_MIN_H}
                         aria-hidden="true"
                       />
                     ),

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom"
 import { OwnerAppShell } from "@/components/dashboard/OwnerAppShell"
 import { AppPageHeader } from "@/components/dashboard/AppPageHeader"
 import { useOwnerShell } from "@/hooks/useOwnerShell"
-import { cn } from "@/lib/utils"
 import { getRosterRows } from "@/lib/rosterTable"
 import {
   getRosterStaffManifest,
@@ -139,7 +138,7 @@ export function StaffPage({
           )}
 
           {!loading && !error && hasStaff && (
-            <div className="space-y-8">
+            <div className="space-y-12">
               {ROLE_GROUPS.map(({ label, role }) => {
                 const members = staff
                   .filter((s) => s.role === role)
@@ -148,14 +147,9 @@ export function StaffPage({
                 if (members.length === 0) return null
 
                 return (
-                  <section key={role}>
-                    <h2 className="mb-4 text-[18px] font-semibold text-ink">{label}</h2>
-                    <ul
-                      className={cn(
-                        "grid gap-3",
-                        role === "bcba" ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-3",
-                      )}
-                    >
+                  <section key={role} className="pt-2 first:pt-0">
+                    <h2 className="mb-5 text-[18px] font-semibold text-ink">{label}</h2>
+                    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
                       {members.map((member) => (
                         <li key={member.id}>
                           <StaffMemberCard

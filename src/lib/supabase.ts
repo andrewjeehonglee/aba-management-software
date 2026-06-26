@@ -405,8 +405,8 @@ interface SessionByIdRow {
   session_type: string
   scheduled_at: string
   status: string
-  clients: { first_name: string; last_name: string }
-  staff: { full_name: string }
+  clients: { first_name: string; last_name: string } | null
+  staff: { full_name: string } | null
 }
 
 export interface SessionDetail {
@@ -430,6 +430,8 @@ export async function getSessionById(sessionId: string): Promise<SessionDetail |
   if (!data) return null
 
   const row = data as unknown as SessionByIdRow
+  const client = row.clients
+  const staff = row.staff
   return {
     id:           row.id,
     clientId:     row.client_id,
@@ -437,9 +439,42 @@ export async function getSessionById(sessionId: string): Promise<SessionDetail |
     sessionType:  row.session_type,
     scheduledAt:  row.scheduled_at,
     status:       row.status,
-    clientName:   `${row.clients.first_name} ${row.clients.last_name}`,
-    staffName:    row.staff.full_name,
+    clientName:   client
+      ? `${client.first_name} ${client.last_name}`.trim() || 'Client'
+      : 'Client',
+    staffName:    staff?.full_name ?? 'Staff',
   }
+}
+
+/** Latest open session for a client — used by demo Start Session flow. */
+export async function findOpenSessionForClient(
+  clientId: string,
+  practiceId: string,
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id')
+    .eq('practice_id', practiceId)
+    .eq('client_id', clientId)
+    .in('status', ['scheduled', 'in-progress'])
+    .order('scheduled_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data ? (data as { id: string }).id : null
+}
+
+/** Fallback staff PK when the signed-in user has no staff profile link. */
+export async function getRecentSessionStaffId(clientId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('staff_id')
+    .eq('client_id', clientId)
+    .order('scheduled_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return data ? (data as { staff_id: string }).staff_id : null
 }
 
 interface AuthRow {

@@ -461,7 +461,7 @@ export function ClientsPage({
             </>
           }
         >
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative min-w-0 flex-1 sm:max-w-md">
               <Search
                 className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
@@ -487,7 +487,9 @@ export function ClientsPage({
               )}
             </div>
             {showOwnerGrouping && (
-              <GroupingToggle mode={groupMode} onModeChange={setGroupMode} />
+              <div className="shrink-0 sm:ml-2">
+                <GroupingToggle mode={groupMode} onModeChange={setGroupMode} />
+              </div>
             )}
           </div>
         </AppPageHeader>

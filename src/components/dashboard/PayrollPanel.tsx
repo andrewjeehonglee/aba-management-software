@@ -41,10 +41,10 @@ function PanelSkeleton() {
   return (
     <div className="animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
       <div className="h-5 w-48 rounded bg-line-soft" />
-      <div className="mt-4 h-12 w-56 rounded bg-line-soft" />
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mx-auto mt-4 h-12 w-56 rounded bg-line-soft" />
+      <div className="mt-4 grid grid-cols-3 gap-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-[4.25rem] w-[7rem] rounded-[12px] bg-line-soft" />
+          <div key={i} className="h-[4.25rem] rounded-[12px] bg-line-soft" />
         ))}
       </div>
     </div>
@@ -55,7 +55,7 @@ function StaffPayrollBox({ row }: { row: PayPeriodStaffHoursRow }) {
   return (
     <Link
       to={staffHref(row)}
-      className="inline-flex w-[7rem] cursor-pointer flex-col items-center rounded-[12px] border px-2.5 py-2.5 text-center transition-opacity hover:opacity-90"
+      className="flex w-full cursor-pointer flex-col items-center rounded-[12px] border px-2.5 py-2.5 text-center transition-opacity hover:opacity-90"
       style={{
         backgroundColor: P.inset,
         borderColor: P.rule,
@@ -103,7 +103,7 @@ export function PayrollPanel({
     <section
       id="owner-pillar-payroll"
       className={cn(
-        "scroll-mt-4 rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3",
+        "scroll-mt-4 rounded-[var(--radius)] bg-surface px-4 py-3.5 shadow-card short:px-3.5 short:py-3",
         OWNER_TILE_ACCENT_CLASS,
       )}
       aria-label="Payroll"
@@ -114,28 +114,6 @@ export function PayrollPanel({
             <h2 className={cn(TILE_TITLE, "text-ink")}>Payroll</h2>
             <span className="text-[15px] tabular-nums text-muted">· {payroll.payPeriodTableLabel}</span>
             <span className="text-[14px] text-muted">· {closeContextLabel(payroll.daysUntilClose)}</span>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
-            <div>
-              <p className="text-[14px] font-semibold uppercase tracking-[0.06em] text-muted">
-                Hours payable now
-              </p>
-              <p className="mt-1 text-[32px] font-bold tabular-nums leading-none" style={{ color: P.sageInk }}>
-                {totalPayableHours}
-              </p>
-            </div>
-            <div>
-              <p className="text-[14px] font-semibold uppercase tracking-[0.06em] text-muted">
-                Hours on hold
-              </p>
-              <p
-                className="mt-1 text-[32px] font-bold tabular-nums leading-none"
-                style={{ color: OWNER_ON_HOLD_INK }}
-              >
-                {totalOnHoldHours}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -165,11 +143,36 @@ export function PayrollPanel({
         </div>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-3 flex flex-wrap justify-center gap-x-12 gap-y-3">
+        <div className="text-center">
+          <p className="text-[14px] font-semibold uppercase tracking-[0.06em] text-muted">
+            Hours payable now
+          </p>
+          <p className="mt-1 text-[32px] font-bold tabular-nums leading-none" style={{ color: P.sageInk }}>
+            {totalPayableHours}
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-[14px] font-semibold uppercase tracking-[0.06em] text-muted">
+            Hours on hold
+          </p>
+          <p
+            className="mt-1 text-[32px] font-bold tabular-nums leading-none"
+            style={{ color: OWNER_ON_HOLD_INK }}
+          >
+            {totalOnHoldHours}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4">
         {tierStaff.length === 0 ? (
-          <p className="py-2 text-[14px] text-muted">No staff in this group.</p>
+          <p className="py-2 text-center text-[14px] text-muted">No staff in this group.</p>
         ) : (
-          <ul className="flex flex-wrap gap-2">
+          <ul
+            className="grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${tierStaff.length}, minmax(0, 1fr))` }}
+          >
             {tierStaff.map((row) => (
               <li key={row.staffId}>
                 <StaffPayrollBox row={row} />

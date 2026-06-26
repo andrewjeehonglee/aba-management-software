@@ -132,7 +132,7 @@ function totalOnHoldHours(payroll: PayPeriodHoursGapSummary): number {
     .reduce((sum, row) => sum + row.onHoldHours, 0)
 }
 
-function notesSummaryLines(overdue: number, pending: number): OwnerSummaryLine[] {
+export function notesSummaryLines(overdue: number, pending: number): OwnerSummaryLine[] {
   if (overdue === 0 && pending === 0) {
     return [{ text: "Every note is in for this pay period." }]
   }
