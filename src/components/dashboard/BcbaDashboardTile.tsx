@@ -19,9 +19,6 @@ import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 
 export type BcbaBubbleItem = MetricPopoverItem
 
-/** Reserve consistent space so every tile's big number starts at the same row. */
-const HEADER_ZONE_CLASS = "min-h-[2.75rem]"
-
 function DualMetricColumn({ side }: { side: DashboardDualMetricSide }) {
   return (
     <div className="min-w-0">
@@ -32,7 +29,6 @@ function DualMetricColumn({ side }: { side: DashboardDualMetricSide }) {
         {side.value}
       </p>
       <p className="mt-1 text-sm font-medium text-ink-soft">{side.unit}</p>
-      <p className="mt-0.5 text-[13px] leading-snug text-muted">{side.clarifier}</p>
     </div>
   )
 }
@@ -68,7 +64,6 @@ function ViewAllLink({
 export function BcbaDashboardTile({
   id,
   title,
-  requirement,
   state,
   period,
   metric,
@@ -82,7 +77,7 @@ export function BcbaDashboardTile({
 }: {
   id?: string
   title: string
-  requirement: string
+  requirement?: string
   state: BcbaTileState
   period: ReactNode
   metric: ReactNode
@@ -103,25 +98,19 @@ export function BcbaDashboardTile({
     <div
       id={id}
       className={cn(
-        "flex min-h-[220px] flex-col rounded-[var(--radius)] bg-surface p-4 shadow-card sm:p-5",
+        "flex min-h-[200px] flex-col rounded-[var(--radius)] bg-surface p-4 shadow-card sm:p-5",
         className,
       )}
     >
       <h3 className={cn(TILE_TITLE, "text-ink")}>{title}</h3>
 
-      <div className={cn(HEADER_ZONE_CLASS, "mt-2")}>
-        {requirement ? (
-          <p className="text-[14px] leading-snug text-muted">{requirement}</p>
-        ) : null}
-      </div>
-
       {dualMetric ? (
-        <div className="mt-3 grid grid-cols-2 gap-x-4">
+        <div className="mt-2 grid grid-cols-2 gap-x-4">
           <DualMetricColumn side={dualMetric.left} />
           <DualMetricColumn side={dualMetric.right} />
         </div>
       ) : (
-        <div className="mt-3 flex flex-col gap-0.5">
+        <div className="mt-2 flex flex-col gap-0.5">
           <MetricPopover
             metric={metric}
             metricClassName={cn(BIG_METRIC_CLASS, metricClass)}
@@ -136,7 +125,7 @@ export function BcbaDashboardTile({
         </div>
       )}
 
-      <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+      <div className="mt-auto flex items-end justify-between gap-3 pt-3">
         <div className="min-w-0">
           {showViewAll ? (
             <ViewAllLink
@@ -164,7 +153,6 @@ export function BcbaDashboardTileSkeleton({ className }: { className?: string })
       )}
     >
       <div className="h-5 w-28 rounded bg-line-soft" />
-      <div className="mt-3 h-4 w-full rounded bg-line-soft" />
       <div className="mt-4 h-10 w-20 rounded bg-line-soft" />
       <div className="mt-2 h-4 w-32 rounded bg-line-soft" />
       <div className="mt-6 flex justify-between">

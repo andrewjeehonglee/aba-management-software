@@ -414,6 +414,34 @@ export function isValidSessionId(id: string | null | undefined): id is string {
   return typeof id === "string" && SESSION_ID_RE.test(id)
 }
 
+/** Route token for demo / ephemeral sessions — not a DB row. */
+export const NEW_SESSION_ROUTE_ID = "new"
+
+export function isNewSessionRoute(sessionId: string | undefined): boolean {
+  return sessionId === NEW_SESSION_ROUTE_ID
+}
+
+export function newSessionPath(clientId: string): string {
+  return `/session/${NEW_SESSION_ROUTE_ID}?clientId=${encodeURIComponent(clientId)}`
+}
+
+export function buildNewSessionDetail(client: ClientDetail): SessionDetail {
+  const name =
+    `${client.first_name} ${client.last_name}`.trim() ||
+    client.external_code?.trim() ||
+    "Client"
+  return {
+    id: NEW_SESSION_ROUTE_ID,
+    clientId: client.id,
+    staffId: "",
+    sessionType: "direct",
+    scheduledAt: new Date().toISOString(),
+    status: "in-progress",
+    clientName: name,
+    staffName: "Staff",
+  }
+}
+
 export interface SessionDetail {
   id: string
   clientId: string

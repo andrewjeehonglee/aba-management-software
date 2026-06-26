@@ -86,7 +86,17 @@ const CHIP_TYPE_LABEL: Record<SessionChipType, string> = {
 }
 
 export function chipClientShortLabel(session: SessionRecord): string {
-  return session.clientCode ?? session.clientName.split(/\s+/)[0] ?? session.clientName
+  const code = session.clientCode?.trim()
+  if (code) return code
+  const name = session.clientName?.trim()
+  if (name) {
+    const parts = name.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) {
+      return parts.map((p) => p[0] ?? "").join("").slice(0, 4)
+    }
+    return name.length <= 5 ? name : name.slice(0, 4)
+  }
+  return "?"
 }
 
 export function chipTypeShortLabel(session: SessionRecord): string {

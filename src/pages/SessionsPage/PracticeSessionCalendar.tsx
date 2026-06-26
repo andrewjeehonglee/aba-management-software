@@ -22,9 +22,10 @@ import { CalendarDaySessionsPopup } from "@/pages/SessionsPage/CalendarDaySessio
 const BAR_HEIGHT = "h-2"
 const VISIBLE_CHIP_CAP = 3
 const DAY_CELL_MIN_H = "min-h-[52px]"
-const COMPACT_DAY_CELL_MIN_H = "min-h-[88px]"
-/** Uniform dashboard chip width — fixed, centered, ellipsis inside. */
-const DASHBOARD_CHIP_BAR_CLASS = "mx-auto block w-[112px] max-w-[112px] shrink-0"
+/** Fixed height keeps the grid stable between My sessions / My team. */
+const COMPACT_DAY_CELL_H = "h-[108px]"
+/** Dashboard chips: fit full time · client · type content. */
+const DASHBOARD_CHIP_CLASS = "mx-auto block w-max max-w-full whitespace-nowrap text-[11px] leading-tight"
 
 function ChipSegmentDivider() {
   return (
@@ -138,8 +139,8 @@ function SessionChip({
       type="button"
       onClick={() => onSelect?.(session)}
       className={cn(
-        "block truncate rounded-md border-l-[3px] px-1 py-0.5 text-left text-[13px] leading-tight hover:opacity-90",
-        isDashboardChip ? DASHBOARD_CHIP_BAR_CLASS : "inline-block max-w-full",
+        "block rounded-md border-l-[3px] px-1.5 py-0.5 text-left text-[13px] leading-tight hover:opacity-90",
+        isDashboardChip ? DASHBOARD_CHIP_CLASS : "inline-block max-w-full truncate",
       )}
       style={{
         backgroundColor: colors.bg,
@@ -151,10 +152,10 @@ function SessionChip({
       aria-pressed={selected}
     >
       {isDashboardChip ? (
-        <span className="flex min-w-0 items-center truncate">
+        <span className="inline-flex items-center whitespace-nowrap">
           <span className="shrink-0 font-bold tabular-nums">{time}</span>
           <ChipSegmentDivider />
-          <span className="min-w-0 truncate">{clientShort}</span>
+          <span className="shrink-0">{clientShort}</span>
           <ChipSegmentDivider />
           <span className="shrink-0" style={{ color: P.faint }}>
             {typeLabel}
@@ -230,7 +231,7 @@ export function PracticeSessionCalendar({
         className={cn(
           "flex flex-col overflow-hidden rounded-md",
           compact ? "px-1 py-1" : "p-1",
-          compact ? COMPACT_DAY_CELL_MIN_H : DAY_CELL_MIN_H,
+          compact ? COMPACT_DAY_CELL_H : DAY_CELL_MIN_H,
         )}
         style={{
           backgroundColor: hasScheduled ? P.calScheduledTint : undefined,
@@ -273,7 +274,7 @@ export function PracticeSessionCalendar({
                 className={cn(
                   "shrink-0 truncate py-px text-[11px] font-semibold leading-tight hover:opacity-80",
                   chipLabelMode === "client-type"
-                    ? cn(DASHBOARD_CHIP_BAR_CLASS, "text-center")
+                    ? cn(DASHBOARD_CHIP_CLASS, "text-center")
                     : "px-0.5 text-left",
                 )}
                 style={{ color: P.soft }}
@@ -366,7 +367,7 @@ export function PracticeSessionCalendar({
                     : (
                       <div
                         key={di}
-                        className={compact ? COMPACT_DAY_CELL_MIN_H : DAY_CELL_MIN_H}
+                        className={compact ? COMPACT_DAY_CELL_H : DAY_CELL_MIN_H}
                         aria-hidden="true"
                       />
                     ),

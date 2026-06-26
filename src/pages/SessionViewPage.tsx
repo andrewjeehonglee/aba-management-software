@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Check, Minus, Plus, X } from "lucide-react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useDemo } from "@/context/DemoContext"
 import { SignaturePad } from "@/components/SignaturePad"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { completeSession, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, getUserPractice, saveBehaviorIncident, saveTrialResult, submitSessionNote, supabase, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
+import { completeSession, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, getUserPractice, isNewSessionRoute, isValidSessionId, buildNewSessionDetail, saveBehaviorIncident, saveTrialResult, submitSessionNote, supabase, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
 import type { GoalStatus } from "@/types/goal"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -259,6 +259,8 @@ function ABCFlow({ step, draft, onStep, onToggleA, onToggleC, onIntensity, onDur
 export function SessionViewPage() {
   const isDemo = useDemo()
   const { sessionId } = useParams<{ sessionId: string }>()
+  const [searchParams] = useSearchParams()
+  const newClientId = searchParams.get("clientId")
   const navigate = useNavigate()
 
   // ── Data resolution ────────────────────────────────────────────────────────
@@ -275,6 +277,43 @@ export function SessionViewPage() {
     let cancelled = false
     setDataLoading(true)
     setDataError(false)
+    setSessionDetail(null)
+
+    async function loadNewSession(clientId: string) {
+      const client = await getClientById(clientId)
+      if (cancelled) return
+      if (!client) {
+        setDataLoading(false)
+        return
+      }
+      setSessionDetail(buildNewSessionDetail(client))
+      const [goalRows, behaviorRows] = await Promise.all([
+        getGoalsByClientId(clientId),
+        getBehaviorsByClientId(clientId),
+      ])
+      if (cancelled) return
+      setGoals(goalRows.filter(g => g.status === "in-progress" || g.status === "hold"))
+      setClientDetail(client)
+      setBehaviors(behaviorRows)
+
+      supabase.auth.getUser().then(({ data }) => {
+        if (!data.user) return
+        getUserPractice(data.user.id).then(m => {
+          if (m) practiceIdRef.current = m.practice_id
+        }).catch(() => {})
+      }).catch(() => {})
+    }
+
+    if (isNewSessionRoute(sessionId)) {
+      if (!isValidSessionId(newClientId)) {
+        setDataLoading(false)
+        return
+      }
+      loadNewSession(newClientId)
+        .catch(() => { if (!cancelled) setDataError(true) })
+        .finally(() => { if (!cancelled) setDataLoading(false) })
+      return () => { cancelled = true }
+    }
 
     getSessionById(sessionId)
       .then(async (s) => {
@@ -290,7 +329,6 @@ export function SessionViewPage() {
         setClientDetail(client)
         setBehaviors(behaviorRows)
 
-        // Resolve practice ID for trial inserts (non-blocking — failure is silent)
         supabase.auth.getUser().then(({ data }) => {
           if (!data.user) return
           getUserPractice(data.user.id).then(m => {
@@ -302,10 +340,22 @@ export function SessionViewPage() {
       .finally(() => { if (!cancelled) setDataLoading(false) })
 
     return () => { cancelled = true }
-  }, [sessionId])
+  }, [sessionId, newClientId])
 
+  useEffect(() => {
+    setCounts(prev => {
+      const next = { ...prev }
+      for (const b of behaviors) {
+        if (!(b.id in next)) next[b.id] = 0
+      }
+      return next
+    })
+  }, [behaviors])
+
+  const clientProfilePath = clientDetail?.external_code ?? sessionDetail?.clientId ?? ""
   const displayName = sessionDetail?.clientName ?? "Session"
   const billingCode = clientDetail?.cpt_codes?.[0] ?? "—"
+  const isEphemeralSession = isNewSessionRoute(sessionId)
 
   // ── Mode ───────────────────────────────────────────────────────────────────
   const [mode, setMode] = useState<"active" | "post">("active")
@@ -375,15 +425,17 @@ export function SessionViewPage() {
       duration: abcDraft.duration,
     }
     setAbcEntries(prev => ({ ...prev, [abcOpenId]: [...(prev[abcOpenId] ?? []), entry] }))
-    saveBehaviorIncident({
-      practiceId:    practiceIdRef.current,
-      sessionId:     sessionId!,
-      clientId:      sessionDetail?.clientId ?? "",
-      behaviorId:    abcOpenId,
-      antecedents:   abcDraft.antecedents.length > 0 ? abcDraft.antecedents : undefined,
-      consequences:  abcDraft.consequences.length > 0 ? abcDraft.consequences : undefined,
-      intensity:     abcDraft.intensity,
-    }).catch(() => {})
+    if (!isDemo && !isEphemeralSession) {
+      saveBehaviorIncident({
+        practiceId:    practiceIdRef.current,
+        sessionId:     sessionId!,
+        clientId:      sessionDetail?.clientId ?? "",
+        behaviorId:    abcOpenId,
+        antecedents:   abcDraft.antecedents.length > 0 ? abcDraft.antecedents : undefined,
+        consequences:  abcDraft.consequences.length > 0 ? abcDraft.consequences : undefined,
+        intensity:     abcDraft.intensity,
+      }).catch(() => {})
+    }
     setAbcOpenId(null)
   }
 
@@ -441,7 +493,7 @@ export function SessionViewPage() {
       finishSession("Session recorded.")
       return
     }
-    if (isDemo) {
+    if (isDemo || isEphemeralSession) {
       finishSession("Session note submitted.")
       return
     }
@@ -496,7 +548,7 @@ export function SessionViewPage() {
       <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80">
         <div className="mx-auto max-w-6xl px-4 pt-3 pb-2 flex items-center gap-3">
           <Link
-            to={sessionDetail.clientId ? `/clients/${sessionDetail.clientId}` : "/"}
+            to={clientProfilePath ? `/clients/${clientProfilePath}` : "/"}
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             <ArrowLeft className="size-4" />
@@ -505,7 +557,7 @@ export function SessionViewPage() {
 
           {/* Client name — tappable */}
           <Link
-            to={sessionDetail.clientId ? `/clients/${sessionDetail.clientId}` : "/"}
+            to={clientProfilePath ? `/clients/${clientProfilePath}` : "/"}
             className="font-semibold text-lg leading-tight hover:underline underline-offset-2 flex-1 truncate pr-28 sm:pr-36"
           >
             {displayName}

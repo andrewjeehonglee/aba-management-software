@@ -39,8 +39,9 @@ function staffHref(row: PayPeriodStaffHoursRow): string {
 
 function PanelSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-2xl animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
+    <div className="mx-auto w-full max-w-5xl animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
       <div className="h-5 w-48 rounded bg-line-soft" />
+      <div className="mt-2 h-4 w-56 rounded bg-line-soft" />
       <div className="mx-auto mt-4 h-12 w-56 rounded bg-line-soft" />
       <div className="mt-4 flex flex-wrap justify-center gap-2">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -103,22 +104,21 @@ export function PayrollPanel({
     <section
       id="owner-pillar-payroll"
       className={cn(
-        "mx-auto w-full max-w-2xl scroll-mt-4 rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3",
+        "mx-auto w-full max-w-5xl scroll-mt-4 rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3",
         OWNER_TILE_ACCENT_CLASS,
       )}
       aria-label="Payroll"
     >
       <div className="flex flex-wrap items-start justify-between gap-3 gap-y-4">
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <h2 className={cn(TILE_TITLE, "text-ink")}>Payroll</h2>
-            <span className="text-[15px] tabular-nums text-muted">· {payroll.payPeriodTableLabel}</span>
-            <span className="text-[14px] text-muted">· {closeContextLabel(payroll.daysUntilClose)}</span>
-          </div>
+          <h2 className={cn(TILE_TITLE, "text-ink")}>Payroll</h2>
+          <p className="mt-1 text-[14px] text-muted">
+            {payroll.payPeriodTableLabel} · {closeContextLabel(payroll.daysUntilClose)}
+          </p>
         </div>
 
         <div
-          className="inline-flex shrink-0 flex-wrap justify-end rounded-full bg-surface-2 p-0.5"
+          className="inline-flex shrink-0 flex-wrap justify-end gap-1 rounded-full bg-surface-2 p-1"
           role="tablist"
           aria-label="Staff group"
         >
@@ -132,7 +132,7 @@ export function PayrollPanel({
                 aria-selected={active}
                 onClick={() => setSelectedTier(tier)}
                 className={cn(
-                  "cursor-pointer rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  "cursor-pointer rounded-full px-4 py-1.5 text-[12px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   active ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink-soft",
                 )}
               >
@@ -146,7 +146,7 @@ export function PayrollPanel({
       <div className="mt-4 flex flex-wrap justify-center gap-x-12 gap-y-3">
         <div className="text-center">
           <p className="text-[14px] font-semibold uppercase tracking-[0.06em] text-muted">
-            Hours payable now
+            Payable now
           </p>
           <p className="mt-1 text-[32px] font-bold tabular-nums leading-none" style={{ color: P.sageInk }}>
             {totalPayableHours}
@@ -154,7 +154,7 @@ export function PayrollPanel({
         </div>
         <div className="text-center">
           <p className="text-[14px] font-semibold uppercase tracking-[0.06em] text-muted">
-            Hours on hold
+            On hold
           </p>
           <p
             className="mt-1 text-[32px] font-bold tabular-nums leading-none"

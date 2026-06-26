@@ -55,24 +55,30 @@ export async function getStaffSessionsForMonth(
     status: string
     client_id: string
     staff_id: string
-    clients: { first_name: string; last_name: string; external_code: string | null }
+    clients: { first_name: string; last_name: string; external_code: string | null } | null
     staff: { full_name: string; team: string; external_code: string | null; role: string } | null
   }
 
-  return ((data ?? []) as unknown as Row[]).map((row) => ({
-    id: row.id,
-    time: row.scheduled_at,
-    clientId: row.client_id,
-    clientName: `${row.clients.first_name} ${row.clients.last_name}`.trim() || (row.clients.external_code ?? "Unknown"),
-    clientCode: row.clients.external_code ?? null,
-    staffId: row.staff_id,
-    staffName: row.staff?.full_name ?? "Unknown",
-    staffExternalCode: row.staff?.external_code ?? null,
-    staffRole: row.staff?.role ?? "technician",
-    staffTeam: row.staff?.team ? (row.staff.team.startsWith("Team") ? row.staff.team : `Team ${row.staff.team}`) : "",
-    sessionType: row.session_type,
-    status: row.status,
-  }))
+  return ((data ?? []) as unknown as Row[]).map((row) => {
+    const clientCode = row.clients?.external_code?.trim() || null
+    const clientName = row.clients
+      ? `${row.clients.first_name} ${row.clients.last_name}`.trim() || clientCode || "Unknown"
+      : "Unknown"
+    return {
+      id: row.id,
+      time: row.scheduled_at,
+      clientId: row.client_id,
+      clientName,
+      clientCode,
+      staffId: row.staff_id,
+      staffName: row.staff?.full_name ?? "Unknown",
+      staffExternalCode: row.staff?.external_code ?? null,
+      staffRole: row.staff?.role ?? "technician",
+      staffTeam: row.staff?.team ? (row.staff.team.startsWith("Team") ? row.staff.team : `Team ${row.staff.team}`) : "",
+      sessionType: row.session_type,
+      status: row.status,
+    }
+  })
 }
 
 export function monthWindowForDate(date: Date): PayPeriod {

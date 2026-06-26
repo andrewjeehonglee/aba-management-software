@@ -34,7 +34,6 @@ function MetricTile({
     <BcbaDashboardTile
       id={view.id}
       title={view.title}
-      requirement={view.requirement}
       state={view.state}
       period={period}
       metric={view.metric}

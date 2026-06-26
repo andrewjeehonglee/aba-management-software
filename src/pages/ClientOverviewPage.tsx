@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { resolveClientByRouteKey } from "@/lib/rosterScope"
-import { createAuthorization, createBehavior, createGoal, createSession, findOpenSessionForClient, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getRecentSessionStaffId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, isValidSessionId, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
+import { createAuthorization, createBehavior, createGoal, createSession, getAuthorizationsByClientId, getBehaviorIncidentsByClientId, getBehaviorsByClientId, getGoalsByClientId, getRecentSessionStaffId, getSessionNotesByClientId, getSessionsByClientId, getStaffByUserId, getUserPractice, isValidSessionId, newSessionPath, supabase, updateAuthorization, type AuthRecord, type BehaviorIncidentRecord, type BehaviorRecord, type ClientDetail, type GoalRecord, type PracticeMembership, type SessionNoteRecord, type SessionRecord } from "@/lib/supabase"
 import { canManageClinicalConfig, canViewClinicalNotes, effectiveRole } from "@/lib/rolePreview"
 import type { Goal } from "@/types/goal"
 import { AuthSummary } from "@/pages/ClientOverviewPage/AuthSummary"
@@ -623,14 +623,10 @@ export function ClientOverviewPage({ practiceId }: { practiceId: string }) {
       if (!membership) throw new Error("No practice found for this account")
 
       if (isDemo) {
-        const openSessionId = await findOpenSessionForClient(
-          resolvedClientId,
-          membership.practice_id,
-        )
-        if (!isValidSessionId(openSessionId)) {
-          throw new Error("No open demo session is available for this client.")
+        if (!isValidSessionId(resolvedClientId)) {
+          throw new Error("Client not loaded yet. Please wait and try again.")
         }
-        navigate(`/session/${openSessionId}`)
+        navigate(newSessionPath(resolvedClientId))
         return
       }
 

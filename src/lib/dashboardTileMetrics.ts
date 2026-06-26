@@ -32,7 +32,7 @@ export const TILE_DEFINITIONS = {
     id: "supervision",
     title: "Supervision compliance",
     selfTitle: "My supervision compliance",
-    requirement: "Technicians must receive a min. 5% supervision per month.",
+    requirement: "",
   },
   authorization: {
     id: "authorization",
@@ -46,7 +46,6 @@ export type DashboardMetricTone = "urgent" | "monitor" | "neutral"
 export interface DashboardDualMetricSide {
   value: number
   unit: string
-  clarifier: string
   tone: DashboardMetricTone
 }
 
@@ -179,13 +178,11 @@ export function buildNotesTileViewModel(
       left: {
         value: overdueTotal,
         unit: "notes overdue",
-        clarifier: "past the submission deadline",
         tone: "urgent",
       },
       right: {
         value: missingTotal,
         unit: "notes pending",
-        clarifier: "not yet due, still within the window",
         tone: "monitor",
       },
     },
