@@ -82,20 +82,66 @@ export async function getPrimaryStaffForClient(clientId: string): Promise<{ full
   return name ? { full_name: name } : null
 }
 
-export async function getClientById(id: string): Promise<ClientDetail | null> {
-  const { data, error } = await supabase
-    .from('clients')
-    .select('id, external_code, first_name, last_name, date_of_birth, home_address, status, team, insurance, auth_start_date, auth_end_date, cpt_codes, staff!assigned_staff_id(full_name)')
-    .eq('id', id)
-    .maybeSingle()
+const CLIENT_DETAIL_COLUMNS =
+  "id, external_code, first_name, last_name, date_of_birth, home_address, status, team, insurance, auth_start_date, auth_end_date, cpt_codes"
+
+function isActiveRosterClient(
+  externalCode: string | null | undefined,
+  status: string | null | undefined,
+): boolean {
+  if (!externalCode?.trim()) return false
+  if ((status ?? "active").toLowerCase() === "inactive") return false
+  return true
+}
+
+export function clientDisplayName(client: Pick<ClientDetail, "first_name" | "last_name" | "external_code">): string {
+  const full = `${client.first_name} ${client.last_name}`.trim()
+  return full || client.external_code?.trim() || "Client"
+}
+
+/** Passed from ClientOverviewPage → SessionViewPage so the note UI can render without a re-fetch. */
+export interface SessionPageBootstrap {
+  client: ClientDetail
+  staffId?: string
+}
+
+export async function getClientById(
+  id: string,
+  options?: { practiceId?: string },
+): Promise<ClientDetail | null> {
+  let query = supabase
+    .from("clients")
+    .select(CLIENT_DETAIL_COLUMNS)
+    .eq("id", id)
+  if (options?.practiceId) {
+    query = query.eq("practice_id", options.practiceId)
+  }
+
+  let { data, error } = await query.maybeSingle()
+
+  if (error?.message?.includes("home_address")) {
+    const fallback = supabase
+      .from("clients")
+      .select(
+        "id, external_code, first_name, last_name, date_of_birth, status, team, insurance, auth_start_date, auth_end_date, cpt_codes",
+      )
+      .eq("id", id)
+    const scoped = options?.practiceId
+      ? fallback.eq("practice_id", options.practiceId)
+      : fallback
+    ;({ data, error } = await scoped.maybeSingle())
+    if (data) {
+      data = { ...data, home_address: null }
+    }
+  }
+
   if (error) throw error
   if (!data) return null
-  const row = data as unknown as Omit<ClientDetail, 'assigned_staff'> & { staff: { full_name: string } | null }
-  if (!row.external_code?.trim() || (row.status ?? 'active').toLowerCase() === 'inactive') return null
-  let assigned_staff = row.staff
-  if (!assigned_staff) {
-    assigned_staff = await getPrimaryStaffForClient(id)
-  }
+
+  const row = data as Omit<ClientDetail, "assigned_staff">
+  if (!isActiveRosterClient(row.external_code, row.status)) return null
+
+  const assigned_staff = await getPrimaryStaffForClient(id)
   return { ...row, assigned_staff }
 }
 
@@ -425,19 +471,31 @@ export function newSessionPath(clientId: string): string {
   return `/session/${NEW_SESSION_ROUTE_ID}?clientId=${encodeURIComponent(clientId)}`
 }
 
-export function buildNewSessionDetail(client: ClientDetail): SessionDetail {
-  const name =
-    `${client.first_name} ${client.last_name}`.trim() ||
-    client.external_code?.trim() ||
-    "Client"
+export function buildNewSessionDetail(client: ClientDetail, staffId = ""): SessionDetail {
   return {
     id: NEW_SESSION_ROUTE_ID,
     clientId: client.id,
-    staffId: "",
+    staffId,
     sessionType: "direct",
     scheduledAt: new Date().toISOString(),
     status: "in-progress",
-    clientName: name,
+    clientName: clientDisplayName(client),
+    staffName: "Staff",
+  }
+}
+
+export function buildSessionDetailFromBootstrap(
+  sessionId: string,
+  bootstrap: SessionPageBootstrap,
+): SessionDetail {
+  return {
+    id: sessionId,
+    clientId: bootstrap.client.id,
+    staffId: bootstrap.staffId ?? "",
+    sessionType: "direct",
+    scheduledAt: new Date().toISOString(),
+    status: "in-progress",
+    clientName: clientDisplayName(bootstrap.client),
     staffName: "Staff",
   }
 }

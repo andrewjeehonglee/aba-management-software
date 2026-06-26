@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Check, Minus, Plus, X } from "lucide-react"
-import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 import { useDemo } from "@/context/DemoContext"
 import { SignaturePad } from "@/components/SignaturePad"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { completeSession, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, getUserPractice, isNewSessionRoute, isValidSessionId, buildNewSessionDetail, saveBehaviorIncident, saveTrialResult, submitSessionNote, supabase, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail } from "@/lib/supabase"
+import { completeSession, getBehaviorsByClientId, getClientById, getGoalsByClientId, getSessionById, getUserPractice, isNewSessionRoute, isValidSessionId, buildNewSessionDetail, buildSessionDetailFromBootstrap, saveBehaviorIncident, saveTrialResult, submitSessionNote, supabase, type BehaviorRecord, type ClientDetail, type GoalRecord, type SessionDetail, type SessionPageBootstrap } from "@/lib/supabase"
 import type { GoalStatus } from "@/types/goal"
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -261,6 +261,10 @@ export function SessionViewPage() {
   const { sessionId } = useParams<{ sessionId: string }>()
   const [searchParams] = useSearchParams()
   const newClientId = searchParams.get("clientId")
+  const routerLocation = useLocation()
+  const bootstrap = (routerLocation.state as SessionPageBootstrap | null) ?? null
+  const bootstrapClientId = bootstrap?.client?.id
+  const bootstrapStaffId = bootstrap?.staffId
   const navigate = useNavigate()
 
   // ── Data resolution ────────────────────────────────────────────────────────
@@ -279,37 +283,71 @@ export function SessionViewPage() {
     setDataError(false)
     setSessionDetail(null)
 
-    async function loadNewSession(clientId: string) {
-      const client = await getClientById(clientId)
-      if (cancelled) return
-      if (!client) {
-        setDataLoading(false)
-        return
-      }
-      setSessionDetail(buildNewSessionDetail(client))
+    async function loadClientContext(client: ClientDetail, staffId = "") {
+      setSessionDetail(
+        isNewSessionRoute(sessionId)
+          ? buildNewSessionDetail(client, staffId)
+          : buildSessionDetailFromBootstrap(sessionId!, { client, staffId }),
+      )
+      setClientDetail(client)
       const [goalRows, behaviorRows] = await Promise.all([
-        getGoalsByClientId(clientId),
-        getBehaviorsByClientId(clientId),
+        getGoalsByClientId(client.id),
+        getBehaviorsByClientId(client.id),
       ])
       if (cancelled) return
       setGoals(goalRows.filter(g => g.status === "in-progress" || g.status === "hold"))
-      setClientDetail(client)
       setBehaviors(behaviorRows)
+    }
 
-      supabase.auth.getUser().then(({ data }) => {
-        if (!data.user) return
-        getUserPractice(data.user.id).then(m => {
-          if (m) practiceIdRef.current = m.practice_id
+    async function resolveClient(clientId: string): Promise<ClientDetail | null> {
+      if (bootstrap?.client.id === clientId) {
+        return bootstrap.client
+      }
+
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return null
+
+      const membership = await getUserPractice(user.id)
+      if (membership) {
+        practiceIdRef.current = membership.practice_id
+        const scoped = await getClientById(clientId, { practiceId: membership.practice_id })
+        if (scoped) return scoped
+      }
+
+      return getClientById(clientId)
+    }
+
+    async function loadNewSession(clientId: string) {
+      const client = await resolveClient(clientId)
+      if (cancelled) return
+      if (!client) {
+        setDataError(true)
+        return
+      }
+      await loadClientContext(client, bootstrap?.staffId ?? "")
+
+      if (!practiceIdRef.current) {
+        supabase.auth.getUser().then(({ data }) => {
+          if (!data.user) return
+          getUserPractice(data.user.id).then(m => {
+            if (m) practiceIdRef.current = m.practice_id
+          }).catch(() => {})
         }).catch(() => {})
-      }).catch(() => {})
+      }
     }
 
     if (isNewSessionRoute(sessionId)) {
-      if (!isValidSessionId(newClientId)) {
+      const clientId = isValidSessionId(newClientId)
+        ? newClientId
+        : bootstrap?.client.id
+
+      if (!isValidSessionId(clientId)) {
         setDataLoading(false)
-        return
+        setDataError(true)
+        return () => { cancelled = true }
       }
-      loadNewSession(newClientId)
+
+      loadNewSession(clientId)
         .catch(() => { if (!cancelled) setDataError(true) })
         .finally(() => { if (!cancelled) setDataLoading(false) })
       return () => { cancelled = true }
@@ -317,16 +355,26 @@ export function SessionViewPage() {
 
     getSessionById(sessionId)
       .then(async (s) => {
-        if (cancelled || !s) { if (!cancelled) setDataLoading(false); return }
+        if (cancelled) return
+
+        if (!s) {
+          if (bootstrap?.client && isValidSessionId(sessionId)) {
+            await loadClientContext(bootstrap.client, bootstrap.staffId ?? "")
+            return
+          }
+          setDataError(true)
+          return
+        }
+
         setSessionDetail(s)
         const [goalRows, client, behaviorRows] = await Promise.all([
           getGoalsByClientId(s.clientId),
-          getClientById(s.clientId),
+          resolveClient(s.clientId),
           getBehaviorsByClientId(s.clientId),
         ])
         if (cancelled) return
         setGoals(goalRows.filter(g => g.status === "in-progress" || g.status === "hold"))
-        setClientDetail(client)
+        setClientDetail(client ?? bootstrap?.client ?? null)
         setBehaviors(behaviorRows)
 
         supabase.auth.getUser().then(({ data }) => {
@@ -340,7 +388,7 @@ export function SessionViewPage() {
       .finally(() => { if (!cancelled) setDataLoading(false) })
 
     return () => { cancelled = true }
-  }, [sessionId, newClientId])
+  }, [sessionId, newClientId, bootstrapClientId, bootstrapStaffId])
 
   useEffect(() => {
     setCounts(prev => {
@@ -522,8 +570,11 @@ export function SessionViewPage() {
 
   if (dataError || !sessionDetail) {
     return (
-      <div className="min-h-svh bg-background flex items-center justify-center text-muted-foreground text-sm">
-        Session not found.
+      <div className="min-h-svh bg-background flex flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground text-sm">
+        <p>Could not open this session.</p>
+        <Link to="/" className="text-brand font-medium hover:underline">
+          Back to dashboard
+        </Link>
       </div>
     )
   }
