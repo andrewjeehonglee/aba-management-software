@@ -576,10 +576,7 @@ export function SessionViewPage() {
     >
 
       {/* ══ STICKY HEADER ══════════════════════════════════════════════════ */}
-      <header
-        className="sticky top-0 z-20 -mx-6 border-b px-6 py-5 sm:-mx-10 sm:px-10"
-        style={{ backgroundColor: P.card, borderColor: P.rule }}
-      >
+      <header className="sticky top-0 z-20 pb-5" style={{ backgroundColor: P.bg }}>
         <div className={PAGE_MAX}>
           <Link
             to={clientProfilePath ? `/clients/${clientProfilePath}` : "/"}
