@@ -14,6 +14,8 @@ interface OwnerDashboardListPopupProps {
   metaLine?: string
   rows?: OwnerRankedRow[]
   children?: React.ReactNode
+  /** Wider panel for box-grid KPI popups (BCBA dashboard). */
+  wide?: boolean
 }
 
 function RankedPopupRow({ row, onNavigate }: { row: OwnerRankedRow; onNavigate?: () => void }) {
@@ -43,6 +45,7 @@ export function OwnerDashboardListPopup({
   metaLine,
   rows,
   children,
+  wide = false,
 }: OwnerDashboardListPopupProps) {
   useEffect(() => {
     if (!open) return
@@ -66,7 +69,10 @@ export function OwnerDashboardListPopup({
       <div
         role="dialog"
         aria-label={title}
-        className="relative z-10 flex max-h-[min(32rem,85vh)] w-full max-w-md flex-col overflow-hidden rounded-[14px] border shadow-[0_12px_48px_rgba(44,41,36,0.18),0_2px_8px_rgba(44,41,36,0.08)]"
+        className={cn(
+          "relative z-10 flex max-h-[min(32rem,85vh)] w-full flex-col overflow-hidden rounded-[14px] border shadow-[0_12px_48px_rgba(44,41,36,0.18),0_2px_8px_rgba(44,41,36,0.08)]",
+          wide ? "max-w-3xl" : "max-w-md",
+        )}
         style={{ backgroundColor: PANEL_SURFACE, borderColor: P.rule }}
         onMouseDown={(event) => event.stopPropagation()}
       >

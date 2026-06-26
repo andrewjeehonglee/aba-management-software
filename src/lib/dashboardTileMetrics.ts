@@ -91,6 +91,12 @@ export function formatDashboardMonthLabel(raw: string): string {
   return trimmed.replace(/^Month of\s+/i, "")
 }
 
+export function formatNoteSessionDate(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
 export function shortClientLabel(name: string): string {
   const trimmed = name.trim()
   if (!trimmed) return "?"
@@ -176,8 +182,8 @@ export function buildNotesTileViewModel(
       href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
       children: row.items.map((item) => ({
         id: item.sessionId,
-        name: shortClientLabel(item.clientName),
-        value: item.bucket === "overdue" ? "Overdue" : "Pending",
+        name: item.clientName.trim() || shortClientLabel(item.clientName),
+        detail: formatNoteSessionDate(item.scheduledAt),
         tone: (item.bucket === "overdue" ? "urgent" : "monitor") as AttentionBubbleTone,
         href: item.clientCode ? clientProfilePath(item.clientCode) : undefined,
       })),
@@ -234,7 +240,7 @@ export function buildDirectHoursTileViewModel(
       selfStaffId: options?.selfStaffId,
       staffId: row.staffId,
     }),
-    value: `${Math.round(row.directPct * 100)}%`,
+    detail: `${Math.round(row.directPct * 100)}% direct`,
     tone: "urgent",
     href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
   }))
@@ -275,7 +281,7 @@ export function buildSupervisionTileViewModel(
       selfStaffId: options?.selfStaffId,
       staffId: row.staffId,
     }),
-    value: `${row.supervisionPct.toFixed(1)}%`,
+    detail: `${row.supervisionPct.toFixed(1)}% supervision`,
     tone: "urgent",
     href: row.staffExternalCode ? staffProfilePath(row.staffExternalCode) : undefined,
   }))
@@ -308,8 +314,8 @@ export function buildAuthorizationTileViewModel(
 
   const popoverItems: MetricPopoverItem[] = flagged.map((row) => ({
     id: row.authId,
-    name: shortClientLabel(row.clientName),
-    value: authRunwayValue(row),
+    name: row.clientName.trim() || shortClientLabel(row.clientName),
+    detail: authRunwayValue(row),
     tone: "urgent",
     href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
   }))
