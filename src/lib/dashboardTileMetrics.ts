@@ -7,7 +7,7 @@ import {
 import type { ClientAuthUtilRow } from "@/lib/authUtilization"
 import type { BcbaTileState } from "@/lib/bcbaTileState"
 import { firstName } from "@/lib/ownerDashboardStatus"
-import { notesSummaryLines, OWNER_OVER_CAP_INK } from "@/lib/ownerDashboardConcerns"
+import { OWNER_OVER_CAP_INK } from "@/lib/ownerDashboardConcerns"
 import type { NotesStatusSummary } from "@/lib/notesStatus"
 import { clientProfilePath, staffProfilePath } from "@/lib/rosterScope"
 import type { StaffHoursSummary } from "@/lib/staffHours"
@@ -32,7 +32,7 @@ export const TILE_DEFINITIONS = {
     id: "supervision",
     title: "Supervision compliance",
     selfTitle: "My supervision compliance",
-    requirement: "Technicians must receive a minimum of 5% supervision per month.",
+    requirement: "Technicians must receive a min. 5% supervision per month.",
   },
   authorization: {
     id: "authorization",
@@ -41,12 +41,13 @@ export const TILE_DEFINITIONS = {
   },
 } as const
 
-export type DashboardTileSummaryTone = "urgent" | "monitor" | "neutral"
+export type DashboardMetricTone = "urgent" | "monitor" | "neutral"
 
-export interface DashboardTileSummaryLine {
-  text: string
-  hint?: string
-  tone?: DashboardTileSummaryTone
+export interface DashboardDualMetricSide {
+  value: number
+  unit: string
+  clarifier: string
+  tone: DashboardMetricTone
 }
 
 export interface DashboardTileViewModel {
@@ -56,12 +57,18 @@ export interface DashboardTileViewModel {
   state: BcbaTileState
   metric: number
   descriptor: string
-  summaryLines?: DashboardTileSummaryLine[]
-  hideMetric?: boolean
+  dualMetric?: {
+    left: DashboardDualMetricSide
+    right: DashboardDualMetricSide
+  }
+  showViewAll?: boolean
   popoverItems?: MetricPopoverItem[]
   popoverGroups?: MetricPopoverGroup[]
   popoverEmptyLabel: string
 }
+
+export const BIG_METRIC_CLASS =
+  "text-[42px] font-semibold leading-none tracking-[-0.03em] tabular-nums"
 
 export function formatDashboardMonthLabel(raw: string): string {
   const trimmed = raw.trim()
@@ -100,10 +107,10 @@ function tileTitle(
   return def.title
 }
 
-function summaryToneFromText(text: string): DashboardTileSummaryTone {
-  if (text.includes("overdue")) return "urgent"
-  if (text.includes("pending")) return "monitor"
-  return "neutral"
+export function metricToneInk(tone: DashboardMetricTone): string {
+  if (tone === "urgent") return OWNER_OVER_CAP_INK
+  if (tone === "monitor") return P.amberInk
+  return P.soft
 }
 
 export function authRunwayState(row: ClientAuthUtilRow): BcbaTileState {
@@ -137,20 +144,10 @@ export function buildNotesTileViewModel(
 ): DashboardTileViewModel {
   const overdueTotal = notes.totalOverdue
   const missingTotal = notes.totalMissing
-  const incompleteTotal = overdueTotal + missingTotal
 
   let state: BcbaTileState = "healthy"
   if (overdueTotal > 0) state = "urgent"
   else if (missingTotal > 0) state = "monitor"
-
-  const summaryLines: DashboardTileSummaryLine[] = notesSummaryLines(overdueTotal, missingTotal).map(
-    (line) => ({
-      ...line,
-      tone: summaryToneFromText(line.text),
-    }),
-  )
-
-  const hasIssues = incompleteTotal > 0
 
   const popoverGroups: MetricPopoverGroup[] = notes.byStaff
     .filter((row) => row.missingCount + row.overdueCount > 0)
@@ -176,10 +173,23 @@ export function buildNotesTileViewModel(
     title: tileTitle(TILE_DEFINITIONS.notes, options?.selfMode),
     requirement: TILE_DEFINITIONS.notes.requirement,
     state,
-    metric: incompleteTotal,
-    descriptor: hasIssues ? "" : "All notes complete",
-    summaryLines: hasIssues ? summaryLines : undefined,
-    hideMetric: hasIssues,
+    metric: overdueTotal + missingTotal,
+    descriptor: "",
+    dualMetric: {
+      left: {
+        value: overdueTotal,
+        unit: "notes overdue",
+        clarifier: "past the submission deadline",
+        tone: "urgent",
+      },
+      right: {
+        value: missingTotal,
+        unit: "notes pending",
+        clarifier: "not yet due, still within the window",
+        tone: "monitor",
+      },
+    },
+    showViewAll: popoverGroups.length > 0,
     popoverGroups,
     popoverEmptyLabel: "All notes complete",
   }
@@ -299,10 +309,4 @@ export function buildAuthorizationTileViewModel(
     popoverItems,
     popoverEmptyLabel: "No clients over authorized hours",
   }
-}
-
-export function summaryLineInk(tone?: DashboardTileSummaryTone): string {
-  if (tone === "urgent") return OWNER_OVER_CAP_INK
-  if (tone === "monitor") return P.amberInk
-  return P.soft
 }

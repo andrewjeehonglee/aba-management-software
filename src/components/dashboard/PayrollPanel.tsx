@@ -39,12 +39,12 @@ function staffHref(row: PayPeriodStaffHoursRow): string {
 
 function PanelSkeleton() {
   return (
-    <div className="animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
+    <div className="mx-auto w-full max-w-2xl animate-pulse rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card">
       <div className="h-5 w-48 rounded bg-line-soft" />
       <div className="mx-auto mt-4 h-12 w-56 rounded bg-line-soft" />
-      <div className="mt-4 grid grid-cols-3 gap-2">
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-[4.25rem] rounded-[12px] bg-line-soft" />
+          <div key={i} className="h-[4.75rem] w-[7.5rem] rounded-[12px] bg-line-soft" />
         ))}
       </div>
     </div>
@@ -55,20 +55,20 @@ function StaffPayrollBox({ row }: { row: PayPeriodStaffHoursRow }) {
   return (
     <Link
       to={staffHref(row)}
-      className="flex w-full cursor-pointer flex-col items-center rounded-[12px] border px-2.5 py-2.5 text-center transition-opacity hover:opacity-90"
+      className="inline-flex w-[7.5rem] cursor-pointer flex-col items-center rounded-[12px] border px-2.5 py-3 text-center transition-opacity hover:opacity-90"
       style={{
         backgroundColor: P.inset,
         borderColor: P.rule,
       }}
     >
-      <span className="w-full truncate text-[15px] font-bold leading-snug" style={{ color: P.ink }}>
+      <span className="w-full truncate text-[16px] font-bold leading-snug" style={{ color: P.ink }}>
         {firstName(row.staffName)}
       </span>
-      <span className="mt-1.5 text-[14px] tabular-nums leading-snug" style={{ color: P.sageInk }}>
+      <span className="mt-1.5 text-[15px] tabular-nums leading-snug" style={{ color: P.sageInk }}>
         {row.payableHours} payable
       </span>
       <span
-        className="text-[14px] tabular-nums leading-snug"
+        className="text-[15px] tabular-nums leading-snug"
         style={{ color: row.onHoldHours > 0 ? OWNER_ON_HOLD_INK : P.faint }}
       >
         {row.onHoldHours} on hold
@@ -103,7 +103,7 @@ export function PayrollPanel({
     <section
       id="owner-pillar-payroll"
       className={cn(
-        "scroll-mt-4 rounded-[var(--radius)] bg-surface px-4 py-3.5 shadow-card short:px-3.5 short:py-3",
+        "mx-auto w-full max-w-2xl scroll-mt-4 rounded-[var(--radius)] bg-surface px-4 py-4 shadow-card short:px-3.5 short:py-3",
         OWNER_TILE_ACCENT_CLASS,
       )}
       aria-label="Payroll"
@@ -143,7 +143,7 @@ export function PayrollPanel({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap justify-center gap-x-12 gap-y-3">
+      <div className="mt-4 flex flex-wrap justify-center gap-x-12 gap-y-3">
         <div className="text-center">
           <p className="text-[14px] font-semibold uppercase tracking-[0.06em] text-muted">
             Hours payable now
@@ -165,14 +165,11 @@ export function PayrollPanel({
         </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-5">
         {tierStaff.length === 0 ? (
           <p className="py-2 text-center text-[14px] text-muted">No staff in this group.</p>
         ) : (
-          <ul
-            className="grid gap-2"
-            style={{ gridTemplateColumns: `repeat(${tierStaff.length}, minmax(0, 1fr))` }}
-          >
+          <ul className="flex flex-wrap justify-center gap-2.5">
             {tierStaff.map((row) => (
               <li key={row.staffId}>
                 <StaffPayrollBox row={row} />

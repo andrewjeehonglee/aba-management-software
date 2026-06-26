@@ -12,7 +12,7 @@ export const TILE_BODY = "text-[15px]"
 
 /** Shared two-column row: widest name sets column 1; values stack on one line. */
 export const OWNER_RANKED_ROW_CLASS =
-  "col-span-2 grid grid-cols-subgrid items-center gap-x-3 px-2.5 py-0.5 hover:opacity-85"
+  "col-span-2 grid grid-cols-subgrid items-center px-2.5 py-1.5 hover:opacity-85"
 
 export function rowInk(severity: OwnerRankedRow["severity"]): string {
   if (severity === "overdue" || severity === "over-cap") return OWNER_OVER_CAP_INK
@@ -44,29 +44,22 @@ function RankedRowContent({ row }: { row: OwnerRankedRow }) {
   )
 }
 
-function RankedRowItem({
-  row,
-  showBorder,
-}: {
-  row: OwnerRankedRow
-  showBorder: boolean
-}) {
+function RankedRowItem({ row }: { row: OwnerRankedRow }) {
   const rowClass = cn(
     OWNER_RANKED_ROW_CLASS,
     row.href && "cursor-pointer",
   )
-  const borderStyle = showBorder ? { borderTop: `1px solid ${P.rule}` } : undefined
 
   if (row.href) {
     return (
-      <Link to={row.href} className={rowClass} style={borderStyle}>
+      <Link to={row.href} className={rowClass}>
         <RankedRowContent row={row} />
       </Link>
     )
   }
 
   return (
-    <div className={rowClass} style={borderStyle}>
+    <div className={rowClass}>
       <RankedRowContent row={row} />
     </div>
   )
@@ -77,12 +70,12 @@ export function OwnerRankedRows({ rows }: { rows: OwnerRankedRow[] }) {
 
   return (
     <ul
-      className="mt-3 grid gap-x-3"
+      className="mt-3 grid gap-x-6 gap-y-2"
       style={{ gridTemplateColumns: "max-content auto" }}
     >
-      {rows.map((row, index) => (
+      {rows.map((row) => (
         <li key={row.id} className="contents">
-          <RankedRowItem row={row} showBorder={index > 0} />
+          <RankedRowItem row={row} />
         </li>
       ))}
     </ul>

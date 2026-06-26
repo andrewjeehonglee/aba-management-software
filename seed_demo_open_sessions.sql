@@ -1,12 +1,12 @@
 -- =============================================================================
--- Demo Start Session — open sessions for roster clients (Jun 26, 2026)
+-- Demo Start Session — open sessions for roster clients (today's date)
 -- =============================================================================
 --
 -- Run in Supabase SQL Editor AFTER roster import + demo activity seeds.
 -- Idempotent — skips rows that already exist for the same client/day/staff.
 --
--- Demo practice: a1b2c3d4-0000-0000-0000-000000000001
--- SPG practice:  c3d4e5f6-5047-4000-8000-533047000001
+-- Demo practice: a1b2c3d4-0000-0000-0000-000000000001  (Social Play Group Demo)
+-- SPG practice:  c3d4e5f6-5047-4000-8000-533047000001  (Social Play Group)
 -- =============================================================================
 
 WITH practices AS (
@@ -17,11 +17,11 @@ WITH practices AS (
 ),
 open_seed AS (
   SELECT * FROM (VALUES
-    ('PeLe',  'SPG-BT-jazmine', '2026-06-26T09:00:00-07:00'),
-    ('IsRi',  'SPG-BT-enny',    '2026-06-26T10:00:00-07:00'),
-    ('BrTu',  'SPG-BT-emaya',   '2026-06-26T11:00:00-07:00'),
-    ('Ells',  'SPG-BT-daniel',  '2026-06-26T13:00:00-07:00')
-  ) AS v(client_code, staff_code, scheduled_at)
+    ('PeLe',  'SPG-BT-jazmine', '09:00:00'),
+    ('IsRi',  'SPG-BT-enny',    '10:00:00'),
+    ('BrTu',  'SPG-BT-emaya',   '11:00:00'),
+    ('Ells',  'SPG-BT-daniel',  '13:00:00')
+  ) AS v(client_code, staff_code, time_of_day)
 )
 INSERT INTO sessions (practice_id, client_id, staff_id, session_type, status, scheduled_at)
 SELECT
@@ -30,7 +30,7 @@ SELECT
   s.id,
   'direct',
   'scheduled',
-  v.scheduled_at::timestamptz
+  (CURRENT_DATE::text || 'T' || v.time_of_day || '-07:00')::timestamptz
 FROM practices p
 CROSS JOIN open_seed v
 JOIN clients c
@@ -47,5 +47,6 @@ WHERE NOT EXISTS (
   WHERE existing.practice_id = p.practice_id
     AND existing.client_id = c.id
     AND existing.staff_id = s.id
-    AND existing.scheduled_at = v.scheduled_at::timestamptz
+    AND existing.status IN ('scheduled', 'in-progress')
+    AND existing.scheduled_at::date = CURRENT_DATE
 );

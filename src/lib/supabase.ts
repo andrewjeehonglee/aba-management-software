@@ -405,8 +405,13 @@ interface SessionByIdRow {
   session_type: string
   scheduled_at: string
   status: string
-  clients: { first_name: string; last_name: string } | null
-  staff: { full_name: string } | null
+}
+
+const SESSION_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+export function isValidSessionId(id: string | null | undefined): id is string {
+  return typeof id === "string" && SESSION_ID_RE.test(id)
 }
 
 export interface SessionDetail {
@@ -421,17 +426,34 @@ export interface SessionDetail {
 }
 
 export async function getSessionById(sessionId: string): Promise<SessionDetail | null> {
-  const { data, error } = await supabase
+  if (!isValidSessionId(sessionId)) return null
+
+  const { data: session, error } = await supabase
     .from('sessions')
-    .select('id, client_id, staff_id, session_type, scheduled_at, status, clients(first_name, last_name), staff(full_name)')
+    .select('id, client_id, staff_id, session_type, scheduled_at, status')
     .eq('id', sessionId)
     .maybeSingle()
   if (error) throw error
-  if (!data) return null
+  if (!session) return null
 
-  const row = data as unknown as SessionByIdRow
-  const client = row.clients
-  const staff = row.staff
+  const row = session as SessionByIdRow
+
+  const [clientResult, staffResult] = await Promise.all([
+    supabase
+      .from('clients')
+      .select('first_name, last_name')
+      .eq('id', row.client_id)
+      .maybeSingle(),
+    supabase
+      .from('staff')
+      .select('full_name')
+      .eq('id', row.staff_id)
+      .maybeSingle(),
+  ])
+
+  const client = clientResult.data as { first_name: string; last_name: string } | null
+  const staff = staffResult.data as { full_name: string } | null
+
   return {
     id:           row.id,
     clientId:     row.client_id,
@@ -459,9 +481,9 @@ export async function findOpenSessionForClient(
     .in('status', ['scheduled', 'in-progress'])
     .order('scheduled_at', { ascending: false })
     .limit(1)
-    .maybeSingle()
   if (error) throw error
-  return data ? (data as { id: string }).id : null
+  const row = (data ?? [])[0] as { id: string } | undefined
+  return row?.id ?? null
 }
 
 /** Fallback staff PK when the signed-in user has no staff profile link. */

@@ -22,6 +22,7 @@ import { CalendarDaySessionsPopup } from "@/pages/SessionsPage/CalendarDaySessio
 const BAR_HEIGHT = "h-2"
 const VISIBLE_CHIP_CAP = 3
 const DAY_CELL_MIN_H = "min-h-[52px]"
+const COMPACT_DAY_CELL_MIN_H = "min-h-[88px]"
 /** Uniform dashboard chip width — fixed, centered, ellipsis inside. */
 const DASHBOARD_CHIP_BAR_CLASS = "mx-auto block w-[112px] max-w-[112px] shrink-0"
 
@@ -228,8 +229,8 @@ export function PracticeSessionCalendar({
         key={iso}
         className={cn(
           "flex flex-col overflow-hidden rounded-md",
-          compact ? "px-0.5 py-0.5" : "p-1",
-          DAY_CELL_MIN_H,
+          compact ? "px-1 py-1" : "p-1",
+          compact ? COMPACT_DAY_CELL_MIN_H : DAY_CELL_MIN_H,
         )}
         style={{
           backgroundColor: hasScheduled ? P.calScheduledTint : undefined,
@@ -356,16 +357,16 @@ export function PracticeSessionCalendar({
             ))}
           </div>
 
-          <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", compact ? "mt-0.5 space-y-0.5" : "mt-1 space-y-1")}>
+          <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", compact ? "mt-1 space-y-2.5" : "mt-1 space-y-1")}>
             {grid.map((week, wi) => (
-              <div key={wi} className={cn("grid min-h-0 flex-1 grid-cols-7", compact ? "gap-0.5" : "gap-1")}>
+              <div key={wi} className={cn("grid min-h-0 flex-1 grid-cols-7", compact ? "gap-1" : "gap-1")}>
                 {week.map((day, di) =>
                   day
                     ? renderDayCell(day)
                     : (
                       <div
                         key={di}
-                        className={DAY_CELL_MIN_H}
+                        className={compact ? COMPACT_DAY_CELL_MIN_H : DAY_CELL_MIN_H}
                         aria-hidden="true"
                       />
                     ),
