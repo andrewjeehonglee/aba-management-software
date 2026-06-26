@@ -134,7 +134,7 @@ export function BcbaDashboardTile({
       <h3 className={cn(TILE_TITLE, "text-ink")}>{title}</h3>
 
       {dualMetric ? (
-        <div className="mt-2 grid grid-cols-2 gap-x-4">
+        <div className="mt-4 grid grid-cols-2 gap-x-4">
           <DualMetricColumn
             side={dualMetric.left}
             title={title}
@@ -147,7 +147,7 @@ export function BcbaDashboardTile({
           />
         </div>
       ) : (
-        <div className="mt-2 flex flex-col gap-0.5">
+        <div className="mt-4 flex flex-col gap-0.5">
           <MetricPopover
             metric={metric}
             metricClassName={cn(BIG_METRIC_CLASS, metricClass)}
@@ -163,7 +163,12 @@ export function BcbaDashboardTile({
         </div>
       )}
 
-      <div className="mt-auto flex items-end justify-between gap-3 pt-3">
+      <div
+        className={cn(
+          "mt-auto flex items-end gap-3 pt-2",
+          showViewAll ? "justify-between" : "justify-end",
+        )}
+      >
         <div className="min-w-0">
           {showViewAll ? (
             <ViewAllLink

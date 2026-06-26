@@ -8,6 +8,7 @@ import {
 import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 import { P } from "@/pages/ClientOverviewPage/profileTokens"
 import { OwnerDashboardListPopup } from "@/components/dashboard/OwnerDashboardListPopup"
+import { MetricPopupBoxContent } from "@/components/dashboard/MetricPopupBoxes"
 import { OwnerRankedRows, OwnerViewAllButton } from "@/components/dashboard/OwnerRankedRows"
 
 /** Reserve two summary lines so ranked rows align across all three tiles. */
@@ -133,8 +134,16 @@ export function OwnerMonitorTiles({
         onClose={() => setPopupTileId(null)}
         title={popupTile?.title ?? ""}
         metaLine={popupTile?.popupMetaLine}
-        rows={popupTile?.viewAllRows}
-      />
+        wide
+      >
+        {popupTile ? (
+          <MetricPopupBoxContent
+            items={popupTile.popoverItems}
+            groups={popupTile.popoverGroups}
+            onNavigate={() => setPopupTileId(null)}
+          />
+        ) : null}
+      </OwnerDashboardListPopup>
     </>
   )
 }

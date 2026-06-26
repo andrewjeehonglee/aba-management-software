@@ -1,5 +1,7 @@
 import type { BcbaTileState } from "@/lib/bcbaTileState"
+import type { MetricPopoverGroup, MetricPopoverItem } from "@/components/dashboard/MetricPopover"
 import {
+  buildNotesTileViewModel,
   authRunwayState,
   shortClientLabel,
   sortAuthRunwayRows,
@@ -80,6 +82,8 @@ export interface OwnerMonitorTile {
   rows: OwnerRankedRow[]
   /** Full ranked list for the view-all popup. */
   viewAllRows: OwnerRankedRow[]
+  popoverItems?: MetricPopoverItem[]
+  popoverGroups?: MetricPopoverGroup[]
   totalRowCount: number
   popupMetaLine?: string
   /** Muted filler when the month is too early to flag direct ratios. */
@@ -269,6 +273,7 @@ export async function getOwnerDashboardData(options: {
   )
 
   const notesCapped = capRows(noteRowCandidates)
+  const notesPopover = buildNotesTileViewModel(notes)
 
   const notesTile: OwnerMonitorTile = {
     id: "notes",
@@ -281,6 +286,7 @@ export async function getOwnerDashboardData(options: {
     emptyLabel: "All clear — every note is in for this pay period",
     rows: notesCapped.rows,
     viewAllRows: noteRowCandidates,
+    popoverGroups: notesPopover.popoverGroups,
     totalRowCount: notesCapped.totalRowCount,
     popupMetaLine: `${notesCapped.totalRowCount} staff · ${payroll.payPeriodTableLabel}`,
   }
@@ -347,6 +353,20 @@ export async function getOwnerDashboardData(options: {
     emptyLabel: "All clear — every client within authorized hours",
     rows: authCapped.rows,
     viewAllRows: authRowCandidates,
+    popoverItems: [
+      ...authOverCap.map((row) => ({
+        id: row.authId,
+        name: row.clientName.trim() || shortClientLabel(row.clientName),
+        detail: `${row.overHours} hrs over`,
+        href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+      })),
+      ...authNearCap.map((row) => ({
+        id: row.authId,
+        name: row.clientName.trim() || shortClientLabel(row.clientName),
+        detail: `${row.hoursRemaining} hrs left`,
+        href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+      })),
+    ],
     totalRowCount: authCapped.totalRowCount,
     popupMetaLine: `${authCapped.totalRowCount} clients · ${calendarMonthLabel}`,
   }
@@ -384,6 +404,12 @@ export async function getOwnerDashboardData(options: {
     emptyLabel: "All clear — direct engagement on track this month",
     rows: directCapped.rows,
     viewAllRows: directRowCandidates,
+    popoverItems: directFlags.map((row) => ({
+      id: row.clientId,
+      name: row.clientLabel,
+      detail: `${Math.round(row.directRatio * 100)}% direct`,
+      href: row.clientCode ? clientProfilePath(row.clientCode) : undefined,
+    })),
     totalRowCount: directCapped.totalRowCount,
     popupMetaLine: `${directRowCandidates.length} clients · ${calendarMonthLabel}`,
     calmNote: directFlagging

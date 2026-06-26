@@ -221,7 +221,7 @@ export function buildNotesTileViewModel(
         popoverGroups: filterNoteGroupsByBucket(popoverGroups, "pending"),
       },
     },
-    showViewAll: popoverGroups.length > 0,
+    showViewAll: false,
     popoverGroups,
     popoverEmptyLabel: "All notes complete",
   }
