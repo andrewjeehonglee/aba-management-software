@@ -1,21 +1,95 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useState, type ReactNode } from "react"
+import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
-import { AttentionBubble, type AttentionBubbleTone } from "@/components/dashboard/AttentionBubble"
+import type { OwnerRankedRow } from "@/lib/ownerDashboardConcerns"
+import { OwnerDashboardListPopup } from "@/components/dashboard/OwnerDashboardListPopup"
+import { OWNER_RANKED_ROW_CLASS, OwnerRankedRowContent } from "@/components/dashboard/OwnerRankedRows"
+import { P } from "@/pages/ClientOverviewPage/profileTokens"
 
 export type MetricPopoverItem = {
   id: string
   name: string
   value: string
-  tone?: AttentionBubbleTone
+  tone?: "healthy" | "monitor" | "urgent"
   href?: string
 }
 
 export type MetricPopoverGroup = {
   id: string
   name: string
-  tone?: AttentionBubbleTone
+  tone?: "healthy" | "monitor" | "urgent"
   href?: string
   children: MetricPopoverItem[]
+}
+
+function itemToRow(item: MetricPopoverItem): OwnerRankedRow {
+  return {
+    id: item.id,
+    label: `${item.name} ${item.value}`,
+    nameLabel: item.name,
+    consequenceLabel: item.value,
+    severity: "neutral",
+    magnitude: 0,
+    href: item.href,
+  }
+}
+
+function PopupRow({ row, onNavigate }: { row: OwnerRankedRow; onNavigate: () => void }) {
+  if (row.href) {
+    return (
+      <Link
+        to={row.href}
+        onClick={onNavigate}
+        className={cn(OWNER_RANKED_ROW_CLASS, "cursor-pointer rounded-md py-2.5")}
+      >
+        <OwnerRankedRowContent row={row} />
+      </Link>
+    )
+  }
+
+  return (
+    <div className={cn(OWNER_RANKED_ROW_CLASS, "py-2.5")}>
+      <OwnerRankedRowContent row={row} />
+    </div>
+  )
+}
+
+function GroupedPopupContent({
+  groups,
+  onClose,
+}: {
+  groups: MetricPopoverGroup[]
+  onClose: () => void
+}) {
+  let rowIndex = 0
+
+  return (
+    <>
+      {groups.map((group) => (
+        <div key={group.id}>
+          <p
+            className="px-2.5 pb-1 pt-3 text-[13px] font-semibold"
+            style={{ color: P.ink }}
+          >
+            {group.name}
+          </p>
+          {group.children.map((item) => {
+            const index = rowIndex++
+            return (
+              <div
+                key={item.id}
+                style={{
+                  borderTop: index > 0 ? `1px solid ${P.rule}` : undefined,
+                }}
+              >
+                <PopupRow row={itemToRow(item)} onNavigate={onClose} />
+              </div>
+            )
+          })}
+        </div>
+      ))}
+    </>
+  )
 }
 
 export function MetricPopover({
@@ -25,7 +99,7 @@ export function MetricPopover({
   groups = [],
   emptyLabel = "All caught up",
   ariaLabel = "Show details",
-  placement = "top-right",
+  title,
 }: {
   metric: ReactNode
   metricClassName?: string
@@ -33,38 +107,25 @@ export function MetricPopover({
   groups?: MetricPopoverGroup[]
   emptyLabel?: string
   ariaLabel?: string
-  /** Where the detail panel opens relative to the metric trigger. */
-  placement?: "top-right" | "below"
+  title?: string
 }) {
   const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
   const hasContent = items.length > 0 || groups.length > 0
+  const popupTitle = title ?? ariaLabel
+  const rows = items.map(itemToRow)
 
-  useEffect(() => {
-    if (!open) return
-    function onPointerDown(event: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false)
-    }
-    document.addEventListener("mousedown", onPointerDown)
-    document.addEventListener("keydown", onKeyDown)
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown)
-      document.removeEventListener("keydown", onKeyDown)
-    }
-  }, [open])
+  function close() {
+    setOpen(false)
+  }
 
   return (
-    <div className="relative inline-block" ref={rootRef}>
+    <>
       <button
         type="button"
         aria-expanded={open}
+        aria-haspopup="dialog"
         aria-label={ariaLabel}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => setOpen(true)}
         className={cn(
           "cursor-pointer rounded-md text-left transition-opacity hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           metricClassName,
@@ -72,55 +133,19 @@ export function MetricPopover({
       >
         {metric}
       </button>
-      {open && (
-        <div
-          role="dialog"
-          aria-label="Details"
-          className={cn(
-            "z-50 min-w-[min(100%,14rem)] max-w-[22rem] rounded-[var(--radius)] border border-line bg-surface p-3 shadow-card",
-            placement === "top-right"
-              ? "absolute bottom-full right-0 mb-2"
-              : "absolute left-0 top-full mt-2",
-          )}
-        >
-          {!hasContent ? (
-            <p className="text-sm text-muted">{emptyLabel}</p>
-          ) : groups.length > 0 ? (
-            <div className="space-y-3">
-              {groups.map((group) => (
-                <div key={group.id}>
-                  <p className="mb-1.5 text-[13px] font-semibold text-ink">{group.name}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {group.children.map((item) => (
-                      <AttentionBubble
-                        key={item.id}
-                        name={item.name}
-                        value={item.value}
-                        tone={item.tone}
-                        href={item.href}
-                        onClick={() => setOpen(false)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {items.map((item) => (
-                <AttentionBubble
-                  key={item.id}
-                  name={item.name}
-                  value={item.value}
-                  tone={item.tone}
-                  href={item.href}
-                  onClick={() => setOpen(false)}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+
+      <OwnerDashboardListPopup
+        open={open}
+        onClose={close}
+        title={popupTitle}
+        rows={groups.length > 0 ? undefined : hasContent ? rows : undefined}
+      >
+        {!hasContent ? (
+          <p className="px-5 py-4 text-sm text-muted">{emptyLabel}</p>
+        ) : groups.length > 0 ? (
+          <GroupedPopupContent groups={groups} onClose={close} />
+        ) : undefined}
+      </OwnerDashboardListPopup>
+    </>
   )
 }

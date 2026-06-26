@@ -19,15 +19,42 @@ import { TILE_TITLE } from "@/pages/ClientOverviewPage/profileTokens"
 
 export type BcbaBubbleItem = MetricPopoverItem
 
-function DualMetricColumn({ side }: { side: DashboardDualMetricSide }) {
+function DualMetricColumn({
+  side,
+  title,
+  popoverEmptyLabel,
+}: {
+  side: DashboardDualMetricSide
+  title: string
+  popoverEmptyLabel: string
+}) {
+  const hasPopover =
+    (side.popoverItems?.length ?? 0) > 0 || (side.popoverGroups?.length ?? 0) > 0
+
+  const valueEl = (
+    <span
+      className={BIG_METRIC_CLASS}
+      style={{ color: metricToneInk(side.tone) }}
+    >
+      {side.value}
+    </span>
+  )
+
   return (
     <div className="min-w-0">
-      <p
-        className={BIG_METRIC_CLASS}
-        style={{ color: metricToneInk(side.tone) }}
-      >
-        {side.value}
-      </p>
+      {hasPopover ? (
+        <MetricPopover
+          metric={valueEl}
+          metricClassName=""
+          items={side.popoverItems}
+          groups={side.popoverGroups}
+          emptyLabel={popoverEmptyLabel}
+          ariaLabel={`${title}: ${side.unit}`}
+          title={`${title} · ${side.unit}`}
+        />
+      ) : (
+        valueEl
+      )}
       <p className="mt-1 text-sm font-medium text-ink-soft">{side.unit}</p>
     </div>
   )
@@ -57,6 +84,7 @@ function ViewAllLink({
       groups={popoverGroups}
       emptyLabel={popoverEmptyLabel}
       ariaLabel={`${title} details`}
+      title={title}
     />
   )
 }
@@ -106,8 +134,16 @@ export function BcbaDashboardTile({
 
       {dualMetric ? (
         <div className="mt-2 grid grid-cols-2 gap-x-4">
-          <DualMetricColumn side={dualMetric.left} />
-          <DualMetricColumn side={dualMetric.right} />
+          <DualMetricColumn
+            side={dualMetric.left}
+            title={title}
+            popoverEmptyLabel={popoverEmptyLabel}
+          />
+          <DualMetricColumn
+            side={dualMetric.right}
+            title={title}
+            popoverEmptyLabel={popoverEmptyLabel}
+          />
         </div>
       ) : (
         <div className="mt-2 flex flex-col gap-0.5">
@@ -118,6 +154,7 @@ export function BcbaDashboardTile({
             groups={popoverGroups}
             emptyLabel={popoverEmptyLabel}
             ariaLabel={`${title} details`}
+            title={title}
           />
           {descriptor ? (
             <span className="text-sm font-medium text-ink-soft">{descriptor}</span>

@@ -47,6 +47,22 @@ export interface DashboardDualMetricSide {
   value: number
   unit: string
   tone: DashboardMetricTone
+  popoverItems?: MetricPopoverItem[]
+  popoverGroups?: MetricPopoverGroup[]
+}
+
+function filterNoteGroupsByBucket(
+  groups: MetricPopoverGroup[],
+  bucket: "overdue" | "pending",
+): MetricPopoverGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      children: group.children.filter((item) =>
+        bucket === "overdue" ? item.tone === "urgent" : item.tone === "monitor",
+      ),
+    }))
+    .filter((group) => group.children.length > 0)
 }
 
 export interface DashboardTileViewModel {
@@ -179,11 +195,13 @@ export function buildNotesTileViewModel(
         value: overdueTotal,
         unit: "notes overdue",
         tone: "urgent",
+        popoverGroups: filterNoteGroupsByBucket(popoverGroups, "overdue"),
       },
       right: {
         value: missingTotal,
         unit: "notes pending",
         tone: "monitor",
+        popoverGroups: filterNoteGroupsByBucket(popoverGroups, "pending"),
       },
     },
     showViewAll: popoverGroups.length > 0,

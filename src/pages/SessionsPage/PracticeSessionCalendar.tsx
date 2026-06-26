@@ -21,11 +21,12 @@ import { CalendarDaySessionsPopup } from "@/pages/SessionsPage/CalendarDaySessio
 
 const BAR_HEIGHT = "h-2"
 const VISIBLE_CHIP_CAP = 3
+const COMPACT_VISIBLE_CHIP_CAP = 2
 const DAY_CELL_MIN_H = "min-h-[52px]"
 /** Fixed height keeps the grid stable between My sessions / My team. */
-const COMPACT_DAY_CELL_H = "h-[108px]"
+const COMPACT_DAY_CELL_H = "h-[82px]"
 /** Dashboard chips: fit full time · client · type content. */
-const DASHBOARD_CHIP_CLASS = "mx-auto block w-max max-w-full whitespace-nowrap text-[11px] leading-tight"
+const DASHBOARD_CHIP_CLASS = "mx-auto block w-max max-w-full whitespace-nowrap text-[13px] leading-snug"
 
 function ChipSegmentDivider() {
   return (
@@ -218,12 +219,13 @@ export function PracticeSessionCalendar({
   function renderDayCell(day: Date) {
     const iso = localISO(day)
     const daySessions = sessionsOnDay(iso)
+    const chipCap = compact ? COMPACT_VISIBLE_CHIP_CAP : VISIBLE_CHIP_CAP
     const isToday = iso === todayISO
     const hasScheduled = daySessions.some(
       (s) => s.status === "scheduled" || s.status === "in-progress",
     )
-    const hiddenCount = Math.max(0, daySessions.length - VISIBLE_CHIP_CAP)
-    const displayedSessions = daySessions.slice(0, VISIBLE_CHIP_CAP)
+    const hiddenCount = Math.max(0, daySessions.length - chipCap)
+    const displayedSessions = daySessions.slice(0, chipCap)
 
     return (
       <div
