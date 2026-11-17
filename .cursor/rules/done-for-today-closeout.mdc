@@ -5,7 +5,9 @@ alwaysApply: true
 
 # "Done for today" means the full close-out (permanent, every folder)
 
-**Andrew, Tue Nov 17, 2026:** *"When I say I'm done for today, that means the above"*: save and log-capture everything worked on today, nothing slips, commit and push everything, run a comprehensive audit. It applies in every project folder, in Cursor and in Claude Code. He should never have to spell the steps out again.
+**Andrew, Tue Nov 17, 2026:** *"When I say I'm done for today, that means the above"*: save and log-capture everything worked on today, nothing slips, commit and push everything, run a comprehensive audit. The rule is in every project folder, in Cursor and in Claude Code. He should never have to spell the steps out again.
+
+**Scope (Andrew, Nov 17): only the folder we are working in.** Saying it in personal-os closes out personal-os, nothing else. Never run the close-out in another folder, even if this session wrote a file there; name that file in the report and leave it for that folder's own session.
 
 **Canonical copy:** `personal-os/.cursor/rules/done-for-today-closeout.mdc`. Each of his project repos carries the same file; Claude Code also reads it from `~/.claude/CLAUDE.md`. Change the canonical copy first, then the others.
 
@@ -18,8 +20,8 @@ alwaysApply: true
 1. **Clock first.** Run `date`; every stamp comes from it (`shell-date-before-every-timestamp`).
 2. **Sweep the whole session.** Read back to the session's start, including any summary of earlier context. List every topic: decisions Andrew made (in his words), drafts sent, files changed, open items with dates, corrections made. Nothing lives only in chat.
 3. **Capture where this repo keeps things.** This repo's own capture or session-log rule decides where. personal-os: session log, THISWEEK, PROGRESS and each domain file (pipeline ledger, eval rows, trackers). No convention in the repo: `docs/session-logs/YYYY-MM-DD-<tool>-<topic>.md`. Save new lessons to the shared memory (`personal-os/docs/agent-memory/`) in the same turn.
-4. **Commit and push this session's work in every repo it touched.** Stage named files only; never sweep other sessions' or untracked work into the commit. After pushing, `git log @{u}..HEAD` must be empty.
-5. **Comprehensive audit, against the files, not memory.** For each item from step 2: it exists where it should (grep or read; count entries so nothing is duplicated); dates and numbers match their source; privacy limits held (no secrets, no private balances, no figures Andrew keeps out of a repo, saju limits); every touched repo is clean and 0 ahead. Fix what fails, then check again.
+4. **Commit and push this session's work in this folder's repo.** Stage named files only; never sweep other sessions' or untracked work into the commit. After pushing, `git log @{u}..HEAD` must be empty.
+5. **Comprehensive audit, against the files, not memory.** For each item from step 2: it exists where it should (grep or read; count entries so nothing is duplicated); dates and numbers match their source; privacy limits held (no secrets, no private balances, no figures Andrew keeps out of a repo, saju limits); this repo is clean and 0 ahead. Fix what fails, then check again.
 6. **Report in one short block:** what was written where (commit hashes), what is still open with its date, anything not done and why.
 
 ## Still gated (ask in one line, never silently)
