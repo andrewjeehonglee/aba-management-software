@@ -1,0 +1,32 @@
+---
+description: When Andrew says he is done for the day, run the full close-out (capture everything, commit and push, comprehensive audit) without being asked again
+alwaysApply: true
+---
+
+# "Done for today" means the full close-out (permanent, every folder)
+
+**Andrew, Tue Nov 17, 2026:** *"When I say I'm done for today, that means the above"*: save and log-capture everything worked on today, nothing slips, commit and push everything, run a comprehensive audit. It applies in every project folder, in Cursor and in Claude Code. He should never have to spell the steps out again.
+
+**Canonical copy:** `personal-os/.cursor/rules/done-for-today-closeout.mdc`. Each of his project repos carries the same file; Claude Code also reads it from `~/.claude/CLAUDE.md`. Change the canonical copy first, then the others.
+
+## Triggers
+
+"I'm done for today", "that's it for today", "done for the day", "call it a day", "wrap up", "close out", "오늘은 여기까지", or anything that plainly ends the working day. Treat it as the full request below, not as a goodbye. If it is unclear whether he means the day or only the current topic, ask in one line.
+
+## Steps, in order
+
+1. **Clock first.** Run `date`; every stamp comes from it (`shell-date-before-every-timestamp`).
+2. **Sweep the whole session.** Read back to the session's start, including any summary of earlier context. List every topic: decisions Andrew made (in his words), drafts sent, files changed, open items with dates, corrections made. Nothing lives only in chat.
+3. **Capture where this repo keeps things.** This repo's own capture or session-log rule decides where. personal-os: session log, THISWEEK, PROGRESS and each domain file (pipeline ledger, eval rows, trackers). No convention in the repo: `docs/session-logs/YYYY-MM-DD-<tool>-<topic>.md`. Save new lessons to the shared memory (`personal-os/docs/agent-memory/`) in the same turn.
+4. **Commit and push this session's work in every repo it touched.** Stage named files only; never sweep other sessions' or untracked work into the commit. After pushing, `git log @{u}..HEAD` must be empty.
+5. **Comprehensive audit, against the files, not memory.** For each item from step 2: it exists where it should (grep or read; count entries so nothing is duplicated); dates and numbers match their source; privacy limits held (no secrets, no private balances, no figures Andrew keeps out of a repo, saju limits); every touched repo is clean and 0 ahead. Fix what fails, then check again.
+6. **Report in one short block:** what was written where (commit hashes), what is still open with its date, anything not done and why.
+
+## Still gated (ask in one line, never silently)
+
+- Pushing commits another session or agent made. saju-gunghap pushes only when Andrew says so (its requirement 26).
+- Deploys, server changes, live runs, spend, secrets.
+- Files this session did not create or change: report them; do not commit, revert or delete them.
+- A decision Andrew has not made: record it as open, never as his call.
+
+Related memories: `nothing-slips-includes-push`, `say-saved-only-after-the-write`, `done-for-today-means-full-closeout`.
