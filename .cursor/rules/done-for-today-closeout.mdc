@@ -9,6 +9,8 @@ alwaysApply: true
 
 **Scope (Andrew, Nov 17): only the folder we are working in.** Saying it in personal-os closes out personal-os, nothing else. Never run the close-out in another folder, even if this session wrote a file there; name that file in the report and leave it for that folder's own session.
 
+**What "today" covers (Andrew, Nov 17): this thread, from its beginning.** He starts each morning with `/clear`, so the thread's start is the day's start. If the thread was not cleared and runs across days, start the sweep at the last close-out recorded in the session log, so nothing is logged twice. Work from other windows or tools is not in the thread and is not swept.
+
 **Canonical copy:** `personal-os/.cursor/rules/done-for-today-closeout.mdc`. Each of his project repos carries the same file; Claude Code also reads it from `~/.claude/CLAUDE.md`. Change the canonical copy first, then the others.
 
 ## Triggers
@@ -18,11 +20,12 @@ alwaysApply: true
 ## Steps, in order
 
 1. **Clock first.** Run `date`; every stamp comes from it (`shell-date-before-every-timestamp`).
-2. **Sweep the whole session.** Read back to the session's start, including any summary of earlier context. List every topic: decisions Andrew made (in his words), drafts sent, files changed, open items with dates, corrections made. Nothing lives only in chat.
+2. **Sweep the whole thread.** Read back to the thread's start (or the last close-out, above). If earlier context was summarized, also read the saved full transcript, not only the summary. List every topic: decisions Andrew made (in his words), drafts sent, files changed, open items with dates, corrections made. Nothing lives only in chat.
 3. **Capture where this repo keeps things.** This repo's own capture or session-log rule decides where. personal-os: session log, THISWEEK, PROGRESS and each domain file (pipeline ledger, eval rows, trackers). No convention in the repo: `docs/session-logs/YYYY-MM-DD-<tool>-<topic>.md`. Save new lessons to the shared memory (`personal-os/docs/agent-memory/`) in the same turn.
 4. **Commit and push this session's work in this folder's repo.** Stage named files only; never sweep other sessions' or untracked work into the commit. After pushing, `git log @{u}..HEAD` must be empty.
 5. **Comprehensive audit, against the files, not memory.** For each item from step 2: it exists where it should (grep or read; count entries so nothing is duplicated); dates and numbers match their source; privacy limits held (no secrets, no private balances, no figures Andrew keeps out of a repo, saju limits); this repo is clean and 0 ahead. Fix what fails, then check again.
-6. **Report in one short block:** what was written where (commit hashes), what is still open with its date, anything not done and why.
+6. **Leftover files.** List untracked and leftover files (e.g. `tmp/`) with sizes in the report. Delete only after Andrew says yes in that turn; untracked deletes cannot be undone. Never delete files another session may still be using.
+7. **Report in one short block:** what was written where (commit hashes), what is still open with its date, files that cannot be committed (e.g. the pipeline canvas outside the repo), anything not done and why.
 
 ## Still gated (ask in one line, never silently)
 
